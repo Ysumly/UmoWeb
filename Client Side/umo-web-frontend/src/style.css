@@ -2820,6 +2820,25 @@ fieldset.admin-field {
   font-size: 9px;
 }
 
+.admin-table__category-name {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 6px;
+}
+
+.admin-table__category-name i {
+  color: var(--faint);
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.admin-table__category-name + small {
+  margin-left: 22px;
+}
+
 .admin-status {
   display: inline-flex;
   border: 1px solid currentColor;

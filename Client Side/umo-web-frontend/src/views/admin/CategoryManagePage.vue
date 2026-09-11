@@ -381,9 +381,10 @@ onBeforeUnmount(() => {
         <tbody>
           <tr v-for="category in categoryRows" :key="category.id">
             <td data-label="分类">
-              <strong :style="{ paddingLeft: `${category.depth * 20}px` }">
-                {{ category.name }}
-              </strong>
+              <span class="admin-table__category-name">
+                <i aria-hidden="true">{{ category.depth ? '└' : '·' }}</i>
+                <strong>{{ category.name }}</strong>
+              </span>
               <small>/{{ category.slug }}</small>
             </td>
             <td data-label="类型">{{ category.type }}</td>

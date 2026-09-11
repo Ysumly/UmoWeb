@@ -62,6 +62,11 @@ test('分类和标签支持完整 CRUD', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/categories')
 
+  const alignedNames = await page.locator('.admin-table__category-name strong').evaluateAll(
+    (elements) => elements.map((element) => element.getBoundingClientRect().x),
+  )
+  expect(Math.max(...alignedNames) - Math.min(...alignedNames)).toBeLessThan(1)
+
   await page.getByRole('button', { name: '新建分类' }).click()
   await page.getByLabel(/^分类名/).fill('E2E 分类')
   await page.getByLabel(/^slug/).fill('e2e-category')
