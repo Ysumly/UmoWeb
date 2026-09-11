@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: UmoWebBackend
+  profiles:
+    default: dev
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  datasource:
+    url: jdbc:mysql://localhost:3306/umo_blog?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: ${DB_USER:root}
+    password: ${DB_PASS:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:sk-dummy-placeholder}
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.ysumly.umowebbackend.model.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+app:
+  storage-path: ./data
+  security:
+    allow-default-credentials: false
+    trusted-proxies: ${TRUSTED_PROXIES:}
+    login-max-failures: 5
+    login-window-seconds: 900
+    search-rate-limit-seconds: 10
+  jwt:
+    secret: ${JWT_SECRET:change-me-in-production-this-is-a-default-only}
+    expiration-hours: 24
+  init:
+    admin-username: ${INIT_ADMIN_USER:admin}
+    admin-password: ${INIT_ADMIN_PASS:admin123}

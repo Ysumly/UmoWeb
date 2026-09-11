@@ -1,8 +1,8 @@
 -- ============================================================
 -- UmoWeb 个人博客系统 — 数据库建表脚本
--- 版本: 1.0 | 日期: 2026-06-26
+-- 版本: 1.1 | 日期: 2026-09-11
 -- 对应文档: docs/design/architecture-design.md
--- 当前结构刻意未声明外键；关联完整性由 Service 手动维护。
+-- 外键与级联策略由数据库约束兜底，Service 仍负责返回可读的 409。
 -- 管理员账号不在本脚本中预置，由后端 DataInitializer 在 users 为空时创建。
 -- ============================================================
 
@@ -19,6 +19,7 @@ CREATE TABLE users (
     id            BIGINT AUTO_INCREMENT PRIMARY KEY,
     username      VARCHAR(50)  NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    token_version INT          NOT NULL DEFAULT 1,
     created_at    DATETIME     NOT NULL DEFAULT NOW(),
     updated_at    DATETIME     NOT NULL DEFAULT NOW() ON UPDATE NOW()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -36,7 +37,10 @@ CREATE TABLE categories (
     created_at DATETIME     NOT NULL DEFAULT NOW(),
     updated_at DATETIME     NOT NULL DEFAULT NOW() ON UPDATE NOW(),
     INDEX idx_parent_id (parent_id),
-    INDEX idx_type (type)
+    INDEX idx_type (type),
+    CONSTRAINT fk_categories_parent
+        FOREIGN KEY (parent_id) REFERENCES categories(id)
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------
@@ -66,7 +70,8 @@ CREATE TABLE contents (
     published_at DATETIME      NULL COMMENT '首次发布时间',
     INDEX idx_type (type),
     INDEX idx_status (status),
-    INDEX idx_type_status (type, status)
+    INDEX idx_type_status (type, status),
+    INDEX idx_published_at (published_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------
@@ -75,7 +80,14 @@ CREATE TABLE contents (
 CREATE TABLE content_category (
     content_id  BIGINT NOT NULL,
     category_id BIGINT NOT NULL,
-    UNIQUE KEY uk_content_category (content_id, category_id)
+    UNIQUE KEY uk_content_category (content_id, category_id),
+    INDEX idx_content_category_category_id (category_id),
+    CONSTRAINT fk_content_category_content
+        FOREIGN KEY (content_id) REFERENCES contents(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_content_category_category
+        FOREIGN KEY (category_id) REFERENCES categories(id)
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------
@@ -84,7 +96,14 @@ CREATE TABLE content_category (
 CREATE TABLE content_tag (
     content_id BIGINT NOT NULL,
     tag_id     BIGINT NOT NULL,
-    UNIQUE KEY uk_content_tag (content_id, tag_id)
+    UNIQUE KEY uk_content_tag (content_id, tag_id),
+    INDEX idx_content_tag_tag_id (tag_id),
+    CONSTRAINT fk_content_tag_content
+        FOREIGN KEY (content_id) REFERENCES contents(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_content_tag_tag
+        FOREIGN KEY (tag_id) REFERENCES tags(id)
+        ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------

@@ -1,0 +1,21 @@
+import client from './client'
+
+export const login           = (data) => client.post('/admin/login', data)
+export const changePassword  = (data) => client.put('/admin/change-password', data)
+export const getAdminContents= (p)    => client.get('/admin/contents', { params: p })
+export const getAdminContent = (id)   => client.get(`/admin/contents/${id}`)
+export const createContent   = (data) => client.post('/admin/contents', data)
+export const updateContent   = (id,d) => client.put(`/admin/contents/${id}`, d)
+export const deleteContent   = (id)   => client.delete(`/admin/contents/${id}`)
+export const getAdminCats    = (type) => client.get('/admin/categories', { params: type ? { type } : {} })
+export const getAdminCat     = (id)   => client.get(`/admin/categories/${id}`)
+export const createCategory  = (data) => client.post('/admin/categories', data)
+export const updateCategory  = (id,d) => client.put(`/admin/categories/${id}`, d)
+export const deleteCategory  = (id)   => client.delete(`/admin/categories/${id}`)
+export const listAdminTags   = ()     => client.get('/admin/tags')
+export const createTag       = (data) => client.post('/admin/tags', data)
+export const updateTag       = (id,d) => client.put(`/admin/tags/${id}`, d)
+export const deleteTag       = (id)   => client.delete(`/admin/tags/${id}`)
+export const uploadImage     = (file) => { const fd = new FormData(); fd.append('file', file); return client.post('/admin/images/upload', fd) }
+export const getOptions      = ()     => client.get('/admin/options')
+export const updateOption    = (k,v)  => client.put(`/admin/options/${k}`, { value: v })

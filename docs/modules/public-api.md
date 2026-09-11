@@ -1,6 +1,6 @@
 # 公开端 API 实现
 
-> 基线日期: 2026-09-10
+> 基线日期: 2026-09-11
 > 前缀: `/api/public`
 > 接口数: 8
 
@@ -120,7 +120,8 @@ ContentMapper.findBySlug(slug)
 -> FileUtil.readMarkdown(bodyPath)
 ```
 
-当前实现没有查询分类和标签，因此详情 VO 的 `categories`、`tags` 为 `null`。资源不存在时抛 `NotFoundException`。文件不存在或读取失败时，`body` 设置为空字符串，接口仍返回 200。
+详情与列表使用同一个 `ContentVOMapper`，分类和标签按 contentIds 批量查询后组装为数组。
+资源不存在时抛 `NotFoundException`。文件不存在或读取失败时，`body` 设置为空字符串，接口仍返回 200。
 
 #### search
 
@@ -131,7 +132,8 @@ ContentMapper.countSearch(q)
 
 SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 
-搜索限流由 `RateLimitInterceptor` 在进入 Controller 前执行。
+搜索限流由 `RateLimitInterceptor` 在进入 Controller 前执行。默认只信任 `remoteAddr`；
+仅当直连地址在 `app.security.trusted-proxies` 中时才读取 `X-Forwarded-For`。过期记录会定期清理。
 
 ### 3.3 CategoryService
 
@@ -153,9 +155,9 @@ SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
-| `page` | 1 | 无边界校验 |
-| `size` | 10 | 无边界校验 |
-| `type` | null | 精确匹配 |
+| `page` | 1 | 必须 >= 1 |
+| `size` | 10 | 1-100 |
+| `type` | null | 枚举，非法值 400 |
 | `categoryId` | null | 精确匹配，不含子分类 |
 | `tagId` | null | 精确匹配 |
 | `sort` | `published_at_desc` | 只有 `created_at_desc` 是特殊分支 |
@@ -167,8 +169,8 @@ SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 | 参数 | 默认值 | 说明 |
 |---|---|---|
 | `q` | null -> `""` | title/summary 模糊匹配 |
-| `page` | 1 | 无边界校验 |
-| `size` | 10 | 无边界校验 |
+| `page` | 1 | 必须 >= 1 |
+| `size` | 10 | 1-100 |
 
 ---
 
@@ -198,7 +200,7 @@ SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 - 列表无参数返回 200。
 - 搜索无参数返回 200。
 - 详情不存在返回 404。
-- 详情分类/标签为 null 的当前行为尚未覆盖断言。
+- 详情分类/标签数组已由 MockMvc 断言覆盖。
 - 空分类和标签返回 `[]`。
 - `type` 过滤调用路径。
 
@@ -207,4 +209,4 @@ SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 - 真实 Mapper SQL。
 - 分类子分类筛选语义。
 - Markdown 文件读取或损坏场景。
-- 搜索限流拦截器。
+- 搜索限流拦截器和可信代理行为已由单元测试覆盖。

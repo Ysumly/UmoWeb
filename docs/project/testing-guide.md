@@ -1,6 +1,6 @@
 # UmoWeb 接口与构建测试指南
 
-> 基线日期: 2026-09-10
+> 基线日期: 2026-09-11
 > 接口数: 公开 8 个，管理 19 个，共 27 个
 > 关键约定: 正常响应没有 `{ code, data }` 包装层
 
@@ -26,14 +26,15 @@
 ```powershell
 $env:DB_USER = "root"
 $env:DB_PASS = "<本机 MySQL 密码>"
-$env:JWT_SECRET = "<至少 32 字符的本地 secret>"
 ```
 
-可选：
+开发默认 profile 为 `dev`，允许项目自带默认 JWT/管理员值以便本地启动。生产必须：
 
 ```powershell
-$env:INIT_ADMIN_USER = "admin"
-$env:INIT_ADMIN_PASS = "admin123"
+$env:SPRING_PROFILES_ACTIVE = "prod"
+$env:JWT_SECRET = "<至少 32 字符的独立 secret>"
+$env:INIT_ADMIN_USER = "<管理员用户名>"
+$env:INIT_ADMIN_PASS = "<强管理员密码>"
 ```
 
 ### 1.3 数据库
@@ -60,7 +61,7 @@ mvn spring-boot:run
 
 项目自带 `mvnw.cmd`，但当前 Windows/PowerShell 环境的 wrapper 启动曾失败；优先使用系统 `mvn`。
 
-`users` 表为空时，后端会根据 `app.init.*` 自动创建管理员，默认：
+开发环境 `users` 表为空时，后端会根据 `app.init.*` 自动创建管理员，默认：
 
 ```text
 username: admin
@@ -90,19 +91,23 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前 `BoundaryTest` 有 20 个 MockMvc 测试，不连接 MySQL。`UmoWebBackendApplicationTests` 只是一条空测试，不会加载完整 Spring Context。
+当前完整测试共 64 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+拦截器、登录限流和安全配置测试。MockMvc 边界测试不连接 MySQL；
+`UmoWebBackendApplicationTests` 仍是一条空测试，不会加载完整 Spring Context。
 
 ### 2.2 前端
 
 ```powershell
 cd "Client Side\umo-web-frontend"
 npm run build
+npm run test:router
 ```
 
-2026-09-10 已验证：
+2026-09-11 已验证：
 
-- 后端 21 个测试全部通过，其中 20 个是 `BoundaryTest`，1 个是占位测试。
+- 后端完整测试通过。
 - Vite 8.1.0 前端生产构建成功。
+- 前端公开路由、404、登录页和受保护路由守卫测试通过。
 
 ---
 
@@ -245,7 +250,8 @@ GET {{baseUrl}}/api/public/contents/no-such-slug
 }
 ```
 
-存在时预期 200，并包含 `body`。当前实现不会组装详情分类和标签，因此 `categories`、`tags` 为 `null`。如果 Markdown 文件缺失，仍返回 200，但 `body` 为 `""`。
+存在时预期 200，并包含 `body`、`categories` 和 `tags` 数组。如果 Markdown 文件缺失，
+仍返回 200，但 `body` 为 `""`。
 
 ### 4.8 搜索
 
@@ -267,6 +273,9 @@ GET {{baseUrl}}/api/public/contents/search?q=java&page=1&size=10
 1. 第一次请求预期 200。
 2. 10 秒内再次请求预期 429。
 3. 响应消息形如 `Too many requests. Please wait N seconds.`。
+
+不要用伪造 `X-Forwarded-For` 绕过限流；默认只有 `remoteAddr` 参与限流，
+直连地址还需出现在 `TRUSTED_PROXIES` 中才读取转发头。
 
 ---
 
@@ -294,6 +303,8 @@ Content-Type: application/json
   "expiresAt": "2026-09-11T10:00:00"
 }
 ```
+
+同一用户名/IP 连续失败 5 次后，后续登录在 15 分钟窗口内预期 429。
 
 ### 5.2 无 JWT 拦截
 
@@ -323,7 +334,7 @@ PUT {{baseUrl}}/api/admin/change-password
 }
 ```
 
-预期 204。
+预期 204。旧 token 在修改密码后再次访问管理端预期 401。
 
 ---
 
@@ -419,7 +430,7 @@ GET {{baseUrl}}/api/admin/contents/1
 PUT {{baseUrl}}/api/admin/contents/1
 ```
 
-请求体同新建。修改 slug 后会移动 Markdown 文件。预期 200。
+请求体同新建。修改 slug 后会写临时文件、数据库成功后原子替换，并在提交后清理旧文件。预期 200。
 
 ### 6.8 删除文章
 
@@ -440,7 +451,7 @@ POST {{baseUrl}}/api/admin/images/upload
 Content-Type: multipart/form-data
 ```
 
-`file` 选择 png/jpg/gif/webp。
+`file` 选择 png/jpg/gif/webp，且文件内容签名必须与 MIME 匹配。
 
 预期 200：
 
@@ -453,7 +464,7 @@ Content-Type: multipart/form-data
 }
 ```
 
-上传文本文件预期 400。超过 50MB 预期 413。
+上传文本文件、伪造 `Content-Type` 或伪造扩展名预期 400。超过 50MB 预期 413。
 
 ### 7.2 查询配置
 
@@ -487,7 +498,7 @@ PUT {{baseUrl}}/api/admin/options/site_title
 
 ### 8.2 分类/标签删除保护
 
-文档目标是有关联内容时返回 409，但当前实现查询方向错误，不能可靠拦截。测试当前版本时不要把这个作为可靠回归条件。
+有关联内容时返回 409；删除仍有子分类的父分类也返回 409。
 
 ### 8.3 分类筛选
 
@@ -503,10 +514,11 @@ categoryId=父分类 ID
 
 ### 8.5 分页边界
 
-`page` 和 `size` 没有校验。当前不应假设 `page=0`、`size=0` 或负值会被安全处理。
+`page < 1`、`size < 1` 或 `size > 100` 返回 400；非法 `type/status` 和 metadata 同样返回 400。
 
 ### 8.6 文件失败
 
-Markdown 文件缺失时详情返回 200 和空 body。文章更新在文件移动过程中也没有跨数据库事务的一致性。
+Markdown 文件缺失时详情返回 200 和空 body。文章创建/更新使用临时文件；
+数据库失败会保留或恢复旧状态，数据库提交后的文件清理失败会记录日志并保留可恢复孤儿文件。
 
 完整风险见 [audit-log.md](audit-log.md)。

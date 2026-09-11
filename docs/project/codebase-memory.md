@@ -1,6 +1,6 @@
 # UmoWeb 代码基线记忆
 
-> 基线日期: 2026-09-10
+> 基线日期: 2026-09-11
 > 范围: 当前工作区中的前端、后端、数据库脚本和文档
 > 原则: 代码行为优先；计划能力与已实现能力必须分开记录
 
@@ -25,7 +25,9 @@ UmoWeb/
 └── .superpowers/
 ```
 
-后端主源码为 80 个文件，前端 `src` 为 24 个文件。仓库当前只追踪少量文档；大量源码和文档仍是未提交状态。
+后端主源码为 80 个 Java 文件，前端 `src` 包含 25 个源码/测试文件。
+本次修复会把必要的前后端源码、配置和测试纳入 Git；`Downloads/`、`.superpowers/`、
+`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
 ---
 
@@ -45,7 +47,7 @@ UmoWeb/
 | JWT | JJWT 0.12.6，默认 24 小时 |
 | 密码 | `spring-security-crypto` + BCrypt |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、MyBatis Test、20 个 MockMvc 边界测试 |
+| 测试 | Spring Boot Test、Mockito、MockMvc；64 个测试 |
 
 ### 2.2 前端
 
@@ -207,15 +209,15 @@ HTTP 状态与返回：
 
 ### 4.4 查询语义
 
-- `page` 默认 1，`size` 默认 10，当前没有范围校验。
+- `page` 默认 1 且必须 >= 1；`size` 默认 10 且限制为 1-100。
 - `sort` 仅当值严格等于 `created_at_desc` 时按创建时间倒序；其他值都按 `published_at DESC`。
 - 公开列表和详情只处理 `status=PUBLISHED`。
 - `categoryId` 使用 `EXISTS` 精确匹配关联分类，不包含子分类。
 - `tagId` 精确匹配标签。
 - 搜索 SQL 为 `title LIKE` 或 `summary LIKE`，不检索 Markdown 正文。
 - `q` 为空或未传时，搜索等价于匹配全部已发布内容。
-- 搜索同 IP 10 秒内只允许一次，内存计数，重启后清空。
-- 公开文章列表会组装 `categories` 和 `tags`；公开详情当前不会，序列化结果为 `null`。
+- 搜索同 IP 10 秒内只允许一次；仅信任显式配置的代理，记录定期清理。
+- 公开文章列表和详情都组装 `categories` 和 `tags`，使用共享 `ContentVOMapper` 按 contentIds 批量查询。
 
 ### 4.5 内容与文件
 
@@ -227,7 +229,8 @@ HTTP 状态与返回：
 | `BOOK_REVIEW` | `contents/BOOK_REVIEW/{slug}.md` |
 | `NOVEL` | `contents/NOVEL/{bookSlug}/{slug}.md` |
 
-当前 `NOVEL` 的 `bookSlug` 取自 `categoryIds` 的第一个分类 slug，不校验该分类是否为书级分类。未传分类时使用空字符串。
+当前 `NOVEL` 的 `bookSlug` 取自 `categoryIds` 的第一个分类 slug，并要求该分类存在且
+`type=NOVEL`；未传有效分类时返回 400。
 
 图片保存在：
 
@@ -235,14 +238,25 @@ HTTP 状态与返回：
 images/{YYYY}/{MM}/{uuid}.{ext}
 ```
 
-上传校验 MIME 为 `image/jpeg`、`image/png`、`image/gif`、`image/webp`，Spring Multipart 限制单文件和请求均为 50MB。
+上传同时校验 MIME 和文件签名，并只根据 MIME 映射固定扩展名。原始文件名只作为安全化后的展示元信息。
+Spring Multipart 限制单文件和请求均为 50MB。
+
+文章文件一致性：
+
+- 创建拒绝重复 slug 和已存在文件，使用同目录临时文件且最终移动不覆盖。
+- 更新先备份同路径旧文件，数据库成功后原子替换；路径变化在提交后删除旧文件。
+- 数据库回滚时恢复旧内容或删除新文件；提交后清理失败会记录日志。
+- 删除先提交数据库，再清理 Markdown；数据库失败不会丢文件。
 
 ### 4.6 认证与初始化
 
 - `AdminInterceptor` 拦截 `/api/admin/**`，排除 `/api/admin/login`。
-- JWT 放在 `Authorization: Bearer <token>`。
+- JWT 放在 `Authorization: Bearer <token>`，包含 `ver` tokenVersion。
 - JWT secret 经 SHA-256 后作为 HMAC key。
 - `DataInitializer` 在 `users` 表为空时创建管理员，默认 `admin/admin123`。
+- 默认 profile 为 `dev` 且明确允许默认凭据；`prod` 下默认 JWT secret 或管理员密码会阻止启动。
+- 修改密码递增 `users.token_version`，旧 token 立即失效。
+- 登录按 username + client IP 在 15 分钟窗口内限制 5 次失败。
 - CORS 只允许 `http://localhost:5173`。
 
 ---
@@ -262,7 +276,11 @@ images/{YYYY}/{MM}/{uuid}.{ext}
 | `images` | 图片元信息 |
 | `site_options` | 站点 KV 配置 |
 
-当前 SQL 没有外键约束，也没有级联删除；关联清理由 Service 手动完成。
+当前 SQL 含必要索引和外键：
+
+- 内容关联的分类/标签外键使用 `ON DELETE RESTRICT`，内容外键使用 `ON DELETE CASCADE`。
+- `categories.parent_id` 使用自引用 `RESTRICT`。
+- 旧库通过 `docs/design/migrations/20260911_integrity_security.sql` 兼容迁移。
 
 ---
 
@@ -271,6 +289,7 @@ images/{YYYY}/{MM}/{uuid}.{ext}
 ### 6.1 已实现
 
 - 路由表和管理端 Token 守卫。
+- 公开路由、登录页和 404 仅在 `requiresAuth === true` 时校验 token。
 - Axios 实例、JWT 注入、401 清理 token 并跳转登录页。
 - 公开 API 封装和管理 API 封装。
 - Pinia `auth` store。
@@ -285,7 +304,8 @@ images/{YYYY}/{MM}/{uuid}.{ext}
 - 管理端文章列表、文章编辑、分类管理、标签管理、站点设置。
 - Markdown 渲染和语法高亮尚未接入页面。
 - 图片上传函数已封装，但编辑器尚未实现拖入/粘贴流程。
-- 修改密码 API 函数、页面和入口缺失。
+- 修改密码 API 函数已补充；页面和入口仍缺失。
+- 管理端路径由 `VITE_ADMIN_PATH` 控制，默认 `/secret-admin`，不再依赖后端 `app.admin-path`。
 - `site` store 只有 `fetch()`，没有文档曾提到的 `fetchSiteInfo()`。
 - 当前不存在 `AppHeader`、`AppFooter`、`ContentForm`、`MarkdownRenderer` 等公共组件。
 
@@ -297,24 +317,23 @@ images/{YYYY}/{MM}/{uuid}.{ext}
 
 ### 7.1 当前测试覆盖
 
-- `BoundaryTest` 使用独立 MockMvc 和 Mock Service，共 20 个用例。
-- 覆盖参数错误、404、401、409 和部分接口状态码。
+- `BoundaryTest` 使用独立 MockMvc 和 Mock Service，覆盖参数错误、404、401、409 和接口状态码。
+- 新增文件路径/事务、上传签名、JWT/tokenVersion、登录限流、可信代理、VO 批量组装和安全配置测试。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
-- 没有真实 MySQL、文件系统、拦截器或前端自动化集成测试。
+- 当前没有真实 MySQL 集成测试；前端路由使用 Node 内置测试覆盖，未做浏览器 E2E。
 
 ### 7.2 当前代码风险
 
 | 级别 | 位置 | 事实 |
 |---|---|---|
-| 高 | `CategoryManageServiceImpl.delete` | 使用 `findCategoryIdsByContentId(categoryId)` 检查关联，查询方向错误，删除保护不能按设计工作。 |
-| 高 | `TagManageServiceImpl.delete` | 同样把标签 ID 当作内容 ID 查询关联，删除保护不能按设计工作。 |
-| 中 | `ContentServiceImpl.getBySlug` | 公开详情没有组装分类和标签，`categories`、`tags` 返回 `null`。 |
-| 中 | `ContentManageServiceImpl.update` | 先删除旧 Markdown 再写新文件，文件系统与数据库事务不具原子性。 |
-| 中 | `ContentManageServiceImpl.resolveBookSlug` | 小说书级目录来自第一个分类 ID，缺少分类层级校验。 |
-| 中 | `ContentQuery` | `page`/`size` 没有边界校验，异常值可能造成 SQL 错误或异常分页。 |
-| 中 | `RateLimitInterceptor` | IP 记录只增不减，且无条件信任 `X-Forwarded-For`。 |
-| 中 | 数据库 | 无外键和级联约束，Service 漏操作会留下孤儿数据。 |
-| 低 | `app.admin-path` | 配置存在，但前后端路由均未读取，管理入口实际硬编码。 |
+| 已修复 | 分类/标签删除 | 按 categoryId/tagId 统计关联，并阻止删除有子分类的父分类。 |
+| 已修复 | 公开详情 | `categories`、`tags` 返回数组。 |
+| 已修复 | 文件事务 | 创建、更新、删除采用临时文件、回滚恢复和提交后清理策略。 |
+| 已修复 | 路径与上传 | slug/path normalize、MIME+签名、固定扩展名。 |
+| 已修复 | 分页与输入 | page/size、枚举、metadata、长度和 slug 校验。 |
+| 已修复 | 限流 | 可信代理、原子窗口更新、过期清理。 |
+| 已修复 | 数据库完整性 | 外键、级联策略和兼容迁移脚本。 |
+| 已修复 | 管理路径 | 前端 `VITE_ADMIN_PATH`，后端移除未使用配置。 |
 | 低 | 爬虫控制 | `index.html` 有 `noindex`，但没有 `public/robots.txt`。 |
 
 ---

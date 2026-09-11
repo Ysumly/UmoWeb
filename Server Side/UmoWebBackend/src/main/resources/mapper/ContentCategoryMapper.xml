@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ysumly.umowebbackend.mapper.ContentCategoryMapper">
+
+    <insert id="insert">
+        INSERT INTO content_category (content_id, category_id)
+        VALUES (#{contentId}, #{categoryId})
+    </insert>
+
+    <delete id="deleteByContentId">
+        DELETE FROM content_category WHERE content_id = #{contentId}
+    </delete>
+
+    <select id="findCategoryIdsByContentId" resultType="long">
+        SELECT category_id FROM content_category WHERE content_id = #{contentId}
+    </select>
+
+    <select id="findLinksByContentIds" resultType="ContentCategoryLink">
+        SELECT content_id, category_id
+        FROM content_category
+        WHERE content_id IN
+        <foreach collection="contentIds" item="contentId" open="(" separator="," close=")">
+            #{contentId}
+        </foreach>
+        ORDER BY content_id, category_id
+    </select>
+
+    <select id="countContentsByCategoryId" resultType="long">
+        SELECT COUNT(*)
+        FROM content_category
+        WHERE category_id = #{categoryId}
+    </select>
+
+</mapper>

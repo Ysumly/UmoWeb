@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ysumly.umowebbackend.mapper.SiteOptionMapper">
+
+    <select id="findAll" resultType="SiteOption">
+        SELECT id, option_key, option_value, created_at, updated_at
+        FROM site_options
+    </select>
+
+    <select id="findByKey" resultType="SiteOption">
+        SELECT id, option_key, option_value, created_at, updated_at
+        FROM site_options
+        WHERE option_key = #{optionKey}
+    </select>
+
+    <insert id="upsert">
+        INSERT INTO site_options (option_key, option_value)
+        VALUES (#{key}, #{value})
+        ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)
+    </insert>
+
+</mapper>

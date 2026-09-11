@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ysumly.umowebbackend.mapper.TagMapper">
+
+    <select id="findAll" resultType="Tag">
+        SELECT id, name, slug, created_at
+        FROM tags
+        ORDER BY id ASC
+    </select>
+
+    <select id="findById" resultType="Tag">
+        SELECT id, name, slug, created_at
+        FROM tags
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tags (name, slug) VALUES (#{name}, #{slug})
+    </insert>
+
+    <update id="update">
+        UPDATE tags SET name = #{name}, slug = #{slug} WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM tags WHERE id = #{id}
+    </delete>
+
+    <select id="findByIds" resultType="Tag">
+        SELECT id, name, slug, created_at
+        FROM tags
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="findByContentId" resultType="Tag">
+        SELECT t.id, t.name, t.slug, t.created_at
+        FROM tags t
+        JOIN content_tag ct ON t.id = ct.tag_id
+        WHERE ct.content_id = #{contentId}
+    </select>
+
+</mapper>

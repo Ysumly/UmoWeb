@@ -1,6 +1,6 @@
 # Data 层实现
 
-> 基线日期: 2026-09-10
+> 基线日期: 2026-09-11
 > 路径: `model/`、`mapper/`、`resources/mapper/`
 
 ---
@@ -10,8 +10,8 @@
 | 类别 | 数量 |
 |---|---:|
 | Entity | 6 |
-| DTO | 8 |
-| VO | 6 |
+| DTO | 10 |
+| VO | 7 |
 | Mapper 接口 | 8 |
 | Mapper XML | 8 |
 
@@ -25,6 +25,7 @@
 Long id;
 String username;
 String passwordHash;
+Integer tokenVersion;
 LocalDateTime createdAt;
 LocalDateTime updatedAt;
 ```
@@ -108,20 +109,23 @@ LocalDateTime updatedAt;
 |---|---|---|
 | `LoginRequest` | `username`、`password` | 两者 `@NotBlank` |
 | `ChangePasswordRequest` | `oldPassword`、`newPassword` | 均必填，新密码至少 6 位 |
-| `ContentSaveRequest` | `title`、`slug`、`body`、`summary`、`type`、`status`、`categoryIds`、`tagIds`、`metadata` | `title`、`slug`、`type` 必填 |
-| `ContentQuery` | `page`、`size`、`type`、`categoryId`、`tagId`、`status`、`sort`、`q` | 无约束注解 |
-| `CategorySaveRequest` | `name`、`slug`、`parentId`、`type`、`sortOrder` | `name`、`slug` 必填 |
-| `TagSaveRequest` | `name`、`slug` | 两者必填 |
+| `ContentSaveRequest` | `title`、`slug`、`body`、`summary`、`type`、`status`、`categoryIds`、`tagIds`、`metadata` | 必填、长度、安全 slug、枚举和 JSON 对象校验 |
+| `ContentQuery` | `page`、`size`、`type`、`categoryId`、`tagId`、`status`、`sort`、`q` | page >= 1，size 1-100，type/status 枚举，q <= 200 |
+| `CategorySaveRequest` | `name`、`slug`、`parentId`、`type`、`sortOrder` | 必填、长度、安全 slug、类型枚举 |
+| `TagSaveRequest` | `name`、`slug` | 必填、长度、安全 slug |
 | `OptionSaveRequest` | `value` | 必填 |
 | `PageResult<T>` | `items`、`page`、`size`、`total` | 分页包装 |
 
-`ContentQuery.getOffset()` 当前直接计算：
+`ContentQuery.getOffset()` 在合法输入下计算：
 
 ```java
 (page - 1) * size
 ```
 
-没有防止 `page <= 0` 或 `size <= 0`。
+Controller 的 `@Valid` 会在进入 Service 前拒绝非法 page/size。
+
+`ContentCategoryLink`、`ContentTagLink` 是批量关联查询的轻量 DTO，分别携带
+`contentId/categoryId` 和 `contentId/tagId`。
 
 ---
 
@@ -132,6 +136,7 @@ LocalDateTime updatedAt;
 | `ContentListVO` | `id`、`title`、`slug`、`summary`、`type`、`categories`、`tags`、`metadata`、`publishedAt` |
 | `ContentDetailVO` | 继承列表 VO，增加 `body` |
 | `CategoryTreeVO` | `id`、`name`、`slug`、`type`、`children` |
+| `CategoryVO` | `id`、`name`、`slug`、`parentId`、`type`、`sortOrder` |
 | `TagVO` | `id`、`name`、`slug` |
 | `ImageVO` | `id`、`url`、`originalName`、`size` |
 | `SiteInfoVO` | `siteTitle`、`siteSubtitle`、`aboutHtml`、`projectHtml` |
@@ -161,6 +166,7 @@ void insert(Category category);
 void update(Category category);
 void delete(Long id);
 List<Category> findByIds(List<Long> ids);
+long countChildren(Long parentId);
 ```
 
 ### 5.3 TagMapper
@@ -184,6 +190,7 @@ Content findBySlug(String slug);
 List<Content> findAll(ContentQuery query);
 long countAll(ContentQuery query);
 Content findById(Long id);
+long countBySlug(String slug, Long excludeId);
 void insert(Content content);
 void update(Content content);
 void delete(Long id);
@@ -197,6 +204,8 @@ long countSearch(String q);
 void insert(Long contentId, Long categoryId);
 void deleteByContentId(Long contentId);
 List<Long> findCategoryIdsByContentId(Long contentId);
+List<ContentCategoryLink> findLinksByContentIds(List<Long> contentIds);
+long countContentsByCategoryId(Long categoryId);
 ```
 
 ### 5.6 ContentTagMapper
@@ -205,6 +214,8 @@ List<Long> findCategoryIdsByContentId(Long contentId);
 void insert(Long contentId, Long tagId);
 void deleteByContentId(Long contentId);
 List<Long> findTagIdsByContentId(Long contentId);
+List<ContentTagLink> findLinksByContentIds(List<Long> contentIds);
+long countContentsByTagId(Long tagId);
 ```
 
 ### 5.7 ImageMapper
@@ -296,45 +307,58 @@ ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)
 
 ## 7. 关联删除
 
-当前 Mapper 只提供：
+内容更新和删除仍按 `contentId` 清理关联：
 
 ```java
 deleteByContentId(contentId)
 ```
 
-没有提供 `deleteByCategoryId` 或 `deleteByTagId`。管理端文章更新和文章删除会调用它们，但分类和标签删除保护错误地复用了按内容 ID 查询的方法。
-
-### 7.1 已知缺陷
-
-`CategoryManageServiceImpl.delete(id)`：
+分类和标签删除不删除关联，而是分别通过：
 
 ```java
-contentCategoryMapper.findCategoryIdsByContentId(id)
+countContentsByCategoryId(categoryId)
+countContentsByTagId(tagId)
 ```
 
-这里传入分类 ID，语义应为查询内容 ID，结果不能证明该分类是否被内容引用。
+有关联时返回 409。`CategoryMapper.countChildren(parentId)` 阻止删除仍有子分类的父分类。
 
-`TagManageServiceImpl.delete(id)`：
+### 7.1 批量关联查询
 
-```java
-contentTagMapper.findTagIdsByContentId(id)
+`findLinksByContentIds(contentIds)` 一次查询多篇文章的分类/标签映射。
+`ContentVOMapper` 每个列表请求固定执行：
+
+```text
+1 次 content_category 批量查询
+1 次 content_tag 批量查询
+1 次 categories findByIds
+1 次 tags findByIds
 ```
 
-存在同样问题。
+查询次数不随文章数量增加；`ObjectMapper` 也由共享组件单例注入。
 
 ### 7.2 数据库约束
 
-`schema.sql` 没有定义外键。删除顺序完全依赖 Service，缺少数据库级完整性保护。
+`schema.sql` 已加入：
+
+- `content_category.category_id` 索引和双向外键。
+- `content_tag.tag_id` 索引和双向外键。
+- `contents.published_at` 索引。
+- `categories.parent_id` 自引用外键。
+
+其中内容外键使用 `ON DELETE CASCADE`，分类和标签外键使用 `ON DELETE RESTRICT`。
+已有数据库使用 `docs/design/migrations/20260911_integrity_security.sql` 先清理孤儿行、再补列、
+索引和外键。`users.token_version` 也由该脚本兼容添加。
 
 ---
 
 ## 8. 测试现状
 
-当前边界测试主要 Mock Service，没有使用真实 Mapper 或 MySQL：
+单元测试覆盖路径、文件事务、JWT、限流、VO 批量组装和上传签名；Controller 边界测试仍 Mock Service，
+没有使用真实 Mapper 或 MySQL：
 
 - 没有 Entity 与 Schema 的自动一致性测试。
 - 没有 Mapper XML 集成测试。
-- 没有多对多关联事务测试。
+- 没有真实 MySQL 多对多关联事务测试。
 - 没有 SQL 注入和分页边界测试。
 
 构建和测试命令见 [codebase-memory.md](../project/codebase-memory.md)。

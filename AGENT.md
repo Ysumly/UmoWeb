@@ -34,11 +34,11 @@
 - API 共 27 个：公开端 8 个，管理端 19 个（含修改密码）。
 - 管理端新建资源统一返回 HTTP 200，不返回 201；删除和配置更新返回 204。
 - 公开内容只返回 `PUBLISHED`；管理端列表可查全部状态。
-- 搜索只匹配 `title` 和 `summary`，不搜索 Markdown 正文；限流为同 IP 10 秒 1 次。
+- 搜索只匹配 `title` 和 `summary`，不搜索 Markdown 正文；限流为同 IP 10 秒 1 次，并仅信任显式配置的代理。
 - `categoryId` 只精确匹配该分类，不自动包含子分类。
-- Markdown 正文保存在 `app.storage-path`，数据库只存 `body_path`；图片限制 50MB。
-- 管理端路径在前端硬编码为 `/secret-admin`，`app.admin-path` 当前未被代码使用。
-- 后端测试目前是 20 个独立 MockMvc 边界测试，没有真实 MySQL 集成测试。
+- Markdown 正文保存在 `app.storage-path`，数据库只存 `body_path`；创建/更新使用临时文件和回滚恢复策略，图片限制 50MB。
+- 管理端前端路径由 `VITE_ADMIN_PATH` 控制，默认 `/secret-admin`。
+- 后端当前有 64 个单元/边界测试，没有真实 MySQL 集成测试。
 - 前端登录页和管理布局已实现，其余业务页面基本仍是占位页。
 
 ## 常用命令

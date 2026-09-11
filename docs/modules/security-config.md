@@ -1,6 +1,6 @@
 # 安全与配置实现
 
-> 基线日期: 2026-09-10
+> 基线日期: 2026-09-11
 > 路径: `config/`、`common/util/JwtUtil.java`
 
 ---
@@ -13,6 +13,9 @@
 | `SecurityConfig` | BCrypt PasswordEncoder Bean |
 | `AdminInterceptor` | 管理端 JWT 校验 |
 | `RateLimitInterceptor` | 搜索接口内存限流 |
+| `LoginAttemptService` | 登录失败次数保护 |
+| `ClientIpResolver` | 可信代理和客户端 IP 解析 |
+| `SecurityConfigValidator` | 生产默认凭据启动校验 |
 | `DataInitializer` | 首次启动创建管理员 |
 
 ---
@@ -35,9 +38,10 @@
 
 1. 读取 `Authorization`。
 2. 检查前缀是否为 `Bearer `。
-3. 校验 JWT 是否有效。
-4. 解析 username。
-5. 写入 request attribute `adminUsername`。
+3. 校验 JWT 签名和过期时间。
+4. 解析 username 和 `ver` tokenVersion。
+5. 查询当前用户并比较 tokenVersion；不匹配时返回 401。
+6. 写入 request attribute `adminUsername`。
 
 任何缺失或无效 token 都抛 `UnauthorizedException`，由全局异常处理返回 401。
 
@@ -55,14 +59,21 @@
 
 - `ConcurrentHashMap<String, Long>` 保存 IP 到上次请求时间。
 - 窗口固定 10 秒。
+- 使用 `compute` 原子检查/更新时间，避免并发请求同时通过。
 - 请求过频时抛出 `BusinessException(429, ...)`。
-- IP 优先取 `X-Forwarded-For` 的第一个值，否则取 `remoteAddr`。
+- 每隔 256 次操作清理过期记录。
+- 默认使用 `remoteAddr`。仅当直连地址在 `app.security.trusted-proxies` 中时读取 `X-Forwarded-For`。
 
-当前限制：
+多实例部署时各实例仍为独立内存限流。
 
-- 记录不会清理，长期运行会不断增长。
-- 没有校验可信代理，客户端可自行伪造 `X-Forwarded-For`。
-- 多实例部署时各实例独立限流。
+### 3.1 登录失败保护
+
+`LoginAttemptService` 以 `username|clientIp` 为 key：
+
+- 默认 15 分钟窗口内最多失败 5 次。
+- 达上限后返回 429。
+- 登录成功清除该 key。
+- 过期记录定期清理。
 
 ---
 
@@ -146,16 +157,26 @@ spring:
 
 app:
   storage-path: ./data
+  security:
+    allow-default-credentials: false
+    trusted-proxies: ${TRUSTED_PROXIES:}
+    login-max-failures: 5
+    login-window-seconds: 900
+    search-rate-limit-seconds: 10
   jwt:
     secret: ${JWT_SECRET:change-me-in-production-this-is-a-default-only}
     expiration-hours: 24
-  admin-path: /secret-admin
   init:
     admin-username: ${INIT_ADMIN_USER:admin}
     admin-password: ${INIT_ADMIN_PASS:admin123}
 ```
 
-`app.admin-path` 当前只存在于配置中，后端没有对应路由控制，前端也硬编码 `/secret-admin`。
+`spring.profiles.default=dev`，`application-dev.yml` 明确允许默认凭据以便本地启动。
+`SPRING_PROFILES_ACTIVE=prod` 时 `application-prod.yml` 禁止默认凭据，
+`SecurityConfigValidator` 会在 JWT secret 或管理员密码仍为默认值时拒绝启动。
+
+管理端前端路径不再由后端 YAML 控制，前端通过 `VITE_ADMIN_PATH` 配置并默认 `/secret-admin`，
+示例见 `Client Side/umo-web-frontend/.env.example`。
 
 ---
 
@@ -169,7 +190,8 @@ app:
 - 密码使用 BCrypt。
 - 已存在任意用户时跳过。
 
-生产环境必须覆盖默认密码和 JWT secret。
+生产环境必须设置 `SPRING_PROFILES_ACTIVE=prod`，并覆盖默认密码和 JWT secret。
+校验失败只报告配置项名称，不输出密码或 secret。
 
 ---
 
@@ -178,11 +200,12 @@ app:
 实现位于 `JwtUtil`：
 
 - secret 经 SHA-256 后作为 HMAC key。
-- token subject 为 username。
+- token subject 为 username，包含 `ver` tokenVersion。
 - 默认 24 小时过期。
-- `validate` 捕获所有解析异常并返回 false。
+- `validate` 捕获签名/过期等解析异常并返回 false。
 
-当前没有 refresh token、token 撤销、黑名单或多设备管理。
+修改密码会让数据库 `token_version` 原子递增，使旧 token 立即失效。
+当前没有 refresh token、黑名单或完整的多设备会话管理。
 
 ---
 
@@ -190,14 +213,14 @@ app:
 
 | 风险 | 当前事实 |
 |---|---|
-| 秘密切口 | `app.admin-path` 未使用 |
+| 秘密切口 | 后端 YAML 不再承载前端管理路径，前端使用 `VITE_ADMIN_PATH` |
 | 爬虫控制 | 有 `noindex`，无 `robots.txt` |
-| 路径穿越 | slug/bookSlug 未检查最终路径是否在 storage root 内 |
-| 上传校验 | 只校验 MIME，未校验文件签名 |
-| 搜索限流 | 可伪造 XFF，Map 永不清空 |
+| 路径穿越 | slug/bookSlug 和安全化路径已检查，读写删必须位于 storage root |
+| 上传校验 | MIME、文件签名和固定扩展名同时校验 |
+| 搜索限流 | 仅信任显式代理，使用原子更新并定期清理 |
 | 生产 CORS | 写死 localhost |
-| 数据库完整性 | 无外键约束 |
-| 文件事务 | 文件操作不受数据库事务保护 |
+| 数据库完整性 | 新库已含外键/索引；旧库需执行兼容迁移 |
+| 文件事务 | 使用临时文件、提交后清理和回滚恢复策略 |
 
 这些问题已记录在 [audit-log.md](../project/audit-log.md)。
 
@@ -207,10 +230,14 @@ app:
 
 边界测试覆盖了部分 401、400、409 和 429 的 Service 异常路径，但没有启动真实 Web 容器和拦截器链。
 
-缺少：
+已新增：
 
-- JWT 过期和签名错误的真实测试。
-- CORS 测试。
-- 搜索限流测试。
-- 路径穿越测试。
-- 文件类型伪造测试。
+- JWT 过期、tokenVersion 和旧 token 失效测试。
+- 登录失败限流、搜索限流和可信代理测试。
+- 路径穿越、临时文件、回滚和原子替换测试。
+- 伪造 MIME、空原始文件名和上传数据库失败清理测试。
+
+仍缺少：
+
+- CORS 和生产代理环境测试。
+- 多实例共享限流测试。

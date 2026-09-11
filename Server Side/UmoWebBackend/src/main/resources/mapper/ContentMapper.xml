@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ysumly.umowebbackend.mapper.ContentMapper">
+
+    <!-- ============================= SQL 片段 ============================= -->
+
+    <sql id="baseColumns">
+        c.id, c.title, c.slug, c.body_path, c.summary, c.type,
+        c.status, c.metadata, c.created_at, c.updated_at, c.published_at
+    </sql>
+
+    <sql id="wherePublished">
+        WHERE c.status = 'PUBLISHED'
+        <if test="type != null and type != ''">
+            AND c.type = #{type}
+        </if>
+        <if test="categoryId != null">
+            AND EXISTS (
+                SELECT 1 FROM content_category cc
+                WHERE cc.content_id = c.id AND cc.category_id = #{categoryId}
+            )
+        </if>
+        <if test="tagId != null">
+            AND EXISTS (
+                SELECT 1 FROM content_tag ct
+                WHERE ct.content_id = c.id AND ct.tag_id = #{tagId}
+            )
+        </if>
+    </sql>
+
+    <sql id="whereAll">
+        WHERE 1 = 1
+        <if test="type != null and type != ''">
+            AND c.type = #{type}
+        </if>
+        <if test="status != null and status != ''">
+            AND c.status = #{status}
+        </if>
+        <if test="categoryId != null">
+            AND EXISTS (
+                SELECT 1 FROM content_category cc
+                WHERE cc.content_id = c.id AND cc.category_id = #{categoryId}
+            )
+        </if>
+        <if test="tagId != null">
+            AND EXISTS (
+                SELECT 1 FROM content_tag ct
+                WHERE ct.content_id = c.id AND ct.tag_id = #{tagId}
+            )
+        </if>
+    </sql>
+
+    <sql id="orderBy">
+        <choose>
+            <when test="sort == 'created_at_desc'">
+                ORDER BY c.created_at DESC
+            </when>
+            <otherwise>
+                ORDER BY c.published_at DESC
+            </otherwise>
+        </choose>
+    </sql>
+
+    <!-- =========================== 公开端 =========================== -->
+
+    <select id="findPublished" resultType="Content">
+        SELECT <include refid="baseColumns"/>
+        FROM contents c
+        <include refid="wherePublished"/>
+        <include refid="orderBy"/>
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countPublished" resultType="long">
+        SELECT COUNT(*)
+        FROM contents c
+        <include refid="wherePublished"/>
+    </select>
+
+    <select id="findBySlug" resultType="Content">
+        SELECT <include refid="baseColumns"/>
+        FROM contents c
+        WHERE c.slug = #{slug} AND c.status = 'PUBLISHED'
+    </select>
+
+    <!-- =========================== 管理端 =========================== -->
+
+    <select id="findAll" resultType="Content">
+        SELECT <include refid="baseColumns"/>
+        FROM contents c
+        <include refid="whereAll"/>
+        <include refid="orderBy"/>
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*)
+        FROM contents c
+        <include refid="whereAll"/>
+    </select>
+
+    <select id="findById" resultType="Content">
+        SELECT <include refid="baseColumns"/>
+        FROM contents c
+        WHERE c.id = #{id}
+    </select>
+
+    <select id="countBySlug" resultType="long">
+        SELECT COUNT(*)
+        FROM contents
+        WHERE slug = #{slug}
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO contents (title, slug, body_path, summary, type, status,
+                              metadata, published_at)
+        VALUES (#{title}, #{slug}, #{bodyPath}, #{summary}, #{type}, #{status},
+                #{metadata}, #{publishedAt})
+    </insert>
+
+    <update id="update">
+        UPDATE contents
+        SET title        = #{title},
+            slug         = #{slug},
+            body_path    = #{bodyPath},
+            summary      = #{summary},
+            type         = #{type},
+            status       = #{status},
+            metadata     = #{metadata},
+            published_at = #{publishedAt}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM contents WHERE id = #{id}
+    </delete>
+
+    <!-- =========================== 搜索 =========================== -->
+
+    <select id="search" resultType="Content">
+        SELECT <include refid="baseColumns"/>
+        FROM contents c
+        WHERE c.status = 'PUBLISHED'
+          AND (c.title LIKE CONCAT('%', #{q}, '%')
+               OR c.summary LIKE CONCAT('%', #{q}, '%'))
+        ORDER BY c.published_at DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countSearch" resultType="long">
+        SELECT COUNT(*)
+        FROM contents c
+        WHERE c.status = 'PUBLISHED'
+          AND (c.title LIKE CONCAT('%', #{q}, '%')
+               OR c.summary LIKE CONCAT('%', #{q}, '%'))
+    </select>
+
+</mapper>

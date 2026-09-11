@@ -1,0 +1,3 @@
+app:
+  security:
+    allow-default-credentials: false
