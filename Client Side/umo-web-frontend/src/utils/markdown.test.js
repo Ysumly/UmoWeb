@@ -22,3 +22,10 @@ test('rejects executable Markdown link and image protocols', () => {
   assert.match(html, /危险链接/)
   assert.match(html, /<a href="https:\/\/example\.com">安全链接<\/a>/)
 })
+
+test('escapes image alt text before writing an HTML attribute', () => {
+  const html = renderMarkdown('![x" onerror="alert(1)"](/images/missing.png)')
+
+  assert.doesNotMatch(html, /onerror="alert\(1\)"/)
+  assert.match(html, /alt="x&quot; onerror=&quot;alert\(1\)&quot;"/)
+})

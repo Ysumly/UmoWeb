@@ -52,11 +52,9 @@ export function renderMarkdown(source = '') {
     const titleAttribute = title ? ` title="${escapeHtml(title)}"` : ''
     return `<a href="${escapeHtml(safeHref)}"${titleAttribute}>${text}</a>`
   }
-  renderer.image = ({ href, title, text, tokens }) => {
+  renderer.image = ({ href, title, text }) => {
     const safeHref = sanitizeUrl(href)
-    const alt = tokens
-      ? renderer.parser.parseInline(tokens, renderer.parser.textRenderer)
-      : escapeHtml(text || '')
+    const alt = escapeHtml(text || '')
     if (!safeHref) {
       return alt
     }

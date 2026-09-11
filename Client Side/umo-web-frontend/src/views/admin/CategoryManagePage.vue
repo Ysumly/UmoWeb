@@ -74,6 +74,8 @@ function resetForm(type = typeFilter.value || 'NOTE') {
 }
 
 function openCreate() {
+  detailRequestId += 1
+  loadingDetailId.value = null
   resetForm()
   formOpen.value = true
 }
