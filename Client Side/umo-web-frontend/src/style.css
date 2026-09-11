@@ -1561,27 +1561,33 @@ svg {
   transform: translateY(0);
 }
 
-.page-cinematic-enter-active,
-.page-cinematic-leave-active,
-.page-focused-enter-active,
-.page-focused-leave-active {
-  transition: opacity 260ms ease, transform 260ms ease;
+.page-forward-enter-active,
+.page-forward-leave-active,
+.page-back-enter-active,
+.page-back-leave-active {
+  transition:
+    opacity 280ms ease,
+    transform 380ms cubic-bezier(0.2, 0.75, 0.2, 1);
 }
 
-.page-cinematic-enter-from,
-.page-focused-enter-from {
+.page-forward-enter-from {
   opacity: 0;
-  transform: translateY(14px);
+  transform: translateX(42px);
 }
 
-.page-cinematic-leave-to,
-.page-focused-leave-to {
+.page-forward-leave-to {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateX(-42px);
 }
 
-.page-cinematic-enter-active {
-  transition-duration: 480ms;
+.page-back-enter-from {
+  opacity: 0;
+  transform: translateX(-42px);
+}
+
+.page-back-leave-to {
+  opacity: 0;
+  transform: translateX(42px);
 }
 
 .menu-reveal-enter-active,
@@ -1597,8 +1603,8 @@ svg {
 }
 
 @keyframes route-wipe {
-  from { transform: translateY(0); }
-  to { transform: translateY(-102%); }
+  from { transform: translateX(0); }
+  to { transform: translateX(-102%); }
 }
 
 @keyframes paper-sweep {
@@ -1938,6 +1944,16 @@ svg {
   .not-found__actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .page-forward-enter-from,
+  .page-back-leave-to {
+    transform: translateX(24px);
+  }
+
+  .page-forward-leave-to,
+  .page-back-enter-from {
+    transform: translateX(-24px);
   }
 }
 

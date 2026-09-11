@@ -1,15 +1,21 @@
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { onBeforeUnmount, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import SiteFooter from '@/components/public/SiteFooter.vue'
 import SiteHeader from '@/components/public/SiteHeader.vue'
 
 const route = useRoute()
+const router = useRouter()
+const transitionName = ref('page-forward')
 
-const transitionName = computed(() => {
-  return route.meta.motion === 'cinematic' ? 'page-cinematic' : 'page-focused'
+const removeNavigationHook = router.afterEach((to, from) => {
+  const toOrder = Number(to.meta.order ?? 0)
+  const fromOrder = Number(from.meta.order ?? toOrder)
+  transitionName.value = toOrder >= fromOrder ? 'page-forward' : 'page-back'
 })
+
+onBeforeUnmount(removeNavigationHook)
 </script>
 
 <template>
