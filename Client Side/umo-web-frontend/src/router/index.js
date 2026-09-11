@@ -1,16 +1,24 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { resolveAuthNavigation } from './guard.js'
 import { ADMIN_PATH, adminPath } from '@/config/adminPath'
+import PublicLayout from '@/layouts/PublicLayout.vue'
 
 const routes = [
   // ===== 公开端 =====
-  { path: '/',              name: 'home',     component: () => import('@/views/public/HomePage.vue') },
-  { path: '/library',       name: 'library',  component: () => import('@/views/public/LibraryPage.vue') },
-  { path: '/search',        name: 'search',   component: () => import('@/views/public/SearchPage.vue') },
-  { path: '/post/:slug',    name: 'post',     component: () => import('@/views/public/PostDetailPage.vue') },
-  { path: '/about',         name: 'about',    component: () => import('@/views/public/AboutPage.vue') },
-  { path: '/project',       name: 'project',  component: () => import('@/views/public/ProjectPage.vue') },
-  { path: '/editor',        name: 'editor',   component: () => import('@/views/public/EditorPage.vue') },
+  {
+    path: '/',
+    component: PublicLayout,
+    children: [
+      { path: '',           name: 'home',    component: () => import('@/views/public/HomePage.vue'),       meta: { motion: 'cinematic' } },
+      { path: 'library',    name: 'library', component: () => import('@/views/public/LibraryPage.vue'),    meta: { motion: 'cinematic' } },
+      { path: 'search',     name: 'search',  component: () => import('@/views/public/SearchPage.vue'),     meta: { motion: 'focused' } },
+      { path: 'post/:slug', name: 'post',    component: () => import('@/views/public/PostDetailPage.vue'), meta: { motion: 'focused' } },
+      { path: 'about',      name: 'about',   component: () => import('@/views/public/AboutPage.vue'),      meta: { motion: 'focused' } },
+      { path: 'project',    name: 'project', component: () => import('@/views/public/ProjectPage.vue'),    meta: { motion: 'focused' } },
+      { path: 'editor',     name: 'editor',  component: () => import('@/views/public/EditorPage.vue'),     meta: { motion: 'focused' } },
+      { path: ':pathMatch(.*)*', name: 'not-found', component: () => import('@/views/public/NotFoundPage.vue'), meta: { motion: 'focused' } },
+    ],
+  },
 
   // ===== 管理端 =====
   {
@@ -29,23 +37,20 @@ const routes = [
     ]
   },
 
-  // ===== 404 =====
-  { path: '/:pathMatch(.*)*', component: () => import('@/views/public/NotFoundPage.vue') },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior() {
+    return { top: 0, behavior: 'smooth' }
+  },
 })
 
 // 管理端路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const redirect = resolveAuthNavigation(to, localStorage.getItem('token'))
-  if (redirect) {
-    next(redirect)
-    return
-  }
-  next()
+  return redirect || true
 })
 
 export default router

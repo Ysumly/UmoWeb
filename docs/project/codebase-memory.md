@@ -25,9 +25,9 @@ UmoWeb/
 └── .superpowers/
 ```
 
-后端主源码为 80 个 Java 文件，前端 `src` 包含 27 个源码/测试文件。
-本次修复会把必要的前后端源码、配置和测试纳入 Git；`Downloads/`、`.superpowers/`、
-`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
+后端主源码为 80 个 Java 文件；前端 `src` 当前包含路由/API/store、公开端布局、
+主题与 Markdown 工具、静态 fixtures、页面源码和 Node 测试。`Downloads/`、
+`.superpowers/`、`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
 ---
 
@@ -306,20 +306,24 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 部分 `site` store。
 - 管理端登录页。
 - 管理端布局和退出登录。
-- 404 页面。
+- 公开端布局、页头页脚、主题切换和 `v-reveal` 滚动揭示指令。
+- 首页、书库、文章详情和 About 静态视觉 MVP。
+- 亮暗双主题，主题值写入 `data-theme` 并持久化到 `localStorage`。
+- 基于静态 fixtures 的书库筛选、本地分页、Markdown 渲染和代码高亮。
+- 404 页面采用公开端视觉布局。
 
 ### 6.2 占位或未实现
 
-- 首页、分类浏览、搜索、文章详情、About、Project、在线编辑器。
+- 搜索、Project、在线编辑器。
 - 管理端文章列表、文章编辑、分类管理、标签管理、站点设置。
-- Markdown 渲染和语法高亮尚未接入页面。
+- 公开端尚未调用真实 API；首页、书库、文章详情和 About 仍使用静态 fixtures。
 - 图片上传函数已封装，但编辑器尚未实现拖入/粘贴流程。
 - 修改密码 API 函数已补充；页面和入口仍缺失。
 - 管理端路径由统一 `VITE_ADMIN_PATH` 工具控制，默认 `/secret-admin`，不再依赖后端 `app.admin-path`。
 - `site` store 只有 `fetch()`，没有文档曾提到的 `fetchSiteInfo()`。
-- 当前不存在 `AppHeader`、`AppFooter`、`ContentForm`、`MarkdownRenderer` 等公共组件。
+- 当前存在公开端 `SiteHeader`、`SiteFooter`、`ContentCard`、`MarkdownArticle` 和 `ThemeToggle`；管理端仍没有统一表单/表格组件。
 
-前端页面文件共 14 个，其中 `LoginPage`、`AdminLayout` 和 `NotFoundPage` 有实际界面；其余业务页面基本是占位。
+公开端主路径已完成静态视觉 MVP；搜索、Project、编辑器及管理业务页仍为占位。
 
 ---
 
@@ -332,7 +336,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 新增 Mapper XML 别名解析、`ClientIpResolver` 容器装配和 Jackson 3 自动配置回归测试。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
 - 自动测试仍没有真实 MySQL 集成测试；2026-09-11 已在隔离 MySQL 5.7 副本完成迁移和 27/27 接口冒烟。
-- 前端路由使用 Node 内置测试覆盖，未做浏览器 E2E。
+- 前端 Node 测试覆盖路由、管理路径、主题解析、静态筛选、分页和 Markdown 原始 HTML 禁用。
+- 公开端 MVP 已完成桌面与 390px 移动端浏览器检查，但尚未建立可重复的浏览器 E2E。
 
 ### 7.2 当前代码风险
 
