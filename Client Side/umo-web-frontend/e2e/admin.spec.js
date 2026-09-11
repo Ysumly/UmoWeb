@@ -109,6 +109,25 @@ test('分类和标签支持完整 CRUD', async ({ page, apiMock }) => {
   await expect(page.getByRole('row', { name: /E2E 标签已更新/ })).toHaveCount(0)
 })
 
+test('分类编辑加载态不会改变表格列位置', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/categories')
+  await page.route('**/api/admin/categories/1', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    await route.continue()
+  })
+
+  const row = page.getByRole('row', { name: /技术笔记/ })
+  const typeCell = row.locator('td').nth(1)
+  const before = await typeCell.boundingBox()
+
+  await row.getByRole('button', { name: '编辑' }).click()
+  await expect(row.getByRole('button', { name: '读取中' })).toBeVisible()
+
+  const during = await typeCell.boundingBox()
+  expect(Math.abs(during.x - before.x)).toBeLessThan(1)
+})
+
 test('站点设置保存后刷新公开站点缓存', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/options')

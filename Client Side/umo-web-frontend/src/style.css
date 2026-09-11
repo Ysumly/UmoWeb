@@ -2880,6 +2880,10 @@ fieldset.admin-field {
 
 .admin-table__actions a,
 .admin-table__actions button {
+  display: inline-flex;
+  min-width: 36px;
+  align-items: center;
+  justify-content: center;
   border: 0;
   border-bottom: 1px solid currentColor;
   padding: 1px 0;
