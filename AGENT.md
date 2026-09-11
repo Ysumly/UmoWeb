@@ -38,7 +38,9 @@
 - `categoryId` 只精确匹配该分类，不自动包含子分类。
 - Markdown 正文保存在 `app.storage-path`，数据库只存 `body_path`；创建/更新使用临时文件和回滚恢复策略，图片限制 50MB。
 - 管理端前端路径由 `VITE_ADMIN_PATH` 控制，默认 `/secret-admin`。
-- 后端当前有 72 个单元/边界测试，没有真实 MySQL 集成测试。
+- 后端当前有 75 个单元/边界/容器装配测试；自动测试仍不连接真实 MySQL。
+- 2026-09-11 已用隔离 MySQL 5.7 副本完成旧库迁移演练和 27/27 接口冒烟，脚本位于
+  `Server Side/UmoWebBackend/scripts/api-smoke.ps1`。
 - 前端登录页和管理布局已实现，其余业务页面基本仍是占位页。
 
 ## 常用命令

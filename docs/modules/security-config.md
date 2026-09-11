@@ -63,6 +63,7 @@
 - 请求过频时抛出 `BusinessException(429, ...)`。
 - 每隔 256 次操作清理过期记录。
 - 默认使用 `remoteAddr`。仅当直连地址在 `app.security.trusted-proxies` 中时读取 `X-Forwarded-For`。
+- `ClientIpResolver` 同时提供生产构造器和测试用构造器，生产构造器显式标注 `@Autowired`，保证 Spring 容器可以实例化。
 
 多实例部署时各实例仍为独立内存限流。
 

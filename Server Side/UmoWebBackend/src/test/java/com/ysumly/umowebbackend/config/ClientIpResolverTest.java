@@ -1,6 +1,7 @@
 package com.ysumly.umowebbackend.config;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.util.Set;
@@ -8,6 +9,16 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ClientIpResolverTest {
+
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withUserConfiguration(ClientIpResolver.class)
+            .withPropertyValues("app.security.trusted-proxies=");
+
+    @Test
+    void canBeCreatedBySpringContainer() {
+        contextRunner.run(context ->
+                assertThat(context.getBean(ClientIpResolver.class)).isNotNull());
+    }
 
     @Test
     void ignoresForwardedHeaderFromUntrustedClient() {

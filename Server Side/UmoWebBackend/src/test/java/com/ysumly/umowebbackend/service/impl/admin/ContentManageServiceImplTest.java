@@ -1,6 +1,5 @@
 package com.ysumly.umowebbackend.service.impl.admin;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ysumly.umowebbackend.common.exception.BusinessException;
 import com.ysumly.umowebbackend.common.util.FileUtil;
 import com.ysumly.umowebbackend.mapper.CategoryMapper;
@@ -18,6 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.nio.file.Files;

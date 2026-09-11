@@ -1,6 +1,5 @@
 package com.ysumly.umowebbackend.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ysumly.umowebbackend.common.exception.*;
 import com.ysumly.umowebbackend.controller.admin.*;
 import com.ysumly.umowebbackend.controller.open.*;
@@ -13,6 +12,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import tools.jackson.databind.ObjectMapper;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;

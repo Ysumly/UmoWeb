@@ -1,6 +1,5 @@
 package com.ysumly.umowebbackend.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ysumly.umowebbackend.mapper.CategoryMapper;
 import com.ysumly.umowebbackend.mapper.ContentCategoryMapper;
 import com.ysumly.umowebbackend.mapper.ContentTagMapper;
@@ -12,6 +11,9 @@ import com.ysumly.umowebbackend.model.entity.Content;
 import com.ysumly.umowebbackend.model.entity.Tag;
 import com.ysumly.umowebbackend.model.vo.ContentListVO;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -31,6 +33,21 @@ class ContentVOMapperTest {
             categoryMapper,
             tagMapper,
             new ObjectMapper());
+
+    @Test
+    void canBeCreatedWithJacksonAutoConfiguration() {
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.registerBean(ContentCategoryMapper.class, () -> contentCategoryMapper);
+            context.registerBean(ContentTagMapper.class, () -> contentTagMapper);
+            context.registerBean(CategoryMapper.class, () -> categoryMapper);
+            context.registerBean(TagMapper.class, () -> tagMapper);
+            context.register(JacksonAutoConfiguration.class, ContentVOMapper.class);
+
+            context.refresh();
+
+            assertThat(context.getBean(ContentVOMapper.class)).isNotNull();
+        }
+    }
 
     @Test
     void assemblesThreeContentsWithConstantAssociationQueries() {

@@ -3,6 +3,7 @@
 > 基线日期: 2026-09-11
 > 事实来源: `controller/`、`model/dto/`、`model/vo/`、`GlobalExceptionHandler`、Mapper XML
 > 接口总数: 公开端 8 个，管理端 19 个，共 27 个
+> 实测状态: 2026-09-11 在隔离 MySQL 5.7 迁移副本上完成 27/27 接口冒烟，接口契约未变更
 
 ---
 

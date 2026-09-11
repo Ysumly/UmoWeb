@@ -1,6 +1,5 @@
 package com.ysumly.umowebbackend.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ysumly.umowebbackend.mapper.CategoryMapper;
 import com.ysumly.umowebbackend.mapper.ContentCategoryMapper;
 import com.ysumly.umowebbackend.mapper.ContentTagMapper;
@@ -15,6 +14,7 @@ import com.ysumly.umowebbackend.model.vo.ContentDetailVO;
 import com.ysumly.umowebbackend.model.vo.ContentListVO;
 import com.ysumly.umowebbackend.model.vo.TagVO;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.*;
 import java.util.function.Function;

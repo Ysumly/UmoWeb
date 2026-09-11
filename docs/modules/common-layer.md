@@ -1,6 +1,6 @@
 # Common 层实现
 
-> 基线日期: 2026-09-10
+> 基线日期: 2026-09-11
 > 路径: `com.ysumly.umowebbackend.common`
 
 ---
@@ -18,6 +18,9 @@ common/
 │   ├── ForbiddenException.java
 │   ├── NotFoundException.java
 │   └── GlobalExceptionHandler.java
+├── validation/
+│   ├── ValidJsonObject.java
+│   └── ValidJsonObjectValidator.java
 └── util/
     ├── JwtUtil.java
     └── FileUtil.java
@@ -140,16 +143,28 @@ switch (type) {
 images/{YYYY}/{MM}/{uuid}.{ext}
 ```
 
-扩展名来自原始文件名。图片 MIME 由 `ImageServiceImpl` 校验，`FileUtil` 本身不校验扩展名。
+扩展名由 `ImageServiceImpl` 根据校验后的 MIME 映射生成，不采用客户端原始扩展名。
 
 ### 5.3 路径安全
 
-当前只使用 `Path.resolve()` 和 `normalize()`，没有显式检查最终路径是否仍位于 storage root 内。调用方传入的 `slug` 或 `bookSlug` 含有路径穿越字符时存在风险。
+`FileUtil` 对相对路径执行 normalize，并检查最终路径仍位于 storage root 内；调用方同时限制
+`slug` / `bookSlug` 字符集。越界路径会被拒绝。
 
 ---
 
-## 6. 验证现状
+## 6. metadata 校验
+
+`ValidJsonObjectValidator` 使用 Jackson 3 的 `tools.jackson.databind.ObjectMapper` 解析字符串：
+
+- null 或空白值视为合法，由业务层规范化为 `null`。
+- 合法 JSON 对象返回 true。
+- 数组、标量或非法 JSON 返回 false，由 Bean Validation 返回 400。
+
+---
+
+## 7. 验证现状
 
 - `BoundaryTest` 覆盖全局异常处理的主要 4xx 场景。
-- 没有 `JwtUtil` 的独立过期测试。
-- 没有 `FileUtil` 的路径穿越、读写或异常恢复测试。
+- `JwtUtilTest` 覆盖过期、tokenVersion 和解析行为。
+- `FileUtilTest` 覆盖路径穿越、读写、临时文件、回滚恢复和原子替换。
+- `MapperConfigurationTest` 覆盖 Mapper XML 别名解析。

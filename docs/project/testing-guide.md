@@ -92,11 +92,44 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 72 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
-拦截器、登录限流和安全配置测试。MockMvc 边界测试不连接 MySQL；
+当前完整测试共 75 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器和登录限流测试。MockMvc 边界测试不连接 MySQL；
 `UmoWebBackendApplicationTests` 仍是一条空测试，不会加载完整 Spring Context。
 
-### 2.2 前端
+### 2.2 数据库迁移副本 + 全接口冒烟
+
+2026-09-11 使用独立临时 MySQL 5.7 实例完成真实副本演练：
+
+- 使用提交 `8369ac0` 的旧版 `schema.sql` 建立 8 张表和 6 篇内容。
+- 额外注入 4 条孤儿关联和 1 条悬空父分类，验证迁移清理路径。
+- `mysqldump` 生成 12,881 字节备份，SHA-256 为
+  `70C8E7E33DB2815EFF5BB17EE1E5FA620AB594BE4E81F2D013E023A96E4C7C9A`。
+- 将备份还原为 `umo_blog_copy`，仅对副本执行兼容迁移，并连续执行两次验证幂等性。
+- 迁移后 `token_version` 1 个、新增索引 3 个、新增外键 5 个；孤儿关联和悬空父级均为 0。
+- 源库仍无 `token_version`，证明演练没有触碰源库。
+
+后端连接 `umo_blog_copy` 启动后，执行：
+
+```powershell
+cd "Server Side\UmoWebBackend"
+.\scripts\api-smoke.ps1 `
+  -BaseUrl "http://127.0.0.1:18080" `
+  -Username "smoke_admin" `
+  -Password "<current-password>"
+```
+
+脚本覆盖公开端 8 个和管理端 19 个接口，结果为 `27/27` 通过；同时验证：
+
+- 无有效 JWT 的管理端请求返回 401。
+- 修改密码返回 204，旧 token 立即失效。
+- 搜索首次返回 200，10 秒内重复请求返回 429。
+- PNG 上传同时通过 MIME 和文件签名校验。
+- 测试创建的分类、标签、草稿文章全部删除，密码和 `site_title` 恢复原值。
+
+脚本运行前要求后端已启动并使用真实 MySQL。脚本会临时修改管理员密码和 `site_title`，
+最后恢复；由于当前没有图片删除接口，上传的测试图片会保留在测试库和存储目录中。
+
+### 2.3 前端
 
 ```powershell
 cd "Client Side\umo-web-frontend"

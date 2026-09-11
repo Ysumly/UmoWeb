@@ -1,8 +1,8 @@
 package com.ysumly.umowebbackend.common.validation;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import tools.jackson.databind.ObjectMapper;
 
 public class ValidJsonObjectValidator implements ConstraintValidator<ValidJsonObject, String> {
 

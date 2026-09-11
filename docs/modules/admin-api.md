@@ -285,7 +285,7 @@ PUT /api/admin/options/{key}
 ## 8. 测试现状
 
 `BoundaryTest` 仍使用 Mock Service 覆盖接口边界，另有 Service/Util 单元测试覆盖真实文件、
-路径、JWT、限流和批量查询行为。当前完整后端测试共 72 个。
+路径、JWT、限流、容器装配和批量查询行为。当前完整后端测试共 75 个。
 
 `BoundaryTest` 覆盖：
 
@@ -302,4 +302,5 @@ PUT /api/admin/options/{key}
 - 非法 page/size/type/metadata 返回 400。
 - 公开详情返回 categories/tags 数组。
 
-文件、路径、JWT、上传和 VO 组装测试使用真实临时文件或真实工具类；完整 SQL 仍需 MySQL 集成测试。
+文件、路径、JWT、上传和 VO 组装测试使用真实临时文件或真实工具类；完整 SQL 仍需自动化 MySQL 集成测试。
+2026-09-11 已通过真实 MySQL 副本冒烟验证管理端全部接口，脚本见 `docs/project/testing-guide.md`。

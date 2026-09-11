@@ -361,4 +361,6 @@ countContentsByTagId(tagId)
 - 没有真实 MySQL 多对多关联事务测试。
 - 没有 SQL 注入和分页边界测试。
 
+2026-09-11 已在隔离 MySQL 5.7 副本上完成兼容迁移和真实 Mapper 冒烟，但该过程尚未固化为 CI 数据库测试。
+
 构建和测试命令见 [codebase-memory.md](../project/codebase-memory.md)。

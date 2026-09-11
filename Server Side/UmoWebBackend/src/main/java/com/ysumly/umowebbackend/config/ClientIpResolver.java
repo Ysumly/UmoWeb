@@ -1,6 +1,7 @@
 package com.ysumly.umowebbackend.config;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +14,7 @@ public class ClientIpResolver {
 
     private final Set<String> trustedProxies;
 
+    @Autowired
     public ClientIpResolver(@Value("${app.security.trusted-proxies:}") String trustedProxies) {
         this(parseTrustedProxies(trustedProxies));
     }

@@ -129,3 +129,61 @@
 1. 分类循环防护为 Service 检查，并发更新仍应结合数据库事务锁或更严格的层级模型。
 2. 未执行真实浏览器 E2E 和真实 MySQL 迁移演练。
 3. 限流状态仍为单实例内存实现。
+
+## 审计 #4 - 2026-09-11 — 数据库迁移副本演练与全接口冒烟
+
+### 环境
+
+- 使用独立临时 MySQL 5.7 实例，端口 `3307`，未连接或修改系统 `3306` 上的真实库。
+- 迁移前库由提交 `8369ac0` 的旧版 `schema.sql` 和当前种子数据建立。
+- 额外注入 4 条孤儿关联和 1 条悬空父分类，用于验证兼容脚本的清理逻辑。
+- 后端连接还原后的 `umo_blog_copy`，运行端口 `18080`，存储目录使用独立临时目录。
+
+### 启动阻断与修复
+
+| # | 级别 | 问题 | 修复 |
+|---|---|---|---|
+| 1 | P1 | Mapper XML 使用 `ContentCategoryLink` / `ContentTagLink` 简单别名，但 MyBatis 只扫描 entity 包，完整 Context 无法启动。 | 别名扫描扩展到 entity 和 dto，并新增 `MapperConfigurationTest`。 |
+| 2 | P1 | `ClientIpResolver` 有两个构造器且生产构造器未标注注入，Spring 找不到默认构造器。 | 生产构造器显式增加 `@Autowired`，并新增容器装配测试。 |
+| 3 | P1 | 业务代码注入 Jackson 2 `com.fasterxml` ObjectMapper，但 Spring Boot 4 自动配置提供的是 Jackson 3 `tools.jackson` ObjectMapper。 | 主代码和测试统一迁移到 Jackson 3，并新增自动配置容器测试。 |
+
+### 迁移副本结果
+
+| 验证 | 结果 |
+|---|---|
+| 逻辑备份 | 12,881 字节，SHA-256 `70C8E7E33DB2815EFF5BB17EE1E5FA620AB594BE4E81F2D013E023A96E4C7C9A` |
+| 副本还原 | `umo_blog_copy` 包含 8 张表 |
+| 首次迁移 | 成功新增 `users.token_version`、3 个索引、5 个外键 |
+| 第二次迁移 | 成功，无重复列/索引/外键，验证幂等 |
+| 数据清理 | 孤儿分类关联 2→0，孤儿标签关联 2→0，悬空父分类 1→0 |
+| 数据保留 | users/categories/tags/contents/content_category/content_tag/images/site_options = `0/11/9/6/9/12/0/4` |
+| 源库隔离 | 源库仍无 `token_version`，迁移只作用于副本 |
+| 外键动作 | 2 个内容外键为 CASCADE，3 个分类/标签外键为 RESTRICT |
+
+### 全接口冒烟
+
+复用脚本 `Server Side/UmoWebBackend/scripts/api-smoke.ps1`，公开端 8 个和管理端 19 个接口全部通过，
+结果为 `27/27`。
+
+额外验证：
+
+- 管理端无有效 JWT 返回 401。
+- 修改密码返回 204，旧 token 随即返回 401。
+- 搜索首次返回 200，10 秒内重复请求返回 429。
+- 1×1 PNG 通过 MIME + 文件签名校验并返回可访问 URL。
+- 测试分类、标签和草稿文章均已清理，`site_title` 和管理员密码已恢复。
+
+### 验证记录
+
+| 验证 | 结果 |
+|---|---|
+| 后端完整 `mvn test` | 通过，75 tests / 0 failures / 0 errors |
+| 真实 MySQL 迁移副本 | 通过，连续执行两次 |
+| 全接口冒烟 | 通过，27/27 |
+| `git diff --check` | 通过，仅有 Windows LF/CRLF 提示 |
+
+### 剩余风险
+
+1. 真实 MySQL 验证仍是手工编排的冒烟，不是 CI 自动集成测试。
+2. 测试图片上传后没有删除接口，因此会在冒烟使用的测试存储中留下 1 条图片记录和文件。
+3. 搜索/登录限流仍是单实例内存状态。

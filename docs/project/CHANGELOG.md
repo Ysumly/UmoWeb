@@ -71,3 +71,13 @@
 - 登录失败 key 对用户名执行 trim 和大小写规范化，避免通过大小写/空格绕过限流。
 - 登录和修改密码字段增加长度限制。
 - CORS 允许来源改为 `CORS_ALLOWED_ORIGINS` 配置，并增加配置测试。
+
+## 2026-09-11 — 数据库迁移副本演练与启动修复
+
+- 使用隔离 MySQL 5.7、旧版 schema、种子数据和异常关系完成备份、副本还原、兼容迁移及幂等验证。
+- 修复 MyBatis 未扫描 DTO 别名导致完整 Spring Context 无法启动的问题。
+- 修复 `ClientIpResolver` 多构造器未显式注入导致 Bean 实例化失败的问题。
+- 将业务 JSON 和校验器从 Jackson 2 迁移到 Spring Boot 4 自动配置的 Jackson 3。
+- 新增 `MapperConfigurationTest`、`ClientIpResolver` 容器装配测试和 `ContentVOMapper` Jackson 自动配置测试。
+- 新增 `scripts/api-smoke.ps1`，覆盖公开端 8 个和管理端 19 个接口及关键失败路径。
+- 验证结果：后端 75 tests 通过，迁移副本连续执行两次通过，接口冒烟 27/27 通过。

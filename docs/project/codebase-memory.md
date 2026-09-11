@@ -46,8 +46,9 @@ UmoWeb/
 | 数据库 | MySQL，默认库 `umo_blog` |
 | JWT | JJWT 0.12.6，默认 24 小时 |
 | 密码 | `spring-security-crypto` + BCrypt |
+| JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；72 个测试 |
+| 测试 | Spring Boot Test、Mockito、MockMvc；75 个测试 |
 
 ### 2.2 前端
 
@@ -84,7 +85,16 @@ mvn test
 
 若机器级 Maven `settings.xml` 的仓库路径不可写，应通过 `-gs` 和 `-s` 指向隔离的临时 settings 文件运行 Maven，不要修改系统安装目录。
 
-说明：项目自带 `mvnw.cmd`，但在当前 Windows/PowerShell 环境中曾因 wrapper 脚本执行失败；系统 Maven 可用。2026-09-10 使用隔离临时 settings 执行 `mvn test`，21 个测试全部通过。
+说明：项目自带 `mvnw.cmd`，但在当前 Windows/PowerShell 环境中曾因 wrapper 脚本执行失败；系统 Maven 可用。2026-09-11 使用隔离临时 settings 执行 `mvn test`，75 个测试全部通过。
+
+真实接口冒烟：
+
+```powershell
+cd "Server Side\UmoWebBackend"
+.\scripts\api-smoke.ps1 -BaseUrl "http://127.0.0.1:8080" -Username "admin" -Password "<current-password>"
+```
+
+脚本覆盖 27 个接口，并校验管理端 401、搜索 429、改密后旧 token 失效和真实 PNG 上传。
 
 ### 3.2 前端
 
@@ -319,8 +329,10 @@ Spring Multipart 限制单文件和请求均为 50MB。
 
 - `BoundaryTest` 使用独立 MockMvc 和 Mock Service，覆盖参数错误、404、401、409 和接口状态码。
 - 新增文件路径/事务、上传签名、JWT/tokenVersion、登录限流、可信代理、VO 批量组装和安全配置测试。
+- 新增 Mapper XML 别名解析、`ClientIpResolver` 容器装配和 Jackson 3 自动配置回归测试。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
-- 当前没有真实 MySQL 集成测试；前端路由使用 Node 内置测试覆盖，未做浏览器 E2E。
+- 自动测试仍没有真实 MySQL 集成测试；2026-09-11 已在隔离 MySQL 5.7 副本完成迁移和 27/27 接口冒烟。
+- 前端路由使用 Node 内置测试覆盖，未做浏览器 E2E。
 
 ### 7.2 当前代码风险
 
@@ -334,6 +346,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | 已修复 | 限流 | 可信代理、原子窗口更新、过期清理。 |
 | 已修复 | 数据库完整性 | 外键、级联策略和兼容迁移脚本。 |
 | 已修复 | 管理路径 | 前端 `VITE_ADMIN_PATH`，后端移除未使用配置。 |
+| 已修复 | 上下文启动 | MyBatis 同时扫描 entity/dto 别名；`ClientIpResolver` 显式构造注入；业务 JSON 统一使用 Jackson 3。 |
 | 低 | 爬虫控制 | `index.html` 有 `noindex`，但没有 `public/robots.txt`。 |
 
 ---

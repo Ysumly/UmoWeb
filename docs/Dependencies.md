@@ -50,7 +50,8 @@
 | `org.springframework.boot` | `spring-boot-starter-validation` | *(继承)* | compile | 请求参数校验（Hibernate Validator） |
 | `org.springframework.boot` | `spring-boot-starter-test` | *(继承)* | test | 测试框架集（JUnit 5, Mockito, AssertJ） |
 
-> **传递依赖亮点**: `spring-boot-starter-webmvc` 会拉入 `spring-webmvc`、`jackson-databind`、`tomcat-embed-core` 等。
+> **传递依赖亮点**: `spring-boot-starter-webmvc` 会拉入 `spring-webmvc`、
+> `tools.jackson.core:jackson-databind:3.1.4`、`tomcat-embed-core` 等。
 
 ### 2.2 持久层 — MyBatis
 
@@ -85,10 +86,14 @@
 
 | GroupId | ArtifactId | 版本 | Scope | 用途 |
 |---------|-----------|------|-------|------|
-| `com.fasterxml.jackson.core` | `jackson-databind` | *(继承)* | compile | JSON ↔ Java 对象序列化 |
-| `com.fasterxml.jackson.datatype` | `jackson-datatype-jsr310` | *(继承)* | compile | `LocalDate` / `LocalDateTime` 等 JSR-310 类型支持 |
+| `org.springframework.boot` | `spring-boot-starter-jackson` | *(随 webmvc 传递)* | compile | Spring Boot 4 Jackson 自动配置 |
+| `tools.jackson.core` | `jackson-databind` | **3.1.4** | compile | 业务 JSON 序列化、`ObjectMapper` Bean |
+| `com.fasterxml.jackson.core` | `jackson-databind` | *(继承)* | compile | JJWT Jackson 2 适配兼容 |
+| `com.fasterxml.jackson.datatype` | `jackson-datatype-jsr310` | *(继承)* | compile | Jackson 2 JSR-310 兼容依赖 |
 
-> 这两个依赖由 Spring Boot 父 POM 管理版本，无需显式指定。
+Spring Boot 4 自动配置并注入的是 `tools.jackson.databind.ObjectMapper`。业务代码、验证器和测试禁止继续注入
+`com.fasterxml.jackson.databind.ObjectMapper`，否则完整 Spring Context 会因为找不到 Bean 而启动失败。
+`com.fasterxml` 依赖主要留给 JJWT 的 Jackson 2 模块使用。
 
 ### 2.6 开发工具
 
