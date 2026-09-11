@@ -256,7 +256,7 @@ server: {
 }
 ```
 
-2026-09-11 执行 `npm test` 和 `npm run build` 成功。当前 38 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密规则、静态筛选和 Markdown 原始 HTML 禁用。
+2026-09-11 执行 `npm test` 和 `npm run build` 成功。当前 40 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密规则、静态筛选、Markdown 原始 HTML 和危险 URL 协议禁用。
 
 ---
 

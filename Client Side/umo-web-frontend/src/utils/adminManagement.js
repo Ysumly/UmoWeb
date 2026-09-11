@@ -54,6 +54,16 @@ export function buildCategoryParentOptions(categories = [], { type = '', editing
   })
 }
 
+export function categoryDetailToForm(category = {}) {
+  return {
+    name: category.name || '',
+    slug: category.slug || '',
+    type: category.type || 'NOTE',
+    parentId: category.parentId ?? '',
+    sortOrder: category.sortOrder ?? 0,
+  }
+}
+
 export function validateCategoryForm(form = {}) {
   const errors = {}
   const name = typeof form.name === 'string' ? form.name.trim() : ''

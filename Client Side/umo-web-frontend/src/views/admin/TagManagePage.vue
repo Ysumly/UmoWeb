@@ -171,7 +171,7 @@ onBeforeUnmount(() => {
         <h1>标签管理</h1>
         <p>用轻量标签连接不同篇幅和主题的内容。</p>
       </div>
-      <button class="button button--primary" type="button" @click="openCreate">
+      <button class="button button--primary" type="button" :disabled="saving" @click="openCreate">
         新建标签
       </button>
     </header>
@@ -191,19 +191,28 @@ onBeforeUnmount(() => {
           <span class="admin-page__eyebrow">{{ editingId ? 'EDIT / 编辑' : 'NEW / 新建' }}</span>
           <h2>{{ formTitle }}</h2>
         </div>
-        <button class="button button--quiet" type="button" @click="closeForm">取消</button>
+        <button class="button button--quiet" type="button" :disabled="saving" @click="closeForm">
+          取消
+        </button>
       </header>
 
       <form class="admin-form-grid admin-form-grid--two" @submit.prevent="handleSubmit">
         <label class="admin-field">
           <span>标签名 <b>*</b></span>
-          <input v-model="form.name" type="text" maxlength="100" required />
+          <input v-model="form.name" type="text" maxlength="100" :disabled="saving" required />
           <small v-if="errors.name">{{ errors.name }}</small>
         </label>
 
         <label class="admin-field">
           <span>slug <b>*</b></span>
-          <input v-model.trim="form.slug" type="text" maxlength="100" placeholder="java" required />
+          <input
+            v-model.trim="form.slug"
+            type="text"
+            maxlength="100"
+            placeholder="java"
+            :disabled="saving"
+            required
+          />
           <small v-if="errors.slug">{{ errors.slug }}</small>
         </label>
 
@@ -257,10 +266,10 @@ onBeforeUnmount(() => {
               <small>{{ tag.slug }}</small>
             </td>
             <td class="admin-table__actions">
-              <button type="button" @click="openEdit(tag)">编辑</button>
+              <button type="button" :disabled="saving" @click="openEdit(tag)">编辑</button>
               <button
                 type="button"
-                :disabled="deletingId === tag.id"
+                :disabled="saving || deletingId === tag.id"
                 @click="handleDelete(tag)"
               >
                 {{ deletingId === tag.id ? '删除中' : '删除' }}

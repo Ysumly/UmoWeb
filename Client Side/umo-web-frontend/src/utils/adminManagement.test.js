@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 
 import {
   buildCategoryParentOptions,
+  categoryDetailToForm,
   diffSiteOptions,
   formatOptionSaveFailure,
   getCategoryDeleteError,
@@ -12,6 +13,26 @@ import {
   validateSiteOptions,
   validateTagForm,
 } from './adminManagement.js'
+
+test('maps category detail fields required by the edit form', () => {
+  assert.deepEqual(
+    categoryDetailToForm({
+      id: 2,
+      name: 'Java',
+      slug: 'java',
+      type: 'NOTE',
+      parentId: 1,
+      sortOrder: 3,
+    }),
+    {
+      name: 'Java',
+      slug: 'java',
+      type: 'NOTE',
+      parentId: 1,
+      sortOrder: 3,
+    },
+  )
+})
 
 test('builds same-type category parent options without self or descendants', () => {
   const tree = [

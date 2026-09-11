@@ -6,12 +6,14 @@ import {
   createCategory,
   deleteCategory,
   getAdminCats,
+  getAdminCat,
   updateCategory,
 } from '@/api/admin'
 import ContentState from '@/components/public/ContentState.vue'
 import { contentTypes } from '@/config/contentTypes'
 import {
   buildCategoryParentOptions,
+  categoryDetailToForm,
   getCategoryDeleteError,
   validateCategoryForm,
 } from '@/utils/adminManagement'
@@ -28,8 +30,11 @@ const formOpen = ref(false)
 const editingId = ref(null)
 const saving = ref(false)
 const deletingId = ref(null)
+const loadingDetailId = ref(null)
 const errors = ref({})
 const initialSnapshot = ref('')
+let loadRequestId = 0
+let detailRequestId = 0
 
 const form = reactive({
   name: '',
@@ -73,18 +78,33 @@ function openCreate() {
   formOpen.value = true
 }
 
-function openEdit(category) {
-  editingId.value = category.id
-  Object.assign(form, {
-    name: category.name,
-    slug: category.slug,
-    type: category.type,
-    parentId: category.parentId ?? '',
-    sortOrder: category.sortOrder ?? 0,
-  })
-  errors.value = {}
-  snapshotForm()
-  formOpen.value = true
+async function openEdit(category) {
+  if (saving.value || deletingId.value) {
+    return
+  }
+
+  const currentRequest = ++detailRequestId
+  loadingDetailId.value = category.id
+  errorMessage.value = ''
+  try {
+    const response = await getAdminCat(category.id)
+    if (currentRequest !== detailRequestId) {
+      return
+    }
+    editingId.value = category.id
+    Object.assign(form, categoryDetailToForm(response.data))
+    errors.value = {}
+    snapshotForm()
+    formOpen.value = true
+  } catch (error) {
+    if (currentRequest === detailRequestId) {
+      errorMessage.value = getApiErrorMessage(error, '分类详情加载失败')
+    }
+  } finally {
+    if (currentRequest === detailRequestId) {
+      loadingDetailId.value = null
+    }
+  }
 }
 
 function closeForm() {
@@ -100,19 +120,37 @@ function handleTypeChange() {
 }
 
 async function loadCategories() {
+  const currentRequest = ++loadRequestId
   status.value = 'loading'
   errorMessage.value = ''
   try {
     const response = await getAdminCats(typeFilter.value || undefined)
+    if (currentRequest !== loadRequestId) {
+      return
+    }
     categories.value = response.data || []
     status.value = 'success'
   } catch (error) {
+    if (currentRequest !== loadRequestId) {
+      return
+    }
     status.value = 'error'
     errorMessage.value = getApiErrorMessage(error, '分类加载失败')
   }
 }
 
-function handleFilterChange() {
+function handleFilterChange(event) {
+  const nextType = event.target.value
+  if (nextType === typeFilter.value) {
+    return
+  }
+  if (dirty.value && !window.confirm('当前分类修改尚未保存，确定切换筛选吗？')) {
+    event.target.value = typeFilter.value
+    return
+  }
+  typeFilter.value = nextType
+  detailRequestId += 1
+  loadingDetailId.value = null
   formOpen.value = false
   resetForm()
   loadCategories()
@@ -209,7 +247,7 @@ onBeforeUnmount(() => {
         <h1>分类管理</h1>
         <p>维护笔记、书评和小说目录的层级结构。</p>
       </div>
-      <button class="button button--primary" type="button" @click="openCreate">
+      <button class="button button--primary" type="button" :disabled="saving" @click="openCreate">
         新建分类
       </button>
     </header>
@@ -229,25 +267,34 @@ onBeforeUnmount(() => {
           <span class="admin-page__eyebrow">{{ editingId ? 'EDIT / 编辑' : 'NEW / 新建' }}</span>
           <h2>{{ formTitle }}</h2>
         </div>
-        <button class="button button--quiet" type="button" @click="closeForm">取消</button>
+        <button class="button button--quiet" type="button" :disabled="saving" @click="closeForm">
+          取消
+        </button>
       </header>
 
       <form class="admin-form-grid admin-form-grid--two" @submit.prevent="handleSubmit">
         <label class="admin-field">
           <span>分类名 <b>*</b></span>
-          <input v-model="form.name" type="text" maxlength="100" required />
+          <input v-model="form.name" type="text" maxlength="100" :disabled="saving" required />
           <small v-if="errors.name">{{ errors.name }}</small>
         </label>
 
         <label class="admin-field">
           <span>slug <b>*</b></span>
-          <input v-model.trim="form.slug" type="text" maxlength="100" placeholder="java" required />
+          <input
+            v-model.trim="form.slug"
+            type="text"
+            maxlength="100"
+            placeholder="java"
+            :disabled="saving"
+            required
+          />
           <small v-if="errors.slug">{{ errors.slug }}</small>
         </label>
 
         <label class="admin-field">
           <span>类型 <b>*</b></span>
-          <select v-model="form.type" @change="handleTypeChange">
+          <select v-model="form.type" :disabled="saving" @change="handleTypeChange">
             <option v-for="item in typeOptions" :key="item.value" :value="item.value">
               {{ item.zh }}
             </option>
@@ -257,7 +304,7 @@ onBeforeUnmount(() => {
 
         <label class="admin-field">
           <span>父分类</span>
-          <select v-model="form.parentId">
+          <select v-model="form.parentId" :disabled="saving">
             <option value="">无父分类</option>
             <option
               v-for="parent in parentOptions"
@@ -271,7 +318,7 @@ onBeforeUnmount(() => {
 
         <label class="admin-field">
           <span>排序值</span>
-          <input v-model="form.sortOrder" type="number" step="1" />
+          <input v-model="form.sortOrder" type="number" step="1" :disabled="saving" />
           <small v-if="errors.sortOrder">{{ errors.sortOrder }}</small>
           <small v-else>数值越小越靠前，默认 0。</small>
         </label>
@@ -287,7 +334,7 @@ onBeforeUnmount(() => {
     <form class="admin-filters admin-filters--compact" @submit.prevent>
       <label>
         <span>类型</span>
-        <select v-model="typeFilter" @change="handleFilterChange">
+        <select :value="typeFilter" :disabled="saving" @change="handleFilterChange">
           <option value="">全部类型</option>
           <option v-for="item in typeOptions" :key="item.value" :value="item.value">
             {{ item.zh }}
@@ -326,7 +373,6 @@ onBeforeUnmount(() => {
           <tr>
             <th>分类</th>
             <th>类型</th>
-            <th>排序</th>
             <th aria-label="操作" />
           </tr>
         </thead>
@@ -339,12 +385,17 @@ onBeforeUnmount(() => {
               <small>/{{ category.slug }}</small>
             </td>
             <td data-label="类型">{{ category.type }}</td>
-            <td data-label="排序">{{ category.sortOrder }}</td>
             <td class="admin-table__actions">
-              <button type="button" @click="openEdit(category)">编辑</button>
               <button
                 type="button"
-                :disabled="deletingId === category.id"
+                :disabled="saving || deletingId === category.id"
+                @click="openEdit(category)"
+              >
+                {{ loadingDetailId === category.id ? '读取中' : '编辑' }}
+              </button>
+              <button
+                type="button"
+                :disabled="saving || deletingId === category.id"
                 @click="handleDelete(category)"
               >
                 {{ deletingId === category.id ? '删除中' : '删除' }}

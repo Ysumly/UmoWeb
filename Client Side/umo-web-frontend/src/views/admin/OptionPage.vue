@@ -181,13 +181,13 @@ onBeforeUnmount(() => {
         <div class="admin-form-grid admin-form-grid--two">
           <label class="admin-field">
             <span>站点标题 <b>*</b></span>
-            <input v-model="form.site_title" type="text" required />
+            <input v-model="form.site_title" type="text" :disabled="saving" required />
             <small v-if="errors.site_title">{{ errors.site_title }}</small>
           </label>
 
           <label class="admin-field">
             <span>站点副标题 <b>*</b></span>
-            <input v-model="form.site_subtitle" type="text" required />
+            <input v-model="form.site_subtitle" type="text" :disabled="saving" required />
             <small v-if="errors.site_subtitle">{{ errors.site_subtitle }}</small>
           </label>
         </div>
@@ -204,6 +204,7 @@ onBeforeUnmount(() => {
         <div class="admin-mobile-tabs" role="group" aria-label="About 页面编辑区切换">
           <button
             type="button"
+            :disabled="saving"
             :aria-pressed="aboutPane === 'editor'"
             @click="aboutPane = 'editor'"
           >
@@ -211,6 +212,7 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
+            :disabled="saving"
             :aria-pressed="aboutPane === 'preview'"
             @click="aboutPane = 'preview'"
           >
@@ -223,7 +225,12 @@ onBeforeUnmount(() => {
             class="admin-editor-pane admin-editor-pane--input"
             :class="{ 'is-mobile-active': aboutPane === 'editor' }"
           >
-            <textarea v-model="form.about_page" spellcheck="false" aria-label="About 页面 Markdown" />
+            <textarea
+              v-model="form.about_page"
+              spellcheck="false"
+              aria-label="About 页面 Markdown"
+              :disabled="saving"
+            />
           </div>
           <div
             class="admin-editor-pane admin-editor-pane--preview"
@@ -246,6 +253,7 @@ onBeforeUnmount(() => {
         <div class="admin-mobile-tabs" role="group" aria-label="Project 页面编辑区切换">
           <button
             type="button"
+            :disabled="saving"
             :aria-pressed="projectPane === 'editor'"
             @click="projectPane = 'editor'"
           >
@@ -253,6 +261,7 @@ onBeforeUnmount(() => {
           </button>
           <button
             type="button"
+            :disabled="saving"
             :aria-pressed="projectPane === 'preview'"
             @click="projectPane = 'preview'"
           >
@@ -269,6 +278,7 @@ onBeforeUnmount(() => {
               v-model="form.project_page"
               spellcheck="false"
               aria-label="Project 页面 Markdown"
+              :disabled="saving"
             />
           </div>
           <div
