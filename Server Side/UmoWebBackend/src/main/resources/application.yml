@@ -27,6 +27,8 @@ mybatis:
 
 app:
   storage-path: ./data
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   security:
     allow-default-credentials: false
     trusted-proxies: ${TRUSTED_PROXIES:}

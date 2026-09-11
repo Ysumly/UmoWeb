@@ -12,7 +12,9 @@ import com.ysumly.umowebbackend.service.admin.CategoryManageService;
 import com.ysumly.umowebbackend.service.impl.open.CategoryServiceImpl;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class CategoryManageServiceImpl implements CategoryManageService {
@@ -48,6 +50,7 @@ public class CategoryManageServiceImpl implements CategoryManageService {
 
     @Override
     public CategoryVO create(CategorySaveRequest request) {
+        validateParent(null, request.getParentId());
         Category cat = new Category();
         cat.setName(request.getName());
         cat.setSlug(request.getSlug());
@@ -64,6 +67,7 @@ public class CategoryManageServiceImpl implements CategoryManageService {
         if (cat == null) {
             throw new NotFoundException("Category not found: id=" + id);
         }
+        validateParent(id, request.getParentId());
         cat.setName(request.getName());
         cat.setSlug(request.getSlug());
         cat.setParentId(request.getParentId());
@@ -100,5 +104,23 @@ public class CategoryManageServiceImpl implements CategoryManageService {
         vo.setType(category.getType());
         vo.setSortOrder(category.getSortOrder());
         return vo;
+    }
+
+    private void validateParent(Long categoryId, Long parentId) {
+        if (parentId == null) {
+            return;
+        }
+        Set<Long> visited = new HashSet<>();
+        Long currentId = parentId;
+        while (currentId != null) {
+            if (currentId.equals(categoryId) || !visited.add(currentId)) {
+                throw new BusinessException(400, "分类父级不能形成循环");
+            }
+            Category parent = categoryMapper.findById(currentId);
+            if (parent == null) {
+                throw new BusinessException(400, "父分类不存在: id=" + currentId);
+            }
+            currentId = parent.getParentId();
+        }
     }
 }

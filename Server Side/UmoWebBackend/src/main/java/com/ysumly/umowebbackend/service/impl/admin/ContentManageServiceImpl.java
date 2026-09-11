@@ -99,7 +99,7 @@ public class ContentManageServiceImpl implements ContentManageService {
             content.setSummary(request.getSummary());
             content.setType(request.getType());
             content.setStatus(status.name());
-            content.setMetadata(request.getMetadata());
+            content.setMetadata(normalizeMetadata(request.getMetadata()));
             if (status == ContentStatus.PUBLISHED) {
                 content.setPublishedAt(LocalDateTime.now());
             }
@@ -159,7 +159,7 @@ public class ContentManageServiceImpl implements ContentManageService {
             old.setSummary(request.getSummary());
             old.setType(request.getType());
             old.setStatus(status.name());
-            old.setMetadata(request.getMetadata());
+            old.setMetadata(normalizeMetadata(request.getMetadata()));
 
             // 首次发布设 publishedAt
             if (status == ContentStatus.PUBLISHED && old.getPublishedAt() == null) {
@@ -280,6 +280,10 @@ public class ContentManageServiceImpl implements ContentManageService {
 
     private String body(ContentSaveRequest request) {
         return request.getBody() != null ? request.getBody() : "";
+    }
+
+    private String normalizeMetadata(String metadata) {
+        return metadata == null || metadata.isBlank() ? null : metadata;
     }
 
     private void saveAssociations(Long contentId, List<Long> categoryIds, List<Long> tagIds) {

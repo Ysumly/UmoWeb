@@ -12,8 +12,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -38,9 +38,10 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public Map<String, Object> login(String clientIp, LoginRequest request) {
-        String attemptKey = request.getUsername() + "|" + clientIp;
+        String username = request.getUsername().trim();
+        String attemptKey = username.toLowerCase(Locale.ROOT) + "|" + clientIp;
         loginAttemptService.checkAllowed(attemptKey);
-        User user = userMapper.findByUsername(request.getUsername());
+        User user = userMapper.findByUsername(username);
         if (user == null) {
             loginAttemptService.recordFailure(attemptKey);
             throw new UnauthorizedException("Invalid username or password");

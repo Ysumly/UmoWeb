@@ -66,7 +66,7 @@ GET /api/admin/contents
 
 支持：
 
-- `page`（>= 1）
+- `page`（1-1000000）
 - `size`（1-100）
 - `type`（枚举）
 - `categoryId`
@@ -285,7 +285,7 @@ PUT /api/admin/options/{key}
 ## 8. 测试现状
 
 `BoundaryTest` 仍使用 Mock Service 覆盖接口边界，另有 Service/Util 单元测试覆盖真实文件、
-路径、JWT、限流和批量查询行为。当前完整后端测试共 64 个。
+路径、JWT、限流和批量查询行为。当前完整后端测试共 72 个。
 
 `BoundaryTest` 覆盖：
 

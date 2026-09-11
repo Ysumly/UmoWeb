@@ -1,5 +1,6 @@
 package com.ysumly.umowebbackend.model.dto;
 
+import com.ysumly.umowebbackend.common.exception.BusinessException;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +12,7 @@ import lombok.Data;
 public class ContentQuery {
     @NotNull(message = "page 不能为空")
     @Min(value = 1, message = "page 必须大于等于 1")
+    @Max(value = 1_000_000, message = "page 不能超过 1000000")
     private Integer page = 1;
 
     @NotNull(message = "size 不能为空")
@@ -36,6 +38,10 @@ public class ContentQuery {
         if (page == null || size == null) {
             return 0;
         }
-        return (page - 1) * size;
+        long offset = ((long) page - 1) * size;
+        if (offset > Integer.MAX_VALUE) {
+            throw new BusinessException(400, "page 过大");
+        }
+        return (int) offset;
     }
 }

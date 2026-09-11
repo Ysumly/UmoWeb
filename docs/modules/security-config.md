@@ -94,13 +94,14 @@ registry.addInterceptor(rateLimitInterceptor)
 
 ```java
 registry.addMapping("/api/**")
-        .allowedOrigins("http://localhost:5173")
+        .allowedOrigins(allowedOrigins)
         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
         .allowedHeaders("*")
         .allowCredentials(true);
 ```
 
-开发环境允许 Vite 默认地址。生产域名和反向代理场景需要另行配置。
+允许来源从 `app.cors.allowed-origins` 读取，支持逗号分隔。开发默认是 Vite 地址，
+生产通过 `CORS_ALLOWED_ORIGINS` 设置实际域名；空列表会启动失败。
 
 ### 4.3 图片静态资源
 
@@ -157,6 +158,8 @@ spring:
 
 app:
   storage-path: ./data
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   security:
     allow-default-credentials: false
     trusted-proxies: ${TRUSTED_PROXIES:}
@@ -218,7 +221,7 @@ app:
 | 路径穿越 | slug/bookSlug 和安全化路径已检查，读写删必须位于 storage root |
 | 上传校验 | MIME、文件签名和固定扩展名同时校验 |
 | 搜索限流 | 仅信任显式代理，使用原子更新并定期清理 |
-| 生产 CORS | 写死 localhost |
+| 生产 CORS | 通过 `CORS_ALLOWED_ORIGINS` 配置 |
 | 数据库完整性 | 新库已含外键/索引；旧库需执行兼容迁移 |
 | 文件事务 | 使用临时文件、提交后清理和回滚恢复策略 |
 
@@ -239,5 +242,5 @@ app:
 
 仍缺少：
 
-- CORS 和生产代理环境测试。
+- 生产代理环境测试。
 - 多实例共享限流测试。

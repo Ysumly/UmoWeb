@@ -35,6 +35,7 @@ $env:SPRING_PROFILES_ACTIVE = "prod"
 $env:JWT_SECRET = "<至少 32 字符的独立 secret>"
 $env:INIT_ADMIN_USER = "<管理员用户名>"
 $env:INIT_ADMIN_PASS = "<强管理员密码>"
+$env:CORS_ALLOWED_ORIGINS = "https://<正式域名>"
 ```
 
 ### 1.3 数据库
@@ -91,7 +92,7 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 64 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 72 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 拦截器、登录限流和安全配置测试。MockMvc 边界测试不连接 MySQL；
 `UmoWebBackendApplicationTests` 仍是一条空测试，不会加载完整 Spring Context。
 
@@ -514,7 +515,8 @@ categoryId=父分类 ID
 
 ### 8.5 分页边界
 
-`page < 1`、`size < 1` 或 `size > 100` 返回 400；非法 `type/status` 和 metadata 同样返回 400。
+`page < 1`、`page > 1000000`、`size < 1` 或 `size > 100` 返回 400；
+非法 `type/status` 和 metadata 同样返回 400。
 
 ### 8.6 文件失败
 

@@ -25,7 +25,7 @@ UmoWeb/
 └── .superpowers/
 ```
 
-后端主源码为 80 个 Java 文件，前端 `src` 包含 25 个源码/测试文件。
+后端主源码为 80 个 Java 文件，前端 `src` 包含 27 个源码/测试文件。
 本次修复会把必要的前后端源码、配置和测试纳入 Git；`Downloads/`、`.superpowers/`、
 `target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
@@ -47,7 +47,7 @@ UmoWeb/
 | JWT | JJWT 0.12.6，默认 24 小时 |
 | 密码 | `spring-security-crypto` + BCrypt |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；64 个测试 |
+| 测试 | Spring Boot Test、Mockito、MockMvc；72 个测试 |
 
 ### 2.2 前端
 
@@ -209,7 +209,7 @@ HTTP 状态与返回：
 
 ### 4.4 查询语义
 
-- `page` 默认 1 且必须 >= 1；`size` 默认 10 且限制为 1-100。
+- `page` 默认 1 且限制为 1-1000000；`size` 默认 10 且限制为 1-100。
 - `sort` 仅当值严格等于 `created_at_desc` 时按创建时间倒序；其他值都按 `published_at DESC`。
 - 公开列表和详情只处理 `status=PUBLISHED`。
 - `categoryId` 使用 `EXISTS` 精确匹配关联分类，不包含子分类。
@@ -256,8 +256,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `DataInitializer` 在 `users` 表为空时创建管理员，默认 `admin/admin123`。
 - 默认 profile 为 `dev` 且明确允许默认凭据；`prod` 下默认 JWT secret 或管理员密码会阻止启动。
 - 修改密码递增 `users.token_version`，旧 token 立即失效。
-- 登录按 username + client IP 在 15 分钟窗口内限制 5 次失败。
-- CORS 只允许 `http://localhost:5173`。
+- 登录按规范化 username + client IP 在 15 分钟窗口内限制 5 次失败。
+- CORS 来源由 `app.cors.allowed-origins` 配置，开发默认 `http://localhost:5173`。
 
 ---
 
@@ -305,7 +305,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - Markdown 渲染和语法高亮尚未接入页面。
 - 图片上传函数已封装，但编辑器尚未实现拖入/粘贴流程。
 - 修改密码 API 函数已补充；页面和入口仍缺失。
-- 管理端路径由 `VITE_ADMIN_PATH` 控制，默认 `/secret-admin`，不再依赖后端 `app.admin-path`。
+- 管理端路径由统一 `VITE_ADMIN_PATH` 工具控制，默认 `/secret-admin`，不再依赖后端 `app.admin-path`。
 - `site` store 只有 `fetch()`，没有文档曾提到的 `fetchSiteInfo()`。
 - 当前不存在 `AppHeader`、`AppFooter`、`ContentForm`、`MarkdownRenderer` 等公共组件。
 

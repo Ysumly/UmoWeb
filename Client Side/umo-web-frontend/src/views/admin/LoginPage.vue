@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
+import { adminPath } from '@/config/adminPath'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -17,7 +18,7 @@ async function handleLogin() {
   error.value = ''
   try {
     await auth.login(username.value, password.value)
-    const redirect = route.query.redirect || '/secret-admin/contents'
+    const redirect = route.query.redirect || adminPath('contents')
     router.push(redirect)
   } catch (e) {
     error.value = e.response?.data?.message || '登录失败'

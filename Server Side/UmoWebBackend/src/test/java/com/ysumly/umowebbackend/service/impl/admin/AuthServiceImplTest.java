@@ -81,6 +81,30 @@ class AuthServiceImplTest {
                 .isEqualTo(429);
     }
 
+    @Test
+    void loginFailureKeyCannotBeBypassedWithCaseOrWhitespace() {
+        User user = user(1);
+        when(userMapper.findByUsername("admin")).thenReturn(user);
+        when(passwordEncoder.matches("wrong", "hash")).thenReturn(false);
+
+        for (int i = 0; i < 2; i++) {
+            assertThatThrownBy(() -> service.login(
+                    "203.0.113.10", loginRequest("admin", "wrong")))
+                    .isInstanceOf(UnauthorizedException.class);
+        }
+        for (int i = 0; i < 3; i++) {
+            assertThatThrownBy(() -> service.login(
+                    "203.0.113.10", loginRequest(" ADMIN ", "wrong")))
+                    .isInstanceOf(UnauthorizedException.class);
+        }
+
+        assertThatThrownBy(() -> service.login(
+                "203.0.113.10", loginRequest("admin", "wrong")))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(429);
+    }
+
     private User user(int tokenVersion) {
         User user = new User();
         user.setId(1L);

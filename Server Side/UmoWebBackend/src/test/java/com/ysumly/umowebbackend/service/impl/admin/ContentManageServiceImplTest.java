@@ -15,6 +15,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -117,6 +118,24 @@ class ContentManageServiceImplTest {
 
         verify(contentMapper, never()).insert(any());
         assertThat(countFiles(storageRoot)).isZero();
+    }
+
+    @Test
+    void createStoresBlankMetadataAsNull() throws IOException {
+        when(contentMapper.countBySlug("metadata-note", null)).thenReturn(0L);
+        doAnswer(invocation -> {
+            Content content = invocation.getArgument(0);
+            content.setId(1L);
+            return null;
+        }).when(contentMapper).insert(any(Content.class));
+        ContentSaveRequest request = noteRequest("metadata-note", "body");
+        request.setMetadata("   ");
+
+        service.create(request);
+
+        ArgumentCaptor<Content> captor = ArgumentCaptor.forClass(Content.class);
+        verify(contentMapper).insert(captor.capture());
+        assertThat(captor.getValue().getMetadata()).isNull();
     }
 
     @Test

@@ -143,7 +143,7 @@ GET /api/public/contents?page=1&size=10&type=NOTE&categoryId=2&tagId=1&sort=publ
 
 | 参数 | 类型 | 默认值 | 实际行为 |
 |---|---|---|---|
-| `page` | int | 1 | 必须大于等于 1 |
+| `page` | int | 1 | 1-1000000 |
 | `size` | int | 10 | 1 到 100 |
 | `type` | string | - | `NOTE`、`NOVEL`、`BOOK_REVIEW`，非法值返回 400 |
 | `categoryId` | long | - | 仅匹配该分类，不包含子分类 |
@@ -243,7 +243,7 @@ GET /api/public/contents/search?q=Spring&page=1&size=10
 | 参数 | 类型 | 默认值 | 实际行为 |
 |---|---|---|---|
 | `q` | string | `""` | 匹配 `title LIKE` 或 `summary LIKE` |
-| `page` | int | 1 | 必须大于等于 1 |
+| `page` | int | 1 | 1-1000000 |
 | `size` | int | 10 | 1 到 100 |
 
 说明：

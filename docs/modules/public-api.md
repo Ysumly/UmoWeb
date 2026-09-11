@@ -155,7 +155,7 @@ SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
-| `page` | 1 | 必须 >= 1 |
+| `page` | 1 | 1-1000000 |
 | `size` | 10 | 1-100 |
 | `type` | null | 枚举，非法值 400 |
 | `categoryId` | null | 精确匹配，不含子分类 |
@@ -169,7 +169,7 @@ SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 | 参数 | 默认值 | 说明 |
 |---|---|---|
 | `q` | null -> `""` | title/summary 模糊匹配 |
-| `page` | 1 | 必须 >= 1 |
+| `page` | 1 | 1-1000000 |
 | `size` | 10 | 1-100 |
 
 ---
