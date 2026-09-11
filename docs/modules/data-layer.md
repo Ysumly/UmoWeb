@@ -133,7 +133,7 @@ Controller 的 `@Valid` 会在进入 Service 前拒绝非法 page/size。
 
 | VO | 字段 |
 |---|---|
-| `ContentListVO` | `id`、`title`、`slug`、`summary`、`type`、`categories`、`tags`、`metadata`、`publishedAt` |
+| `ContentListVO` | `id`、`title`、`slug`、`summary`、`type`、`status`、`categories`、`tags`、`metadata`、`publishedAt` |
 | `ContentDetailVO` | 继承列表 VO，增加 `body`、`previous`、`next` |
 | `ContentNeighborVO` | `id`、`title`、`slug`、`publishedAt` |
 | `CategoryTreeVO` | `id`、`name`、`slug`、`type`、`children` |

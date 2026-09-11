@@ -127,6 +127,7 @@ try {
     $publicContents = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents?page=1&size=10")
     Assert-True ($publicContents.total -ge 5) "published content list must contain seed data"
     Assert-True (($publicContents.items | Where-Object type -eq "NOTE").Count -gt 0) "published content list must support NOTE items"
+    Assert-True (($publicContents.items | Where-Object status -ne "PUBLISHED").Count -eq 0) "public content list must only expose PUBLISHED status"
     Step 6 "GET /api/public/contents"
 
     $publicDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents/spring-boot-quickstart")
@@ -223,6 +224,8 @@ try {
 
     $adminContents = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/contents?page=1&size=100" -Headers $authHeaders)
     Assert-True ($adminContents.total -ge 6) "admin content list must include drafts and published content"
+    Assert-True (($adminContents.items | Where-Object status -eq "DRAFT").Count -gt 0) "admin content list must expose draft status"
+    Assert-True (($adminContents.items | Where-Object status -eq "PUBLISHED").Count -gt 0) "admin content list must expose published status"
     Step 18 "GET /api/admin/contents"
 
     $contentSlug = "smoke-content-$runId"
@@ -239,11 +242,13 @@ try {
                 metadata = '{"source":"api-smoke"}'
             })
     Assert-True ($content.id -gt 0) "created content must have id"
+    Assert-True ($content.status -eq "DRAFT") "created content must expose DRAFT status"
     $contentId = $content.id
     Step 19 "POST /api/admin/contents"
 
     $contentDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/contents/$contentId" -Headers $authHeaders)
     Assert-True ($contentDetail.body -eq "# Smoke`n`nInitial body") "admin content detail must load body"
+    Assert-True ($contentDetail.status -eq "DRAFT") "admin content detail must expose DRAFT status"
     Assert-True ($contentDetail.categories[0].id -eq $categoryId) "content detail must include created category"
     Step 20 "GET /api/admin/contents/{id}"
 
@@ -254,12 +259,13 @@ try {
                 body = "# Smoke`n`nUpdated body"
                 summary = "Smoke summary updated"
                 type = "NOTE"
-                status = "DRAFT"
+                status = "PUBLISHED"
                 categoryIds = @($categoryId)
                 tagIds = @($tagId)
                 metadata = '{"source":"api-smoke","updated":true}'
             })
     Assert-True ($contentUpdate.body -eq "# Smoke`n`nUpdated body") "content update must persist body"
+    Assert-True ($contentUpdate.status -eq "PUBLISHED") "content update must expose PUBLISHED status"
     Step 21 "PUT /api/admin/contents/{id}"
 
     Invoke-Checked -Method DELETE -Path "/api/admin/contents/$contentId" -Headers $authHeaders -ExpectedStatus 204 | Out-Null

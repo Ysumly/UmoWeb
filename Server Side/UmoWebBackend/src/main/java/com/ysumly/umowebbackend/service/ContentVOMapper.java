@@ -102,6 +102,7 @@ public class ContentVOMapper {
         target.setSlug(source.getSlug());
         target.setSummary(source.getSummary());
         target.setType(source.getType());
+        target.setStatus(source.getStatus());
         target.setCategories(source.getCategories());
         target.setTags(source.getTags());
         target.setMetadata(source.getMetadata());
@@ -114,6 +115,7 @@ public class ContentVOMapper {
         vo.setSlug(content.getSlug());
         vo.setSummary(content.getSummary());
         vo.setType(content.getType());
+        vo.setStatus(content.getStatus());
         vo.setPublishedAt(content.getPublishedAt());
         vo.setMetadata(parseMetadata(content.getMetadata()));
     }

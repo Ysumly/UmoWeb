@@ -162,6 +162,7 @@ GET /api/public/contents?page=1&size=10&type=NOTE&categoryId=2&tagId=1&sort=publ
       "slug": "spring-boot-quickstart",
       "summary": "从零搭建一个 Spring Boot 项目。",
       "type": "NOTE",
+      "status": "PUBLISHED",
       "categories": [
         {
           "id": 3,
@@ -206,6 +207,7 @@ GET /api/public/contents/{slug}
   "slug": "spring-boot-quickstart",
   "summary": "从零搭建一个 Spring Boot 项目。",
   "type": "NOTE",
+  "status": "PUBLISHED",
   "categories": [
     {
       "id": 3,
@@ -347,6 +349,8 @@ Authorization: Bearer <token>
 
 返回含草稿的分页 `PageResult<ContentListVO>`。
 
+`ContentListVO` 包含 `status` 字段：公开接口只会返回 `PUBLISHED`；管理端列表和详情会返回 `DRAFT` 或 `PUBLISHED`。
+
 ### 4.2 查询文章详情
 
 ```http
@@ -354,7 +358,7 @@ GET /api/admin/contents/{id}
 Authorization: Bearer <token>
 ```
 
-返回 `ContentDetailVO`，含 Markdown `body`。资源不存在返回 404。
+返回 `ContentDetailVO`，含 Markdown `body` 和当前 `status`。资源不存在返回 404。
 
 ### 4.3 新建文章
 

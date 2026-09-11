@@ -2,7 +2,7 @@
 
 > 基线日期: 2026-09-11
 > 项目路径: `Client Side/umo-web-frontend/`
-> 状态: 公开端主路径已接入真实 API，编辑器和管理端业务页仍待继续实现
+> 状态: 公开端主路径和管理端文章工作流已接入真实 API，其余管理业务页仍待继续实现
 
 ---
 
@@ -48,6 +48,7 @@ umo-web-frontend/
     │   ├── theme.js
     │   └── useTheme.js
     ├── utils/
+    │   ├── adminContent.js
     │   ├── apiError.js
     │   ├── format.js
     │   ├── markdown.js
@@ -126,9 +127,9 @@ umo-web-frontend/
 | `/editor` | `editor` | `EditorPage.vue` | 占位 |
 | `/secret-admin` | - | `AdminLayout.vue` | 重定向到文章页 |
 | `/secret-admin/login` | `login` | `LoginPage.vue` | 已实现 |
-| `/secret-admin/contents` | `admin-contents` | `ContentListPage.vue` | 占位 |
-| `/secret-admin/contents/new` | `content-new` | `ContentEditPage.vue` | 占位 |
-| `/secret-admin/contents/:id/edit` | `content-edit` | `ContentEditPage.vue` | 占位 |
+| `/secret-admin/contents` | `admin-contents` | `ContentListPage.vue` | 已接入真实 API |
+| `/secret-admin/contents/new` | `content-new` | `ContentEditPage.vue` | 已接入真实 API |
+| `/secret-admin/contents/:id/edit` | `content-edit` | `ContentEditPage.vue` | 已接入真实 API |
 | `/secret-admin/categories` | `admin-cats` | `CategoryManagePage.vue` | 占位 |
 | `/secret-admin/tags` | `admin-tags` | `TagManagePage.vue` | 占位 |
 | `/secret-admin/options` | `admin-options` | `OptionPage.vue` | 占位 |
@@ -195,7 +196,9 @@ token 来源和存储位置都是 `localStorage`。
 | 页面/组件 | 实际能力 |
 |---|---|
 | `LoginPage.vue` | 表单、调用登录 API、错误提示、跳转 |
-| `AdminLayout.vue` | 侧栏导航、退出登录、`router-view` |
+| `AdminLayout.vue` | 桌面侧栏、移动抽屉、主题切换、退出登录和 `router-view` |
+| `ContentListPage.vue` | 文章筛选、分页、状态展示、编辑和删除 |
+| `ContentEditPage.vue` | 新建/编辑、分类标签、metadata、Markdown 分屏预览、图片上传和未保存保护 |
 | `NotFoundPage.vue` | 公开端视觉样式，提供返回首页和书库入口 |
 
 ### 7.2 公开端真实 API
@@ -218,13 +221,12 @@ token 来源和存储位置都是 `localStorage`。
 
 管理端：
 
-- 文章列表
-- 文章编辑
 - 分类管理
 - 标签管理
 - 站点设置
+- 修改密码入口
 
-编辑器仍只渲染占位内容；管理端仍为原有基础设施和占位页面。
+公开在线编辑器仍只渲染占位内容；管理端文章工作流已实现，其余页面仍为占位。
 
 ---
 
@@ -249,14 +251,13 @@ server: {
 }
 ```
 
-2026-09-11 执行 `npm test` 和 `npm run build` 成功。Node 测试覆盖路由、管理路径、主题解析、静态筛选和 Markdown 原始 HTML 禁用。
+2026-09-11 执行 `npm test` 和 `npm run build` 成功。当前 29 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章表单规则、静态筛选和 Markdown 原始 HTML 禁用。
 
 ---
 
 ## 9. 下一步实现顺序
 
-1. 实现在线 Markdown 编辑器。
-2. 实现文章管理列表和编辑表单。
-3. 实现分类、标签和站点配置管理。
-4. 补齐修改密码入口。
-5. 增加可重复执行的浏览器 E2E 和视觉回归。
+1. 实现分类、标签和站点配置管理。
+2. 补齐修改密码入口。
+3. 实现在线 Markdown 编辑器。
+4. 增加可重复执行的浏览器 E2E 和视觉回归。

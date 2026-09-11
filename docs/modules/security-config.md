@@ -108,9 +108,10 @@ registry.addMapping("/api/**")
 
 ```java
 registry.addResourceHandler("/images/**")
-        .addResourceLocations("file:${app.storage-path}/images/");
+        .addResourceLocations(imageResourceLocation());
 ```
 
+`imageResourceLocation()` 将 `app.storage-path/images` 规范化为绝对 `file:` URI，避免把占位符当作文本路径。
 图片通过后端直接访问，前端开发环境由 Vite 代理 `/images`。
 
 ---

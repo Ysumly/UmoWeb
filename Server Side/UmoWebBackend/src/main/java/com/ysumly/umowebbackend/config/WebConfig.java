@@ -7,6 +7,7 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 
 @Configuration
@@ -15,13 +16,17 @@ public class WebConfig implements WebMvcConfigurer {
     private final AdminInterceptor adminInterceptor;
     private final RateLimitInterceptor rateLimitInterceptor;
     private final String[] allowedOrigins;
+    private final String storagePath;
 
     public WebConfig(AdminInterceptor adminInterceptor,
                      RateLimitInterceptor rateLimitInterceptor,
                      @Value("${app.cors.allowed-origins:http://localhost:5173}")
-                     String allowedOrigins) {
+                     String allowedOrigins,
+                     @Value("${app.storage-path:./data}")
+                     String storagePath) {
         this.adminInterceptor = adminInterceptor;
         this.rateLimitInterceptor = rateLimitInterceptor;
+        this.storagePath = storagePath;
         this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isBlank())
@@ -55,6 +60,15 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/images/**")
-                .addResourceLocations("file:${app.storage-path}/images/");
+                .addResourceLocations(imageResourceLocation());
+    }
+
+    String imageResourceLocation() {
+        String location = Path.of(storagePath, "images")
+                .toAbsolutePath()
+                .normalize()
+                .toUri()
+                .toString();
+        return location.endsWith("/") ? location : location + "/";
     }
 }

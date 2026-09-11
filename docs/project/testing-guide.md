@@ -92,7 +92,7 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 77 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 79 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器和登录限流测试。MockMvc 边界测试不连接 MySQL；
 `UmoWebBackendApplicationTests` 仍是一条空测试，不会加载完整 Spring Context。
 
@@ -125,6 +125,7 @@ cd "Server Side\UmoWebBackend"
 - 搜索首次返回 200，10 秒内重复请求返回 429。
 - 详情 `previous` 为更早文章、`next` 为更新文章，首尾边界为 `null`。
 - PNG 上传同时通过 MIME 和文件签名校验。
+- 公开列表只返回 `PUBLISHED`；管理列表和详情同时暴露 `DRAFT` 与 `PUBLISHED` 状态。
 - 测试创建的分类、标签、草稿文章全部删除，密码和 `site_title` 恢复原值。
 
 脚本运行前要求后端已启动并使用真实 MySQL。脚本会临时修改管理员密码和 `site_title`，
@@ -142,8 +143,8 @@ npm test
 
 - 后端完整测试通过。
 - Vite 8.1.0 前端生产构建成功。
-- 前端 21 个 Node 测试通过，覆盖路由、管理路径、主题、API 错误解析、日期格式、查询规范化和 Markdown 安全。
-- 浏览器桌面与 390px 已验证公开页面、筛选、搜索 429、详情导航和离线错误态。
+- 前端 29 个 Node 测试通过，覆盖路由、管理路径、主题、管理端文章表单规则、API 错误解析、日期格式、查询规范化和 Markdown 安全。
+- 浏览器桌面与 390px 已验证公开页面、管理端文章筛选/创建/编辑/删除、图片上传插入、Markdown 预览、未保存保护、移动导航和离线错误态。
 
 ---
 
@@ -461,7 +462,7 @@ GET {{baseUrl}}/api/admin/contents
 GET {{baseUrl}}/api/admin/contents/1
 ```
 
-预期 200。列表包含草稿；详情包含 `body`。
+预期 200。列表包含草稿与已发布文章，并通过 `status` 字段区分；详情包含 `status` 和 `body`。
 
 ### 6.7 编辑文章
 

@@ -1,6 +1,6 @@
 # UmoWeb 前端续作提示
 
-> 基线日期: 2026-09-10
+> 基线日期: 2026-09-11
 > 目标: 在不误改现有基础设施的前提下完成剩余前端业务页面
 > 事实来源: `Client Side/umo-web-frontend/src`
 
@@ -50,8 +50,11 @@
 | `src/api/admin.js` | 19 个管理 API 函数，包含 `changePassword` |
 | `src/stores/auth.js` | token、login、logout |
 | `src/stores/site.js` | title、subtitle、fetch |
+| `src/utils/adminContent.js` | 管理端查询、表单、metadata、分类顺序和图片插入规则 |
 | `src/views/admin/LoginPage.vue` | 已实现 |
-| `src/components/admin/AdminLayout.vue` | 已实现基础布局 |
+| `src/components/admin/AdminLayout.vue` | 已实现响应式布局 |
+| `src/views/admin/ContentListPage.vue` | 已接入列表、筛选、分页和删除 |
+| `src/views/admin/ContentEditPage.vue` | 已接入新建/编辑、预览和图片上传 |
 | `src/views/public/NotFoundPage.vue` | 已实现基础 404 |
 
 ---
@@ -72,15 +75,15 @@
 
 ### 4.2 管理端
 
-| 页面 | 任务 |
+| 页面 | 当前状态 |
 |---|---|
-| `ContentListPage.vue` | 文章表格、筛选、删除、分页 |
-| `ContentEditPage.vue` | 新建/编辑表单、分类标签选择、Markdown 预览 |
-| `CategoryManagePage.vue` | 树形 CRUD |
-| `TagManagePage.vue` | 列表 CRUD |
-| `OptionPage.vue` | 站点标题、副标题、About/Project 编辑 |
+| `ContentListPage.vue` | 已接入文章表格、筛选、删除、分页 |
+| `ContentEditPage.vue` | 已接入新建/编辑、分类标签、Markdown 预览和图片上传 |
+| `CategoryManagePage.vue` | 待实现树形 CRUD |
+| `TagManagePage.vue` | 待实现列表 CRUD |
+| `OptionPage.vue` | 待实现站点标题、副标题、About/Project 编辑 |
 
-还需要增加修改密码 API 函数、页面或入口。
+修改密码 API 函数已补充，但页面和入口仍未实现。
 
 ---
 
@@ -128,10 +131,9 @@
 
 ## 6. 推荐实施顺序
 
-1. 完成文章管理列表和编辑表单。
-2. 完成分类、标签、站点设置和修改密码入口。
-3. 完成本地编辑器。
-4. 做管理端响应式和错误态回归。
+1. 完成分类、标签、站点设置和修改密码入口。
+2. 完成本地编辑器。
+3. 做管理端剩余页面的响应式和错误态回归。
 
 ---
 
@@ -141,11 +143,10 @@
 
 - 统一正常响应包装。
 - 新建接口返回 201。
-- 前端 Markdown 渲染组件。
-- 图片拖入/粘贴组件。
+- 公开在线编辑器的导入/下载流程。
 - 修改密码页面。
 - 内容、分类、标签通用 store。
-- 前端自动化测试。
+- 可重复执行的浏览器 E2E 工程。
 - 自动包含子分类的筛选。
 - 全文搜索 Markdown 正文。
 

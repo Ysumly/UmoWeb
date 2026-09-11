@@ -1,30 +1,82 @@
 <script setup>
+import { computed, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import ThemeToggle from '@/components/common/ThemeToggle.vue'
 import { adminPath } from '@/config/adminPath'
 
 const auth = useAuthStore()
+const route = useRoute()
 const router = useRouter()
+const menuOpen = ref(false)
+
+const navigation = computed(() => [
+  { to: adminPath('contents'), label: '文章管理' },
+  { to: adminPath('categories'), label: '分类管理' },
+  { to: adminPath('tags'), label: '标签管理' },
+  { to: adminPath('options'), label: '站点设置' },
+])
+
+watch(() => route.fullPath, () => {
+  menuOpen.value = false
+})
 
 function handleLogout() {
   auth.logout()
-  router.push({ name: 'login' })
+  return router.push({ name: 'login' })
 }
 </script>
 
 <template>
-  <div class="flex min-h-screen">
-    <aside class="w-56 bg-gray-900 text-white p-4 flex flex-col gap-4">
-      <h2 class="text-lg font-bold">管理后台</h2>
-      <nav class="flex flex-col gap-2">
-        <router-link :to="adminPath('contents')"   class="text-gray-300 hover:text-white">文章管理</router-link>
-        <router-link :to="adminPath('categories')" class="text-gray-300 hover:text-white">分类管理</router-link>
-        <router-link :to="adminPath('tags')"       class="text-gray-300 hover:text-white">标签管理</router-link>
-        <router-link :to="adminPath('options')"    class="text-gray-300 hover:text-white">站点设置</router-link>
+  <div class="admin-shell">
+    <header class="admin-mobile-header">
+      <button
+        class="admin-menu-button"
+        type="button"
+        :aria-expanded="menuOpen"
+        aria-controls="admin-navigation"
+        @click="menuOpen = !menuOpen"
+      >
+        {{ menuOpen ? '关闭' : '菜单' }}
+      </button>
+      <strong>Umo 管理</strong>
+      <ThemeToggle />
+    </header>
+
+    <button
+      v-if="menuOpen"
+      class="admin-sidebar-backdrop"
+      type="button"
+      aria-label="关闭管理菜单"
+      @click="menuOpen = false"
+    />
+
+    <aside id="admin-navigation" class="admin-sidebar" :class="{ 'is-open': menuOpen }">
+      <div class="admin-brand">
+        <span>U</span>
+        <div>
+          <strong>Umo 管理</strong>
+          <small>CONTENT STUDIO</small>
+        </div>
+      </div>
+
+      <nav class="admin-navigation" aria-label="管理导航">
+        <router-link
+          v-for="item in navigation"
+          :key="item.to"
+          :to="item.to"
+        >
+          {{ item.label }}
+        </router-link>
       </nav>
-      <button @click="handleLogout" class="mt-auto text-left text-gray-400 hover:text-red-400">退出登录</button>
+
+      <div class="admin-sidebar__footer">
+        <ThemeToggle />
+        <button type="button" @click="handleLogout">退出登录</button>
+      </div>
     </aside>
-    <main class="flex-1 p-6 bg-gray-50">
+
+    <main class="admin-main">
       <router-view />
     </main>
   </div>

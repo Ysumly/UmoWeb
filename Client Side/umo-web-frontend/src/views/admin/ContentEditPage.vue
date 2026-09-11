@@ -1,6 +1,473 @@
+<script setup>
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+} from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+
+import {
+  createContent,
+  getAdminCats,
+  getAdminContent,
+  listAdminTags,
+  updateContent,
+  uploadImage,
+} from '@/api/admin'
+import MarkdownArticle from '@/components/public/MarkdownArticle.vue'
+import ContentState from '@/components/public/ContentState.vue'
+import { adminPath } from '@/config/adminPath'
+import {
+  buildContentPayload,
+  contentToForm,
+  insertImageMarkdown,
+  validateContentForm,
+  validateImageFile,
+} from '@/utils/adminContent'
+import { getApiErrorMessage } from '@/utils/apiError'
+import { flattenCategoryTree } from '@/utils/publicContent'
+
+const route = useRoute()
+const router = useRouter()
+
+const isEdit = computed(() => Boolean(route.params.id))
+const loading = ref(true)
+const saving = ref(false)
+const uploading = ref(false)
+const dragActive = ref(false)
+const generalError = ref('')
+const uploadMessage = ref('')
+const mobilePane = ref('editor')
+const categories = ref([])
+const tags = ref([])
+const errors = ref({})
+const textareaRef = ref(null)
+const fileInputRef = ref(null)
+const initialSnapshot = ref('')
+const pendingSelection = ref(null)
+
+const form = reactive({
+  title: '',
+  slug: '',
+  summary: '',
+  type: 'NOTE',
+  status: 'DRAFT',
+  body: '',
+  metadata: '',
+  categoryIds: [],
+  tagIds: [],
+})
+
+const allCategories = computed(() => flattenCategoryTree(categories.value))
+const categoryOptions = computed(() => {
+  return allCategories.value.filter((category) => category.type === form.type)
+})
+const categoryMap = computed(() => {
+  return new Map(allCategories.value.map((category) => [category.id, category]))
+})
+const selectedNovelCategory = computed(() => {
+  return form.categoryIds
+    .map((id) => categoryMap.value.get(id))
+    .find((category) => category?.type === 'NOVEL')
+})
+const dirty = computed(() => {
+  return !loading.value
+    && initialSnapshot.value
+    && JSON.stringify(form) !== initialSnapshot.value
+})
+
+function snapshotForm() {
+  initialSnapshot.value = JSON.stringify(form)
+}
+
+function friendlySaveError(error) {
+  const status = error?.response?.status
+  if (status === 409) {
+    return getApiErrorMessage(error, 'slug 已存在，请更换后重试')
+  }
+  if (status === 413) {
+    return '图片或请求内容超过 50MB'
+  }
+  return getApiErrorMessage(error, '文章保存失败')
+}
+
+function handleTypeChange() {
+  const validIds = new Set(categoryOptions.value.map((category) => category.id))
+  form.categoryIds = form.categoryIds.filter((id) => validIds.has(id))
+  delete errors.value.categoryIds
+}
+
+async function load() {
+  loading.value = true
+  generalError.value = ''
+
+  try {
+    const requests = [getAdminCats(), listAdminTags()]
+    if (isEdit.value) {
+      requests.push(getAdminContent(route.params.id))
+    }
+    const [categoryResponse, tagResponse, contentResponse] = await Promise.all(requests)
+
+    categories.value = categoryResponse.data || []
+    tags.value = tagResponse.data || []
+    if (contentResponse) {
+      Object.assign(form, contentToForm(contentResponse.data))
+    }
+    snapshotForm()
+  } catch (error) {
+    generalError.value = getApiErrorMessage(error, '文章加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleSubmit() {
+  errors.value = validateContentForm(form, allCategories.value)
+  generalError.value = ''
+  if (Object.keys(errors.value).length) {
+    generalError.value = '请检查表单中的错误项'
+    return
+  }
+
+  saving.value = true
+  try {
+    const payload = buildContentPayload(form, allCategories.value)
+    if (isEdit.value) {
+      await updateContent(route.params.id, payload)
+    } else {
+      await createContent(payload)
+    }
+    snapshotForm()
+    await router.push({
+      name: 'admin-contents',
+      query: { saved: '1' },
+    })
+  } catch (error) {
+    generalError.value = friendlySaveError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+function openImagePicker() {
+  pendingSelection.value = {
+    start: textareaRef.value?.selectionStart ?? form.body.length,
+    end: textareaRef.value?.selectionEnd ?? form.body.length,
+  }
+  fileInputRef.value?.click()
+}
+
+async function uploadAndInsert(file, selection = pendingSelection.value) {
+  const validationMessage = validateImageFile(file)
+  if (validationMessage) {
+    uploadMessage.value = validationMessage
+    pendingSelection.value = null
+    return
+  }
+
+  const start = selection?.start ?? form.body.length
+  const end = selection?.end ?? start
+  uploading.value = true
+  uploadMessage.value = '正在上传图片...'
+
+  try {
+    const response = await uploadImage(file)
+    const alt = String(file.name || 'image').replace(/\.[^.]+$/, '')
+    const result = insertImageMarkdown({
+      body: form.body,
+      selectionStart: start,
+      selectionEnd: end,
+      url: response.data.url,
+      alt,
+    })
+    form.body = result.body
+    uploadMessage.value = '图片已插入正文'
+    await nextTick()
+    textareaRef.value?.focus()
+    textareaRef.value?.setSelectionRange(result.cursor, result.cursor)
+  } catch (error) {
+    uploadMessage.value = error?.response?.status === 413
+      ? '图片不能超过 50MB'
+      : getApiErrorMessage(error, '图片上传失败')
+  } finally {
+    uploading.value = false
+    pendingSelection.value = null
+  }
+}
+
+function handleFileInput(event) {
+  const [file] = event.target.files || []
+  if (file) {
+    uploadAndInsert(file, pendingSelection.value)
+  }
+  event.target.value = ''
+}
+
+function handlePaste(event) {
+  const imageItem = Array.from(event.clipboardData?.items || [])
+    .find((item) => item.type.startsWith('image/'))
+  if (!imageItem) {
+    return
+  }
+
+  event.preventDefault()
+  uploadAndInsert(imageItem.getAsFile(), {
+    start: textareaRef.value?.selectionStart ?? form.body.length,
+    end: textareaRef.value?.selectionEnd ?? form.body.length,
+  })
+}
+
+function handleDrop(event) {
+  dragActive.value = false
+  const [file] = event.dataTransfer?.files || []
+  if (file) {
+    uploadAndInsert(file, {
+      start: textareaRef.value?.selectionStart ?? form.body.length,
+      end: textareaRef.value?.selectionEnd ?? form.body.length,
+    })
+  }
+}
+
+function handleBeforeUnload(event) {
+  if (!dirty.value) {
+    return
+  }
+  event.preventDefault()
+  event.returnValue = ''
+}
+
+onBeforeRouteLeave(() => {
+  if (!dirty.value || saving.value) {
+    return true
+  }
+  return window.confirm('当前修改尚未保存，确定离开吗？')
+})
+
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+  load()
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+</script>
+
 <template>
-  <div>
-    <h1 class="text-2xl font-bold mb-4">{{ $route.params.id ? '编辑文章' : '新建文章' }}</h1>
-    <p class="text-gray-500">文章编辑器 — 待实现</p>
-  </div>
+  <section class="admin-page admin-editor-page">
+    <ContentState
+      v-if="loading"
+      state="loading"
+      title="正在读取文章"
+    />
+
+    <ContentState
+      v-else-if="generalError && !form.title && isEdit"
+      state="error"
+      title="文章加载失败"
+      :message="generalError"
+      action-label="返回文章列表"
+      @retry="router.push(adminPath('contents'))"
+    />
+
+    <template v-else>
+      <header class="admin-page__header admin-editor-header">
+        <div>
+          <span class="admin-page__eyebrow">
+            {{ isEdit ? 'EDIT / 编辑文章' : 'NEW / 新建文章' }}
+          </span>
+          <h1>{{ isEdit ? '编辑文章' : '新建文章' }}</h1>
+          <p>Markdown 文件会随文章保存，发布状态可以随时切换。</p>
+        </div>
+        <div class="admin-editor-header__actions">
+          <button class="button button--quiet" type="button" @click="router.push(adminPath('contents'))">
+            返回列表
+          </button>
+          <button
+            class="button button--primary"
+            type="button"
+            :disabled="saving || uploading"
+            @click="handleSubmit"
+          >
+            {{ saving ? '保存中...' : isEdit ? '保存修改' : '创建文章' }}
+          </button>
+        </div>
+      </header>
+
+      <div v-if="generalError" class="admin-notice" role="alert">
+        {{ generalError }}
+        <button type="button" @click="generalError = ''">关闭</button>
+      </div>
+
+      <div class="admin-editor-layout">
+        <form class="admin-editor-form" @submit.prevent="handleSubmit">
+          <div class="admin-form-grid admin-form-grid--two">
+            <label class="admin-field">
+              <span>标题 <b>*</b></span>
+              <input
+                v-model="form.title"
+                type="text"
+                maxlength="500"
+                required
+              />
+              <small v-if="errors.title">{{ errors.title }}</small>
+            </label>
+
+            <label class="admin-field">
+              <span>slug <b>*</b></span>
+              <input
+                v-model.trim="form.slug"
+                type="text"
+                maxlength="200"
+                placeholder="article-slug"
+                required
+              />
+              <small v-if="errors.slug">{{ errors.slug }}</small>
+            </label>
+          </div>
+
+          <label class="admin-field">
+            <span>摘要</span>
+            <textarea v-model="form.summary" rows="3" maxlength="2000" />
+            <small>{{ form.summary.length }} / 2000</small>
+          </label>
+
+          <div class="admin-form-grid admin-form-grid--two">
+            <label class="admin-field">
+              <span>类型 <b>*</b></span>
+              <select v-model="form.type" @change="handleTypeChange">
+                <option value="NOTE">笔记</option>
+                <option value="BOOK_REVIEW">书评</option>
+                <option value="NOVEL">小说</option>
+              </select>
+              <small v-if="errors.type">{{ errors.type }}</small>
+            </label>
+
+            <label class="admin-field">
+              <span>状态 <b>*</b></span>
+              <select v-model="form.status">
+                <option value="DRAFT">草稿</option>
+                <option value="PUBLISHED">已发布</option>
+              </select>
+              <small v-if="errors.status">{{ errors.status }}</small>
+            </label>
+          </div>
+
+          <fieldset class="admin-field">
+            <legend>分类</legend>
+            <p v-if="!categoryOptions.length" class="admin-field__empty">
+              当前类型还没有可选分类，请先到分类管理中创建。
+            </p>
+            <div v-else class="admin-choice-list">
+              <label
+                v-for="category in categoryOptions"
+                :key="category.id"
+                :style="{ paddingLeft: `${category.depth * 16}px` }"
+              >
+                <input v-model="form.categoryIds" type="checkbox" :value="category.id" />
+                <span>{{ category.name }}</span>
+              </label>
+            </div>
+            <small v-if="errors.categoryIds">{{ errors.categoryIds }}</small>
+            <small v-else-if="form.type === 'NOVEL'">
+              小说必须选择至少一个小说分类；第一条小说分类会作为作品目录。
+              <template v-if="selectedNovelCategory">
+                当前目录：{{ selectedNovelCategory.slug }}
+              </template>
+            </small>
+          </fieldset>
+
+          <fieldset class="admin-field">
+            <legend>标签</legend>
+            <p v-if="!tags.length" class="admin-field__empty">暂无标签。</p>
+            <div v-else class="admin-choice-list admin-choice-list--tags">
+              <label v-for="tag in tags" :key="tag.id">
+                <input v-model="form.tagIds" type="checkbox" :value="tag.id" />
+                <span>{{ tag.name }}</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <label class="admin-field">
+            <span>metadata</span>
+            <textarea
+              v-model="form.metadata"
+              rows="5"
+              placeholder="{&#10;  &quot;readingTime&quot;: 10&#10;}"
+              spellcheck="false"
+            />
+            <small v-if="errors.metadata">{{ errors.metadata }}</small>
+            <small v-else>填写非空内容时，必须是合法 JSON 对象。</small>
+          </label>
+
+          <div class="admin-editor-toolbar">
+            <div>
+              <span class="filter-label">正文 Markdown</span>
+              <small v-if="uploadMessage">{{ uploadMessage }}</small>
+            </div>
+            <button
+              class="button button--outline"
+              type="button"
+              :disabled="uploading"
+              @click="openImagePicker"
+            >
+              {{ uploading ? '上传中...' : '上传图片' }}
+            </button>
+            <input
+              ref="fileInputRef"
+              class="sr-only"
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              @change="handleFileInput"
+            />
+          </div>
+
+          <div class="admin-mobile-tabs" role="group" aria-label="编辑区切换">
+            <button
+              type="button"
+              :aria-pressed="mobilePane === 'editor'"
+              @click="mobilePane = 'editor'"
+            >
+              编辑
+            </button>
+            <button
+              type="button"
+              :aria-pressed="mobilePane === 'preview'"
+              @click="mobilePane = 'preview'"
+            >
+              预览
+            </button>
+          </div>
+
+          <div class="admin-editor-workspace">
+            <div
+              class="admin-editor-pane admin-editor-pane--input"
+              :class="{ 'is-mobile-active': mobilePane === 'editor' }"
+              @dragover.prevent="dragActive = true"
+              @dragleave.prevent="dragActive = false"
+              @drop.prevent="handleDrop"
+            >
+              <div v-if="dragActive" class="admin-drop-overlay">松开以上传图片</div>
+              <textarea
+                ref="textareaRef"
+                v-model="form.body"
+                spellcheck="false"
+                aria-label="Markdown 正文"
+                @paste="handlePaste"
+              />
+            </div>
+            <div
+              class="admin-editor-pane admin-editor-pane--preview"
+              :class="{ 'is-mobile-active': mobilePane === 'preview' }"
+            >
+              <MarkdownArticle :source="form.body" />
+            </div>
+          </div>
+        </form>
+      </div>
+    </template>
+  </section>
 </template>

@@ -22,12 +22,17 @@ const routes = [
 
   // ===== 管理端 =====
   {
+    path: adminPath('login'),
+    name: 'login',
+    component: () => import('@/views/admin/LoginPage.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
     path: ADMIN_PATH,
     component: () => import('@/components/admin/AdminLayout.vue'),
     meta: { requiresAuth: true },
     children: [
       { path: '',             redirect: adminPath('contents') },
-      { path: 'login',        name: 'login',           component: () => import('@/views/admin/LoginPage.vue'),   meta: { requiresAuth: false } },
       { path: 'contents',     name: 'admin-contents',  component: () => import('@/views/admin/ContentListPage.vue') },
       { path: 'contents/new', name: 'content-new',     component: () => import('@/views/admin/ContentEditPage.vue') },
       { path: 'contents/:id/edit', name: 'content-edit', component: () => import('@/views/admin/ContentEditPage.vue') },

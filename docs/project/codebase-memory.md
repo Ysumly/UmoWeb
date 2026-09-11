@@ -48,7 +48,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；77 个测试 |
+| 测试 | Spring Boot Test、Mockito、MockMvc；79 个测试 |
 
 ### 2.2 前端
 
@@ -85,7 +85,7 @@ mvn test
 
 若机器级 Maven `settings.xml` 的仓库路径不可写，应通过 `-gs` 和 `-s` 指向隔离的临时 settings 文件运行 Maven，不要修改系统安装目录。
 
-说明：项目自带 `mvnw.cmd`，但在当前 Windows/PowerShell 环境中曾因 wrapper 脚本执行失败；系统 Maven 可用。2026-09-11 使用隔离临时 settings 执行 `mvn test`，77 个测试全部通过。
+说明：项目自带 `mvnw.cmd`，但在当前 Windows/PowerShell 环境中曾因 wrapper 脚本执行失败；系统 Maven 可用。2026-09-11 使用隔离临时 settings 执行 `mvn test`，79 个测试全部通过。
 
 真实接口冒烟：
 
@@ -228,6 +228,7 @@ HTTP 状态与返回：
 - `q` 为空或未传时，搜索等价于匹配全部已发布内容。
 - 搜索同 IP 10 秒内只允许一次；仅信任显式配置的代理，记录定期清理。
 - 公开文章列表和详情都组装 `categories` 和 `tags`，使用共享 `ContentVOMapper` 按 contentIds 批量查询。
+- `ContentListVO` 返回 `status`；公开接口固定为 `PUBLISHED`，管理端返回 `DRAFT` 或 `PUBLISHED`。
 - 公开详情返回 `previous` 和 `next` 摘要；前者为更早内容，后者为更新内容，同时间以小 ID 为更早。
 
 ### 4.5 内容与文件
@@ -306,7 +307,9 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - Pinia `auth` store。
 - `site` store 缓存站点标题、副标题和加载错误；About/Project 页面各自读取专用接口。
 - 管理端登录页。
-- 管理端布局和退出登录。
+- 管理端响应式布局、主题切换和退出登录。
+- 管理端文章列表：类型、状态、分类、标签和排序筛选，分页、状态展示、编辑和删除。
+- 管理端文章编辑器：新建/编辑、分类标签、metadata 校验、Markdown 分屏预览、图片选择/拖拽/粘贴和未保存离开保护。
 - 公开端布局、页头页脚、主题切换和 `v-reveal` 滚动揭示指令。
 - 首页、书库、搜索、文章详情、About 和 Project 已接入真实公开 API。
 - 亮暗双主题，主题值写入 `data-theme` 并持久化到 `localStorage`。
@@ -316,13 +319,12 @@ Spring Multipart 限制单文件和请求均为 50MB。
 ### 6.2 占位或未实现
 
 - 在线编辑器。
-- 管理端文章列表、文章编辑、分类管理、标签管理、站点设置。
-- 图片上传函数已封装，但编辑器尚未实现拖入/粘贴流程。
+- 分类管理、标签管理、站点设置。
 - 修改密码 API 函数已补充；页面和入口仍缺失。
 - 管理端路径由统一 `VITE_ADMIN_PATH` 工具控制，默认 `/secret-admin`，不再依赖后端 `app.admin-path`。
 - 当前存在公开端 `SiteHeader`、`SiteFooter`、`ContentCard`、`ContentState`、`MarkdownArticle` 和 `ThemeToggle`；管理端仍没有统一表单/表格组件。
 
-公开端主路径已接入真实 API；在线编辑器及管理业务页仍为占位。
+公开端主路径和管理端文章工作流已接入真实 API；公开在线编辑器及其余管理业务页仍为占位。
 
 ---
 
@@ -335,8 +337,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 新增 Mapper XML 别名解析、`ClientIpResolver` 容器装配和 Jackson 3 自动配置回归测试。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
 - 自动测试仍没有真实 MySQL 集成测试；2026-09-11 已在隔离 MySQL 5.7 副本完成迁移和 27/27 接口冒烟。
-- 前端 21 个 Node 测试覆盖路由、管理路径、主题解析、API 错误解析、日期格式、查询规范和 Markdown 原始 HTML 禁用。
-- 公开端已完成桌面与 390px 移动端浏览器检查，并验证后端离线错误态；尚未建立可重复的浏览器 E2E。
+- 前端 29 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章表单规则、API 错误解析、日期格式、查询规范和 Markdown 原始 HTML 禁用。
+- 公开端和管理端文章工作流已完成桌面与 390px 移动端浏览器检查；尚未建立可重复的浏览器 E2E。
 
 ### 7.2 当前代码风险
 

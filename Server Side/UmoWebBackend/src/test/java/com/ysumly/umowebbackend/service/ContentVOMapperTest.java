@@ -89,6 +89,19 @@ class ContentVOMapperTest {
         verify(contentTagMapper, never()).findTagIdsByContentId(any());
     }
 
+    @Test
+    void mapsStatusForListAndDetailResponses() {
+        Content content = content(1L, "draft-note");
+        content.setStatus("DRAFT");
+        when(contentCategoryMapper.findLinksByContentIds(anyList())).thenReturn(List.of());
+        when(contentTagMapper.findLinksByContentIds(anyList())).thenReturn(List.of());
+
+        ContentListVO listItem = mapper.toListVO(content);
+
+        assertThat(listItem.getStatus()).isEqualTo("DRAFT");
+        assertThat(mapper.toDetailVO(content, "body").getStatus()).isEqualTo("DRAFT");
+    }
+
     private Content content(Long id, String slug) {
         Content content = new Content();
         content.setId(id);
