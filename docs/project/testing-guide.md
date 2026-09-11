@@ -18,6 +18,7 @@
 | Maven | 3.9.11 |
 | Node.js | 24.12.0 |
 | npm | 11.6.2 |
+| Playwright Test | 1.63.0 |
 
 后端 `pom.xml` 的编译目标仍是 Java 17。
 
@@ -137,14 +138,45 @@ cd "Server Side\UmoWebBackend"
 cd "Client Side\umo-web-frontend"
 npm run build
 npm test
+npm run test:e2e
 ```
 
 2026-09-11 已验证：
 
-- 后端完整测试通过。
 - Vite 8.1.0 前端生产构建成功。
 - 前端 46 个 Node 测试通过，覆盖路由、管理路径、主题、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、API 错误解析、日期格式、查询规范化和 Markdown 安全。
-- 浏览器桌面与 390px 已验证公开页面、在线编辑器、管理端文章筛选/创建/编辑/删除、图片上传插入、Markdown 预览、未保存保护、移动导航和离线错误态。
+- Playwright 30 个浏览器检查通过，其中 16 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖核心页面的桌面与 390px 基线。
+- 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口仍由第 2.2 节的 MySQL 副本与 `api-smoke.ps1` 验证。
+
+### 2.4 Playwright 浏览器回归
+
+```powershell
+cd "Client Side\umo-web-frontend"
+npm run test:e2e
+```
+
+执行流程：
+
+1. 先运行 `npm run build` 生成生产构建。
+2. Playwright 在 `http://127.0.0.1:4173` 启动 Vite preview。
+3. 使用本机稳定版 Chrome channel，不下载独立 Playwright Chromium。
+4. 浏览器级路由拦截 `/api/**`，每个测试使用独立的状态化 Mock API。
+5. functional 项目覆盖公开阅读、在线编辑器、管理端认证与 CRUD，以及 390px 布局。
+6. visual-desktop 和 visual-mobile 项目比较 14 张页面截图。
+
+更新视觉基线：
+
+```powershell
+npm run test:e2e:update
+```
+
+运行前端全部验证：
+
+```powershell
+npm run test:all
+```
+
+视觉基线位于 `e2e/visual.spec.js-snapshots/`。当前基线只在 Windows 与本机稳定 Chrome 下生成；切换到 Linux 或其他浏览器后应重新生成并审查。
 
 ---
 

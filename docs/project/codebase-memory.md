@@ -62,6 +62,7 @@ UmoWeb/
 | Markdown | marked 18.0.x、highlight.js 11.11.x |
 | 样式 | Tailwind CSS 4.3.x |
 | 编辑器 | 原生 textarea；未安装 CodeMirror/Monaco |
+| 浏览器测试 | Playwright Test 1.63，本机 Chrome channel，Mock API |
 
 ---
 
@@ -325,6 +326,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 
 - 管理端路径由统一 `VITE_ADMIN_PATH` 工具控制，默认 `/secret-admin`，不再依赖后端 `app.admin-path`。
 - 当前存在公开端 `SiteHeader`、`SiteFooter`、`ContentCard`、`ContentState`、`MarkdownArticle` 和 `ThemeToggle`；管理端仍没有统一表单/表格组件。
+- 前端已建立 Playwright functional 与视觉回归；浏览器测试不连接后端，真实接口仍由 MySQL 冒烟脚本负责。
 
 公开端主路径、在线编辑器和全部管理端核心业务页均已实现。
 
@@ -340,7 +342,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
 - 自动测试仍没有真实 MySQL 集成测试；2026-09-11 已在隔离 MySQL 5.7 副本完成迁移和 27/27 接口冒烟。
 - 前端 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- 公开端、在线编辑器和管理端工作流已完成桌面与 390px 移动端浏览器检查；尚未建立可重复的浏览器 E2E。
+- Playwright 共 30 个浏览器检查：16 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+- Playwright 使用 `/api/**` Mock 路由、本机 Chrome channel 和 Vite preview；不依赖 MySQL。视觉基线只保证当前 Windows Chrome 环境。
 
 ### 7.2 当前代码风险
 

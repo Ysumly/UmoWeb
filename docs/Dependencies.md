@@ -119,8 +119,9 @@ Spring Boot 4 自动配置并注入的是 `tools.jackson.databind.ObjectMapper`�
 | `@vitejs/plugin-vue` | `^6.0.7` | Vite Vue 插件 |
 | `tailwindcss` | `^4.3.1` | 样式框架 |
 | `@tailwindcss/vite` | `^4.3.1` | Tailwind Vite 插件 |
+| `@playwright/test` | `^1.63.0` | 浏览器 functional 与视觉回归 |
 
-前端没有安装 CodeMirror、Monaco、测试框架或 E2E 框架。
+前端没有安装 CodeMirror、Monaco 或组件测试框架；浏览器回归使用 Playwright 1.63 和本机 Chrome channel。
 
 ---
 

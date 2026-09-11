@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-09-11 — Playwright 浏览器 E2E 与视觉回归
+
+- 新增 `@playwright/test` 本地测试体系，使用本机 Chrome channel、Vite 生产预览和状态化 Mock API。
+- 新增 16 个 functional 浏览器用例，覆盖公开端筛选/搜索/详情/错误态、在线编辑器草稿/导入/下载/安全预览，以及管理端认证、文章、分类、标签、站点设置和改密。
+- 新增 14 个视觉断言，覆盖首页亮暗主题、书库、文章详情、编辑器、登录和管理列表的桌面与 390px 布局。
+- 新增 `test:e2e`、`test:e2e:update` 和 `test:all`；浏览器套件不依赖 MySQL，真实接口继续由 `api-smoke.ps1` 验证。
+- 修复 lockfile 中 `postcss` / `nanoid` 的高危开发依赖告警，`npm audit` 为 0 vulnerabilities。
+- 验证结果：46 个 Node 测试、30 个 Playwright 检查和前端生产构建通过；视觉基线连续运行稳定。
+
 ## 2026-09-11 — 公开在线编辑器
 
 - 将 `/editor` 从占位页升级为纯浏览器 Markdown 编辑器，不调用后端或新的编辑器依赖。

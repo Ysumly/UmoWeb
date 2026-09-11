@@ -236,7 +236,7 @@ GET /api/public/contents/search
 
 1. 搜索和登录限流仍是单实例内存状态。
 2. 自动测试尚未连接真实 MySQL，集成验证仍为手工脚本。
-3. 浏览器 E2E 和视觉回归尚未工程化。
+3. 浏览器 E2E 使用 Mock API，视觉基线绑定当前 Windows Chrome；尚未接入 CI。
 4. 图片没有删除接口，测试或误上传文件只能保留。
 
 完整风险见 [codebase-memory.md](../project/codebase-memory.md) 和 [audit-log.md](../project/audit-log.md)。

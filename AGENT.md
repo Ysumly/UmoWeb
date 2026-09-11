@@ -51,8 +51,10 @@ cd "Server Side\UmoWebBackend"
 mvn test
 
 cd "Client Side\umo-web-frontend"
+npm test
 npm run build
 npm run dev
+npm run test:e2e
 ```
 
 若机器级 Maven `settings.xml` 的仓库路径不可写，应使用一份隔离的临时 global/user settings 执行 Maven；不要修改系统级 Maven 安装目录。

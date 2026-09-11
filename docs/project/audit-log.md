@@ -1,5 +1,39 @@
 # 审计日志
 
+## 审计 #10 - 2026-09-11 — Playwright 浏览器 E2E 与视觉回归
+
+### 范围
+
+- 公开端首页、书库、搜索、详情、错误态和 390px 布局。
+- 在线编辑器草稿、导入确认、下载、安全预览和移动端编辑/预览切换。
+- 管理端认证、文章生命周期、分类/标签 CRUD、站点设置和改密会话失效。
+- 首页亮暗主题、书库、详情、编辑器、登录和管理列表的桌面与 390px 视觉基线。
+
+### 实现
+
+- 新增 Playwright 1.63 与 `functional`、`visual-desktop`、`visual-mobile` 三个本地项目。
+- 使用本机 Chrome channel 和 Vite preview，不下载 Playwright 独立浏览器。
+- 新增状态化 Mock API fixture，覆盖现有公开端与管理端 API 契约，测试间状态隔离。
+- 功能测试可直接自动化原生 confirm、Blob download、localStorage 草稿与 429 倒计时。
+- 视觉测试固定 `zh-CN`、`Asia/Shanghai`、单 worker、减少动态偏好和稳定截图参数。
+- 修复 lockfile 中的 `postcss` / `nanoid` 传递依赖漏洞。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 前端 `npm test` | 通过，46 tests / 0 failures |
+| 前端 `npm run build` | Vite 8.1.0 生产构建通过 |
+| `npm run test:e2e` | 通过，16 functional + 14 visual |
+| 视觉稳定性 | 14 张基线连续两次比较通过 |
+| `npm audit` | 0 vulnerabilities |
+
+### 剩余风险
+
+1. 浏览器 E2E 使用 Mock API，不验证 Spring Boot、MySQL、Mapper SQL 或文件系统组合行为。
+2. 视觉基线绑定当前 Windows 与本机 Chrome；Linux 或浏览器升级后需要重新生成和审查基线。
+3. 尚未接入 GitHub Actions 或其他 CI，测试仍需本地显式执行。
+
 ## 审计 #9 - 2026-09-11 — 公开在线编辑器
 
 ### 范围

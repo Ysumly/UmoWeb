@@ -63,10 +63,12 @@ mvn test
 
 ```powershell
 cd "Client Side\umo-web-frontend"
+npm test
 npm run build
+npm run test:e2e
 ```
 
-页面功能完成后还应增加浏览器验证；当前没有自动化前端测试。
+页面功能或布局变更后，functional 与视觉 Playwright 套件都应保持通过；视觉范围变化时同步审查或更新基线。
 
 ### 文档
 

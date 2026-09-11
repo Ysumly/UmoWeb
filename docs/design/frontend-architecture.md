@@ -18,6 +18,7 @@
 | marked | 18.x | 公开详情、About 和 Project 的 Markdown 渲染能力 |
 | highlight.js | 11.x | Markdown 代码块高亮，按语言注册 |
 | Tailwind CSS | 4.3.x | utility-first 样式 |
+| Playwright Test | 1.63.x | 本机 Chrome 浏览器 E2E 与视觉回归 |
 
 当前没有 TypeScript、SSR、Nuxt、CodeMirror 或 Monaco。
 
@@ -30,7 +31,15 @@ umo-web-frontend/
 ├── index.html
 ├── package.json
 ├── package-lock.json
+├── playwright.config.js
 ├── vite.config.js
+├── e2e/
+│   ├── support/
+│   │   └── apiMock.js
+│   ├── admin.spec.js
+│   ├── editor.spec.js
+│   ├── public.spec.js
+│   └── visual.spec.js
 ├── public/
 │   ├── favicon.svg
 │   └── icons.svg
@@ -94,7 +103,7 @@ umo-web-frontend/
             └── OptionPage.vue
 ```
 
-公开端已有主题、布局、Markdown 和内容卡片组件。当前没有 TypeScript、SSR、组件库或端到端测试工程。
+公开端已有主题、布局、Markdown 和内容卡片组件。Playwright functional 与视觉项目复用本机 Chrome，并使用浏览器级 Mock API；当前没有 TypeScript、SSR 或组件库。
 
 ---
 
@@ -236,6 +245,7 @@ cd "Client Side\umo-web-frontend"
 npm install
 npm run dev
 npm run build
+npm run test:e2e
 ```
 
 Vite 开发配置：
@@ -250,10 +260,10 @@ server: {
 }
 ```
 
-2026-09-11 执行 `npm test` 和 `npm run build` 成功。当前 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
+2026-09-11 执行 `npm test`、`npm run build` 和 `npm run test:e2e` 成功。当前 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；Playwright 另含 16 个 functional 和 14 个视觉检查。
 
 ---
 
 ## 9. 下一步实现顺序
 
-1. 增加可重复执行的浏览器 E2E 和视觉回归。
+1. 将本地 Playwright 套件接入 CI，并为 Linux 环境建立独立视觉基线。
