@@ -8,7 +8,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test src/router/guard.test.js src/config/adminPath.test.js src/theme/theme.test.js src/utils/adminContent.test.js src/utils/adminManagement.test.js src/utils/apiError.test.js src/utils/editor.test.js src/utils/format.test.js src/utils/markdown.test.js src/utils/publicContent.test.js",
-    "test:router": "node --test src/router/guard.test.js src/config/adminPath.test.js"
+    "test:router": "node --test src/router/guard.test.js src/config/adminPath.test.js",
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:update": "npm run build && playwright test --update-snapshots",
+    "test:all": "npm test && npm run test:e2e"
   },
   "dependencies": {
     "axios": "^1.18.1",
@@ -19,6 +22,7 @@
     "vue-router": "^5.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.1",
     "@vitejs/plugin-vue": "^6.0.7",
     "tailwindcss": "^4.3.1",

@@ -21,6 +21,8 @@ Downloads/
 target/
 build/
 dist/
+playwright-report/
+test-results/
 out/
 *.class
 *.jar
