@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 
-import { formatPublishedDate } from '@/demo/catalog'
+import { formatPublishedDate } from '@/utils/format'
 
 const props = defineProps({
   content: {
@@ -29,6 +29,8 @@ const readingLabel = computed(() => {
   const minutes = props.content.metadata?.readingTime
   return minutes ? `${minutes} 分钟` : ''
 })
+
+const tags = computed(() => props.content.tags || [])
 </script>
 
 <template>
@@ -51,7 +53,7 @@ const readingLabel = computed(() => {
 
     <div class="content-card__footer">
       <div class="content-card__tags">
-        <span v-for="tag in content.tags.slice(0, 3)" :key="tag.id">{{ tag.name }}</span>
+        <span v-for="tag in tags.slice(0, 3)" :key="tag.id">{{ tag.name }}</span>
       </div>
       <span v-if="readingLabel" class="content-card__reading">{{ readingLabel }}</span>
     </div>

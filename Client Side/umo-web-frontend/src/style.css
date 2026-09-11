@@ -284,6 +284,31 @@ svg {
   gap: 12px;
 }
 
+.site-notice {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  width: min(1180px, calc(100% - 48px));
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 18px auto 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+  padding: 11px 14px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.site-notice button {
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
 .theme-switch {
   display: inline-flex;
   gap: 2px;
@@ -467,6 +492,16 @@ svg {
 
 .button--text:hover {
   transform: translateX(4px);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
 }
 
 .button--quiet {
@@ -654,6 +689,10 @@ svg {
   flex-shrink: 0;
   color: var(--faint);
   font-size: 10px;
+}
+
+.home-page {
+  overflow-x: clip;
 }
 
 .home-hero {
@@ -976,6 +1015,38 @@ svg {
   color: var(--muted);
 }
 
+.search-intro {
+  max-width: 960px;
+}
+
+.search-form {
+  display: flex;
+  max-width: 720px;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.search-input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 0 16px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font: inherit;
+}
+
+.search-input::placeholder {
+  color: var(--faint);
+}
+
+.search-rate-limit {
+  margin-top: 12px !important;
+  color: var(--accent) !important;
+  font-size: 12px;
+}
+
 .library-layout {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
@@ -1109,6 +1180,41 @@ svg {
   border: 1px dashed var(--line-strong);
   padding: 36px;
   text-align: center;
+}
+
+.content-state {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  align-content: center;
+  gap: 16px;
+  border: 1px dashed var(--line-strong);
+  padding: 36px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.content-state__loader {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: state-spin 800ms linear infinite;
+}
+
+.content-state p {
+  margin: 0;
+}
+
+.content-state--empty {
+  min-height: 280px;
+}
+
+@keyframes state-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .empty-state > span {
@@ -1741,7 +1847,8 @@ svg {
 @media (max-width: 700px) {
   .public-main,
   .site-header__inner,
-  .site-footer__inner {
+  .site-footer__inner,
+  .site-notice {
     width: calc(100% - 28px);
   }
 
@@ -1850,6 +1957,15 @@ svg {
 
   .page-intro h1 {
     font-size: 46px;
+  }
+
+  .search-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .search-input {
+    min-height: 46px;
   }
 
   .library-filters {

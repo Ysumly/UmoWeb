@@ -3,17 +3,23 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
+import { useSiteStore } from '@/stores/site'
 
 const route = useRoute()
+const siteStore = useSiteStore()
 const menuOpen = ref(false)
 
 const navigation = [
   { to: '/', label: '首页', name: 'home' },
   { to: '/library', label: '书库', name: 'library' },
+  { to: '/search', label: '搜索', name: 'search' },
+  { to: '/project', label: '项目', name: 'project' },
   { to: '/about', label: '关于', name: 'about' },
 ]
 
 const currentSection = computed(() => route.name)
+const siteTitle = computed(() => siteStore.siteTitle || 'Umo')
+const siteSubtitle = computed(() => siteStore.siteSubtitle)
 
 watch(
   () => route.fullPath,
@@ -26,11 +32,11 @@ watch(
 <template>
   <header class="site-header">
     <div class="site-header__inner">
-      <router-link class="site-brand" to="/" aria-label="返回 Umo Blog 首页">
+      <router-link class="site-brand" to="/" :aria-label="`返回 ${siteTitle} 首页`">
         <span class="site-brand__seal">U</span>
         <span>
-          <strong>Umo Blog</strong>
-          <small>代码 · 阅读 · 创作</small>
+          <strong>{{ siteTitle }}</strong>
+          <small v-if="siteSubtitle">{{ siteSubtitle }}</small>
         </span>
       </router-link>
 

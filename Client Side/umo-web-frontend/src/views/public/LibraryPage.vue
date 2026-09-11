@@ -1,60 +1,128 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { getCategories, getContents, getTags } from '@/api/public'
 import ContentCard from '@/components/public/ContentCard.vue'
+import ContentState from '@/components/public/ContentState.vue'
 import SectionHeading from '@/components/public/SectionHeading.vue'
-import { filterContents, paginateContents } from '@/demo/catalog'
+import { contentTypes } from '@/config/contentTypes'
+import { getApiErrorMessage } from '@/utils/apiError'
 import {
-  allCategoryOptions,
-  contentTypes,
-  publicContents,
-  tags,
-} from '@/demo/content'
+  flattenCategoryTree,
+  PUBLIC_PAGE_SIZE,
+  resolveLibraryQuery,
+} from '@/utils/publicContent'
 
 const route = useRoute()
 const router = useRouter()
+const status = ref('loading')
+const errorMessage = ref('')
+const categories = ref([])
+const tags = ref([])
+const contents = ref([])
+const pageInfo = ref({ page: 1, size: PUBLIC_PAGE_SIZE, total: 0 })
+let requestId = 0
 
-const activeType = ref(contentTypes.some((item) => item.value === route.query.type) ? String(route.query.type) : '')
-const activeCategory = ref(route.query.category ? Number(route.query.category) : null)
-const activeTag = ref(route.query.tag ? Number(route.query.tag) : null)
-const page = ref(1)
-const pageSize = 6
-
-const filteredContents = computed(() => {
-  return filterContents(publicContents, {
-    type: activeType.value,
-    categoryId: activeCategory.value,
-    tagId: activeTag.value,
-  }).sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt))
-})
-
-const pagedContents = computed(() => {
-  return paginateContents(filteredContents.value, page.value, pageSize)
-})
-
+const filters = computed(() => resolveLibraryQuery(route.query))
+const categoryOptions = computed(() => flattenCategoryTree(categories.value))
 const totalPages = computed(() => {
-  return Math.max(1, Math.ceil(filteredContents.value.length / pageSize))
+  return Math.max(1, Math.ceil(pageInfo.value.total / PUBLIC_PAGE_SIZE))
 })
 
-function updateFilters() {
-  page.value = 1
+function replaceQuery(nextFilters) {
   router.replace({
     query: {
-      ...(activeType.value ? { type: activeType.value } : {}),
-      ...(activeCategory.value ? { category: activeCategory.value } : {}),
-      ...(activeTag.value ? { tag: activeTag.value } : {}),
+      ...(nextFilters.type ? { type: nextFilters.type } : {}),
+      ...(nextFilters.categoryId ? { category: nextFilters.categoryId } : {}),
+      ...(nextFilters.tagId ? { tag: nextFilters.tagId } : {}),
+      ...(nextFilters.page > 1 ? { page: nextFilters.page } : {}),
     },
   })
 }
 
+function updateQuery(changes) {
+  replaceQuery({
+    ...filters.value,
+    ...changes,
+    page: changes.page ?? 1,
+  })
+}
+
 function clearFilters() {
-  activeType.value = ''
-  activeCategory.value = null
-  activeTag.value = null
-  page.value = 1
   router.replace({ query: {} })
 }
+
+function hasInvalidQuery() {
+  const raw = route.query
+  const normalized = filters.value
+  return Boolean(
+    (raw.type && String(raw.type) !== normalized.type)
+    || (raw.category && !normalized.categoryId)
+    || (raw.tag && !normalized.tagId)
+    || (raw.page && String(normalized.page) !== String(raw.page)),
+  )
+}
+
+async function load() {
+  const currentFilters = filters.value
+  const currentRequest = ++requestId
+  status.value = 'loading'
+  errorMessage.value = ''
+
+  try {
+    const [categoryResponse, tagResponse, contentResponse] = await Promise.all([
+      getCategories(currentFilters.type || undefined),
+      getTags(),
+      getContents({
+        page: currentFilters.page,
+        size: PUBLIC_PAGE_SIZE,
+        ...(currentFilters.type ? { type: currentFilters.type } : {}),
+        ...(currentFilters.categoryId ? { categoryId: currentFilters.categoryId } : {}),
+        ...(currentFilters.tagId ? { tagId: currentFilters.tagId } : {}),
+      }),
+    ])
+
+    if (currentRequest !== requestId) {
+      return
+    }
+
+    categories.value = categoryResponse.data || []
+    tags.value = tagResponse.data || []
+    contents.value = contentResponse.data.items || []
+    pageInfo.value = {
+      page: contentResponse.data.page || currentFilters.page,
+      size: contentResponse.data.size || PUBLIC_PAGE_SIZE,
+      total: contentResponse.data.total || 0,
+    }
+
+    const lastPage = Math.max(1, Math.ceil(pageInfo.value.total / PUBLIC_PAGE_SIZE))
+    if (currentFilters.page > lastPage && pageInfo.value.total > 0) {
+      replaceQuery({ ...currentFilters, page: lastPage })
+      return
+    }
+
+    status.value = 'success'
+  } catch (error) {
+    if (currentRequest !== requestId) {
+      return
+    }
+    status.value = 'error'
+    errorMessage.value = getApiErrorMessage(error, '书库内容加载失败')
+  }
+}
+
+watch(
+  () => [route.query.type, route.query.category, route.query.tag, route.query.page],
+  () => {
+    if (hasInvalidQuery()) {
+      replaceQuery(filters.value)
+      return
+    }
+    load()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -62,7 +130,9 @@ function clearFilters() {
     <header class="page-intro">
       <span class="editorial-eyebrow">Library / 公开书库</span>
       <h1>按主题，慢慢翻阅。</h1>
-      <p>当前收录 {{ publicContents.length }} 篇公开内容。筛选只匹配当前分类或标签，不自动包含子分类。</p>
+      <p>
+        当前收录 {{ pageInfo.total }} 篇公开内容。筛选只匹配当前分类或标签，不自动包含子分类。
+      </p>
     </header>
 
     <div class="library-layout">
@@ -73,8 +143,8 @@ function clearFilters() {
             v-for="item in contentTypes"
             :key="item.value"
             type="button"
-            :class="{ 'is-active': activeType === item.value }"
-            @click="activeType = item.value; updateFilters()"
+            :class="{ 'is-active': filters.type === item.value }"
+            @click="updateQuery({ type: item.value })"
           >
             <span>{{ item.zh }}</span>
             <small>{{ item.label }}</small>
@@ -84,13 +154,17 @@ function clearFilters() {
         <div class="filter-group">
           <span class="filter-label">分类</span>
           <button
-            v-for="category in allCategoryOptions"
+            v-for="category in categoryOptions"
             :key="category.id"
             type="button"
-            :class="{ 'is-active': activeCategory === category.id }"
-            @click="activeCategory = activeCategory === category.id ? null : category.id; updateFilters()"
+            :class="{ 'is-active': filters.categoryId === category.id }"
+            @click="updateQuery({
+              categoryId: filters.categoryId === category.id ? null : category.id,
+            })"
           >
-            <span>{{ category.name }}</span>
+            <span :style="{ paddingLeft: `${category.depth * 12}px` }">
+              {{ category.name }}
+            </span>
           </button>
         </div>
 
@@ -100,8 +174,8 @@ function clearFilters() {
             v-for="tag in tags"
             :key="tag.id"
             type="button"
-            :class="{ 'is-active': activeTag === tag.id }"
-            @click="activeTag = activeTag === tag.id ? null : tag.id; updateFilters()"
+            :class="{ 'is-active': filters.tagId === tag.id }"
+            @click="updateQuery({ tagId: filters.tagId === tag.id ? null : tag.id })"
           >
             {{ tag.name }}
           </button>
@@ -112,14 +186,29 @@ function clearFilters() {
 
       <section class="library-results">
         <SectionHeading
-          :eyebrow="`${pagedContents.total} Results`"
+          :eyebrow="`${pageInfo.total} Results`"
           title="筛选结果"
-          :description="`第 ${pagedContents.page} / ${totalPages} 页`"
+          :description="`第 ${pageInfo.page} / ${totalPages} 页`"
         />
 
-        <div v-if="pagedContents.items.length" class="content-grid content-grid--library">
+        <ContentState
+          v-if="status === 'loading' && !contents.length"
+          state="loading"
+          title="正在整理书库"
+        />
+
+        <ContentState
+          v-else-if="status === 'error'"
+          state="error"
+          title="书库加载失败"
+          :message="errorMessage"
+          action-label="重新加载"
+          @retry="load"
+        />
+
+        <div v-else-if="contents.length" class="content-grid content-grid--library">
           <ContentCard
-            v-for="(content, index) in pagedContents.items"
+            v-for="(content, index) in contents"
             :key="content.id"
             v-reveal
             :content="content"
@@ -128,17 +217,34 @@ function clearFilters() {
           />
         </div>
 
-        <div v-else class="empty-state">
-          <span>NO MATCHES</span>
-          <h3>这一页暂时没有内容</h3>
-          <p>换一个分类或标签，或者清除筛选重新浏览。</p>
-          <button class="button button--outline" type="button" @click="clearFilters">清除筛选</button>
-        </div>
+        <ContentState
+          v-else
+          state="empty"
+          title="这一页暂时没有内容"
+          message="换一个分类或标签，或者清除筛选重新浏览。"
+          action-label="清除筛选"
+          @retry="clearFilters"
+        />
 
-        <nav v-if="totalPages > 1" class="pagination" aria-label="分页">
-          <button type="button" :disabled="page <= 1" @click="page -= 1">上一页</button>
-          <span>{{ String(page).padStart(2, '0') }} / {{ String(totalPages).padStart(2, '0') }}</span>
-          <button type="button" :disabled="page >= totalPages" @click="page += 1">下一页</button>
+        <nav v-if="totalPages > 1 && status === 'success'" class="pagination" aria-label="分页">
+          <button
+            type="button"
+            :disabled="filters.page <= 1"
+            @click="updateQuery({ page: filters.page - 1 })"
+          >
+            上一页
+          </button>
+          <span>
+            {{ String(filters.page).padStart(2, '0') }} /
+            {{ String(totalPages).padStart(2, '0') }}
+          </span>
+          <button
+            type="button"
+            :disabled="filters.page >= totalPages"
+            @click="updateQuery({ page: filters.page + 1 })"
+          >
+            下一页
+          </button>
         </nav>
       </section>
     </div>

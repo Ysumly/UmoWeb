@@ -1,29 +1,73 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
+import { getContents } from '@/api/public'
 import ContentCard from '@/components/public/ContentCard.vue'
+import ContentState from '@/components/public/ContentState.vue'
 import SectionHeading from '@/components/public/SectionHeading.vue'
-import { contentTypes, publicContents, siteInfo } from '@/demo/content'
+import { contentTypes } from '@/config/contentTypes'
+import { useSiteStore } from '@/stores/site'
+import { getApiErrorMessage } from '@/utils/apiError'
 
 const isPlaying = ref(true)
 const bookStage = ref(null)
 const heroOffset = ref({ x: 0, y: 0 })
+const siteStore = useSiteStore()
+const status = ref('loading')
+const errorMessage = ref('')
+const latestContents = ref([])
+const totalContents = ref(0)
+const typeCounts = ref({})
 
-const orderedContents = computed(() => {
-  return [...publicContents].sort((a, b) => {
-    return new Date(b.publishedAt) - new Date(a.publishedAt)
-  })
-})
-
-const leadStory = computed(() => orderedContents.value[0])
-const recentStories = computed(() => orderedContents.value.slice(1, 5))
+const leadStory = computed(() => latestContents.value[0])
+const recentStories = computed(() => latestContents.value.slice(1, 5))
 const typeEntries = computed(() => {
   return contentTypes
     .filter((item) => item.value)
     .map((item) => ({
       ...item,
-      count: publicContents.filter((content) => content.type === item.value).length,
+      count: typeCounts.value[item.value] ?? 0,
     }))
+})
+const siteSubtitle = computed(() => siteStore.siteSubtitle || '')
+
+async function load() {
+  status.value = 'loading'
+  errorMessage.value = ''
+
+  try {
+    const typeRequests = contentTypes
+      .filter((item) => item.value)
+      .map((item) => getContents({ page: 1, size: 1, type: item.value }))
+    const [listResult, ...typeResults] = await Promise.allSettled([
+      getContents({ page: 1, size: 5 }),
+      ...typeRequests,
+    ])
+
+    if (listResult.status === 'rejected') {
+      throw listResult.reason
+    }
+
+    latestContents.value = listResult.value.data.items || []
+    totalContents.value = listResult.value.data.total || 0
+    typeCounts.value = Object.fromEntries(
+      contentTypes
+        .filter((item) => item.value)
+        .map((item, index) => {
+          const result = typeResults[index]
+          return [item.value, result?.status === 'fulfilled' ? result.value.data.total || 0 : 0]
+        }),
+    )
+    status.value = 'success'
+  } catch (error) {
+    status.value = 'error'
+    errorMessage.value = getApiErrorMessage(error, '首页内容加载失败')
+  }
+}
+
+onMounted(() => {
+  siteStore.load().catch(() => {})
+  load()
 })
 
 function handleBookPointer(event) {
@@ -59,13 +103,15 @@ function resetBookPointer() {
           <span class="home-title__line"><span>把代码写进</span></span>
           <span class="home-title__line"><span>时间的纸页</span></span>
         </h1>
-        <p class="home-intro">{{ siteInfo.introduction }}</p>
+        <p class="home-intro">
+          {{ siteSubtitle || '一个关于技术、阅读与长期创作的私人空间。' }}
+        </p>
         <div class="home-actions">
           <router-link class="button button--primary" to="/library">进入书库</router-link>
           <router-link class="button button--text" to="/about">了解这个空间</router-link>
         </div>
         <dl class="home-stats">
-          <div><dt>{{ publicContents.length }}</dt><dd>篇公开内容</dd></div>
+          <div><dt>{{ totalContents }}</dt><dd>篇公开内容</dd></div>
           <div><dt>{{ typeEntries.length }}</dt><dd>长期主题</dd></div>
           <div><dt>2026</dt><dd>持续更新</dd></div>
         </dl>
@@ -93,7 +139,21 @@ function resetBookPointer() {
       </div>
     </section>
 
-    <section class="home-section" v-reveal>
+    <section
+      v-if="status === 'loading' || status === 'error'"
+      class="home-section"
+      v-reveal
+    >
+      <ContentState
+        :state="status"
+        :title="status === 'loading' ? '正在整理首页内容' : '首页内容加载失败'"
+        :message="status === 'loading' ? '' : errorMessage"
+        :action-label="status === 'error' ? '重新加载' : ''"
+        @retry="load"
+      />
+    </section>
+
+    <section v-else-if="leadStory" class="home-section" v-reveal>
       <SectionHeading
         eyebrow="Featured"
         title="本期刊首"
@@ -102,7 +162,15 @@ function resetBookPointer() {
       <ContentCard :content="leadStory" variant="lead" />
     </section>
 
-    <section class="home-section" v-reveal>
+    <section v-else class="home-section" v-reveal>
+      <ContentState
+        state="empty"
+        title="书库还没有公开内容"
+        message="发布第一篇文章后，首页会自动展示最新的内容。"
+      />
+    </section>
+
+    <section v-if="status === 'success' && recentStories.length" class="home-section" v-reveal>
       <SectionHeading
         eyebrow="Recent"
         title="近期篇幅"
@@ -121,7 +189,7 @@ function resetBookPointer() {
       </div>
     </section>
 
-    <section class="home-section" v-reveal>
+    <section v-if="status === 'success' && leadStory" class="home-section" v-reveal>
       <SectionHeading
         eyebrow="Collections"
         title="长期主题"
@@ -143,7 +211,7 @@ function resetBookPointer() {
       </div>
     </section>
 
-    <section class="about-preview" v-reveal>
+    <section v-if="status === 'success' && leadStory" class="about-preview" v-reveal>
       <div>
         <span class="editorial-eyebrow">About this place</span>
         <h2>这里不追逐即时答案。</h2>
