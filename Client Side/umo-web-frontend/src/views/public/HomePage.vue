@@ -26,13 +26,6 @@ const typeEntries = computed(() => {
     }))
 })
 
-function replayIntro() {
-  isPlaying.value = false
-  requestAnimationFrame(() => {
-    isPlaying.value = true
-  })
-}
-
 function handleBookPointer(event) {
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
     return
@@ -70,13 +63,10 @@ function resetBookPointer() {
         <div class="home-actions">
           <router-link class="button button--primary" to="/library">进入书库</router-link>
           <router-link class="button button--text" to="/about">了解这个空间</router-link>
-          <button class="button button--quiet" type="button" @click="replayIntro">
-            重播入场
-          </button>
         </div>
         <dl class="home-stats">
           <div><dt>{{ publicContents.length }}</dt><dd>篇公开内容</dd></div>
-          <div><dt>3</dt><dd>类长期主题</dd></div>
+          <div><dt>{{ typeEntries.length }}</dt><dd>长期主题</dd></div>
           <div><dt>2026</dt><dd>持续更新</dd></div>
         </dl>
       </div>
@@ -134,8 +124,8 @@ function resetBookPointer() {
     <section class="home-section" v-reveal>
       <SectionHeading
         eyebrow="Collections"
-        title="三类长期主题"
-        description="不是频道分类，而是三种不同速度的写作。"
+        title="长期主题"
+        description="不是频道分类，而是不同节奏与体裁的长期写作。"
       />
       <div class="type-grid">
         <router-link

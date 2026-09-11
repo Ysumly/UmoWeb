@@ -32,9 +32,10 @@ const readingLabel = computed(() => {
 </script>
 
 <template>
-  <article
+  <router-link
     class="content-card"
     :class="`content-card--${variant}`"
+    :to="`/post/${content.slug}`"
     :style="{ '--card-index': index }"
   >
     <div class="content-card__topline">
@@ -42,9 +43,9 @@ const readingLabel = computed(() => {
       <span>{{ publishedLabel }}</span>
     </div>
 
-    <router-link class="content-card__title" :to="`/post/${content.slug}`">
+    <h3 class="content-card__title">
       {{ content.title }}
-    </router-link>
+    </h3>
 
     <p class="content-card__summary">{{ content.summary }}</p>
 
@@ -54,5 +55,5 @@ const readingLabel = computed(() => {
       </div>
       <span v-if="readingLabel" class="content-card__reading">{{ readingLabel }}</span>
     </div>
-  </article>
+  </router-link>
 </template>
