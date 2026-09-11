@@ -19,3 +19,18 @@ export function parseRetryAfterSeconds(error, fallback = 10) {
 
   return Math.max(1, Number(fallback) || 10)
 }
+
+export function shouldClearSessionOnUnauthorized(error) {
+  if (error?.response?.status !== 401) {
+    return false
+  }
+
+  const url = error?.config?.url || ''
+  if (url.endsWith('/admin/login')) {
+    return false
+  }
+  if (url.endsWith('/admin/change-password') && error?.response?.data?.message === '旧密码错误') {
+    return false
+  }
+  return true
+}

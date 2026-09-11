@@ -2,7 +2,7 @@
 
 > 基线日期: 2026-09-11
 > 项目路径: `Client Side/umo-web-frontend/`
-> 状态: 公开端主路径和管理端文章工作流已接入真实 API，其余管理业务页仍待继续实现
+> 状态: 公开端主路径和管理端核心业务页已接入真实 API，仅公开在线编辑器待实现
 
 ---
 
@@ -130,9 +130,10 @@ umo-web-frontend/
 | `/secret-admin/contents` | `admin-contents` | `ContentListPage.vue` | 已接入真实 API |
 | `/secret-admin/contents/new` | `content-new` | `ContentEditPage.vue` | 已接入真实 API |
 | `/secret-admin/contents/:id/edit` | `content-edit` | `ContentEditPage.vue` | 已接入真实 API |
-| `/secret-admin/categories` | `admin-cats` | `CategoryManagePage.vue` | 占位 |
-| `/secret-admin/tags` | `admin-tags` | `TagManagePage.vue` | 占位 |
-| `/secret-admin/options` | `admin-options` | `OptionPage.vue` | 占位 |
+| `/secret-admin/categories` | `admin-cats` | `CategoryManagePage.vue` | 已接入真实 API |
+| `/secret-admin/tags` | `admin-tags` | `TagManagePage.vue` | 已接入真实 API |
+| `/secret-admin/options` | `admin-options` | `OptionPage.vue` | 已接入真实 API |
+| `/secret-admin/password` | `admin-password` | `ChangePasswordPage.vue` | 已接入真实 API |
 | `/:pathMatch(.*)*` | `not-found` | `NotFoundPage.vue` | 已实现 |
 
 守卫逻辑直接读取 `localStorage.token`，没有在路由进入时调用后端验证 token。
@@ -150,7 +151,8 @@ umo-web-frontend/
 - `baseURL: '/api'`。
 - 超时 15 秒。
 - 请求前从 `localStorage` 读取 token，并设置 Bearer Header。
-- 响应为 401 时删除 token，并跳转 `login`。
+- 业务请求响应 401 时删除 token，并跳转 `login`。
+- 登录和“旧密码错误”由对应页面展示，不会被拦截器提前清理当前会话；改密接口的其他 401 仍会清理 token。
 
 因为 `baseURL` 是相对路径，开发时依赖 `vite.config.js` 将 `/api` 代理到 `http://localhost:8080`。
 
@@ -179,11 +181,13 @@ token 来源和存储位置都是 `localStorage`。
 
 当前字段：
 
-- `title`
-- `subtitle`
-- `fetch()`
+- `siteTitle`
+- `siteSubtitle`
+- `status`
+- `error`
+- `load(force = false)`
 
-`fetch()` 在读取 `res.data` 时同时兼容 `res.data.siteTitle` 和 `res.data.data?.siteTitle`，但后端实际直接返回前者。
+`load()` 缓存已加载的站点标题和副标题，并支持强制刷新。
 
 当前不存在 `content`、`category` 或通用请求状态 store。
 
@@ -199,6 +203,10 @@ token 来源和存储位置都是 `localStorage`。
 | `AdminLayout.vue` | 桌面侧栏、移动抽屉、主题切换、退出登录和 `router-view` |
 | `ContentListPage.vue` | 文章筛选、分页、状态展示、编辑和删除 |
 | `ContentEditPage.vue` | 新建/编辑、分类标签、metadata、Markdown 分屏预览、图片上传和未保存保护 |
+| `CategoryManagePage.vue` | 分类树筛选、父级/排序字段、增改删、409 提示和未保存保护 |
+| `TagManagePage.vue` | 标签增改删、字段校验、409 提示和未保存保护 |
+| `OptionPage.vue` | 站点信息、About/Project Markdown 预览、统一保存和部分失败反馈 |
+| `ChangePasswordPage.vue` | 密码校验、修改后清 token、跳转登录页 |
 | `NotFoundPage.vue` | 公开端视觉样式，提供返回首页和书库入口 |
 
 ### 7.2 公开端真实 API
@@ -221,12 +229,9 @@ token 来源和存储位置都是 `localStorage`。
 
 管理端：
 
-- 分类管理
-- 标签管理
-- 站点设置
-- 修改密码入口
+- 无；核心业务页已接入真实 API。
 
-公开在线编辑器仍只渲染占位内容；管理端文章工作流已实现，其余页面仍为占位。
+公开在线编辑器仍只渲染占位内容；管理端核心业务页已完成。
 
 ---
 
@@ -251,13 +256,11 @@ server: {
 }
 ```
 
-2026-09-11 执行 `npm test` 和 `npm run build` 成功。当前 29 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章表单规则、静态筛选和 Markdown 原始 HTML 禁用。
+2026-09-11 执行 `npm test` 和 `npm run build` 成功。当前 38 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密规则、静态筛选和 Markdown 原始 HTML 禁用。
 
 ---
 
 ## 9. 下一步实现顺序
 
-1. 实现分类、标签和站点配置管理。
-2. 补齐修改密码入口。
-3. 实现在线 Markdown 编辑器。
-4. 增加可重复执行的浏览器 E2E 和视觉回归。
+1. 实现在线 Markdown 编辑器。
+2. 增加可重复执行的浏览器 E2E 和视觉回归。

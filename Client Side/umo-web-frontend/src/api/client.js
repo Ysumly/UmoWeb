@@ -1,5 +1,6 @@
 import axios from 'axios'
 import router from '@/router'
+import { shouldClearSessionOnUnauthorized } from '@/utils/apiError'
 
 const client = axios.create({
   baseURL: '/api',
@@ -19,7 +20,7 @@ client.interceptors.request.use(config => {
 client.interceptors.response.use(
   response => response,
   error => {
-    if (error.response?.status === 401) {
+    if (shouldClearSessionOnUnauthorized(error)) {
       localStorage.removeItem('token')
       router.push({ name: 'login' })
     }

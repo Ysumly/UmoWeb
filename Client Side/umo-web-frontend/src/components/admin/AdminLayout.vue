@@ -15,6 +15,7 @@ const navigation = computed(() => [
   { to: adminPath('categories'), label: '分类管理' },
   { to: adminPath('tags'), label: '标签管理' },
   { to: adminPath('options'), label: '站点设置' },
+  { to: adminPath('password'), label: '修改密码' },
 ])
 
 watch(() => route.fullPath, () => {

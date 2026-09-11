@@ -49,12 +49,17 @@
 | `src/api/public.js` | 8 个公开 API 函数 |
 | `src/api/admin.js` | 19 个管理 API 函数，包含 `changePassword` |
 | `src/stores/auth.js` | token、login、logout |
-| `src/stores/site.js` | title、subtitle、fetch |
+| `src/stores/site.js` | siteTitle、siteSubtitle、状态和缓存加载 |
 | `src/utils/adminContent.js` | 管理端查询、表单、metadata、分类顺序和图片插入规则 |
+| `src/utils/adminManagement.js` | 分类父级、分类/标签/站点/改密校验和删除错误映射 |
 | `src/views/admin/LoginPage.vue` | 已实现 |
 | `src/components/admin/AdminLayout.vue` | 已实现响应式布局 |
 | `src/views/admin/ContentListPage.vue` | 已接入列表、筛选、分页和删除 |
 | `src/views/admin/ContentEditPage.vue` | 已接入新建/编辑、预览和图片上传 |
+| `src/views/admin/CategoryManagePage.vue` | 已接入树形 CRUD |
+| `src/views/admin/TagManagePage.vue` | 已接入列表 CRUD |
+| `src/views/admin/OptionPage.vue` | 已接入站点配置读写和 Markdown 预览 |
+| `src/views/admin/ChangePasswordPage.vue` | 已接入密码修改和会话清理 |
 | `src/views/public/NotFoundPage.vue` | 已实现基础 404 |
 
 ---
@@ -79,11 +84,10 @@
 |---|---|
 | `ContentListPage.vue` | 已接入文章表格、筛选、删除、分页 |
 | `ContentEditPage.vue` | 已接入新建/编辑、分类标签、Markdown 预览和图片上传 |
-| `CategoryManagePage.vue` | 待实现树形 CRUD |
-| `TagManagePage.vue` | 待实现列表 CRUD |
-| `OptionPage.vue` | 待实现站点标题、副标题、About/Project 编辑 |
-
-修改密码 API 函数已补充，但页面和入口仍未实现。
+| `CategoryManagePage.vue` | 已接入树形 CRUD、父级防循环和 409 提示 |
+| `TagManagePage.vue` | 已接入列表 CRUD 和 409 提示 |
+| `OptionPage.vue` | 已接入站点标题、副标题、About/Project 编辑与保存 |
+| `ChangePasswordPage.vue` | 已接入密码修改、旧 token 清理和重新登录提示 |
 
 ---
 
@@ -95,7 +99,7 @@
 - 不要把响应统一当成 `response.data.data`。
 - 列表使用 `response.data.items`。
 - 错误消息优先读取 `error.response.data.message`。
-- 401 处理已由拦截器负责，不要在每页重复全局跳转。
+- 业务接口 401 由拦截器清理会话；登录页和“旧密码错误”在当前页面展示。
 
 ### 5.2 Markdown
 
@@ -131,9 +135,9 @@
 
 ## 6. 推荐实施顺序
 
-1. 完成分类、标签、站点设置和修改密码入口。
-2. 完成本地编辑器。
-3. 做管理端剩余页面的响应式和错误态回归。
+1. 完成本地编辑器。
+2. 增加管理端和公开端的可重复浏览器 E2E。
+3. 做剩余视觉回归。
 
 ---
 
@@ -144,7 +148,6 @@
 - 统一正常响应包装。
 - 新建接口返回 201。
 - 公开在线编辑器的导入/下载流程。
-- 修改密码页面。
 - 内容、分类、标签通用 store。
 - 可重复执行的浏览器 E2E 工程。
 - 自动包含子分类的筛选。

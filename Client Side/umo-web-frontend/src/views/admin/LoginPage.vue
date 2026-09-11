@@ -13,6 +13,7 @@ const username = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const passwordChanged = route.query.changed === '1'
 
 async function handleLogin() {
   loading.value = true
@@ -36,6 +37,9 @@ async function handleLogin() {
       <h1>管理员登录</h1>
       <p>进入内容工作台，管理草稿、发布与站点资料。</p>
 
+      <div v-if="passwordChanged" class="admin-notice admin-notice--success" role="status">
+        密码已修改，请重新登录
+      </div>
       <div v-if="error" class="admin-notice" role="alert">{{ error }}</div>
 
       <label class="admin-field">

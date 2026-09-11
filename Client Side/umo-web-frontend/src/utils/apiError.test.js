@@ -1,7 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { getApiErrorMessage, parseRetryAfterSeconds } from './apiError.js'
+import {
+  getApiErrorMessage,
+  parseRetryAfterSeconds,
+  shouldClearSessionOnUnauthorized,
+} from './apiError.js'
 
 test('extracts the backend error message', () => {
   const error = {
@@ -36,4 +40,28 @@ test('prefers the Retry-After response header', () => {
   }
 
   assert.equal(parseRetryAfterSeconds(error), 12)
+})
+
+test('keeps the session for credential errors handled by the current page', () => {
+  assert.equal(
+    shouldClearSessionOnUnauthorized({
+      config: { url: '/admin/change-password' },
+      response: { status: 401, data: { message: '旧密码错误' } },
+    }),
+    false,
+  )
+  assert.equal(
+    shouldClearSessionOnUnauthorized({
+      config: { url: '/admin/change-password' },
+      response: { status: 401, data: { message: 'JWT expired' } },
+    }),
+    true,
+  )
+  assert.equal(
+    shouldClearSessionOnUnauthorized({
+      config: { url: '/admin/contents' },
+      response: { status: 401 },
+    }),
+    true,
+  )
 })
