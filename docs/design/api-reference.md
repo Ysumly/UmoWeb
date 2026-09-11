@@ -224,6 +224,18 @@ GET /api/public/contents/{slug}
   ],
   "metadata": {},
   "publishedAt": "2026-06-20T10:00:00",
+  "previous": {
+    "id": 1,
+    "title": "更早的文章",
+    "slug": "older-article",
+    "publishedAt": "2026-06-19T10:00:00"
+  },
+  "next": {
+    "id": 3,
+    "title": "更新的文章",
+    "slug": "newer-article",
+    "publishedAt": "2026-06-21T10:00:00"
+  },
   "body": "# Spring Boot\n\nMarkdown 原文..."
 }
 ```
@@ -233,6 +245,8 @@ GET /api/public/contents/{slug}
 - 只查询 `PUBLISHED` 内容。
 - `slug` 不存在或内容不是已发布状态时返回 404。
 - 详情和列表使用同一个共享 VO 组装组件，`categories`、`tags` 始终为数组。
+- `previous` 表示按发布时间更早的已发布文章，`next` 表示更晚的文章；对象仅含 `id`、`title`、`slug`、`publishedAt`，边界位置为 `null`。
+- 发布时间相同时，较小 ID 视为更早、较大 ID 视为更晚。
 - Markdown 文件读取失败时返回 200，`body` 为 `""`。
 
 ### 2.8 搜索已发布文章

@@ -1,7 +1,7 @@
 # UmoWeb 前端视觉与交互规范
 
 > 基线日期: 2026-09-11
-> 适用范围: 当前公开端静态视觉 MVP
+> 适用范围: 当前公开端真实 API 界面
 > 事实来源: `Client Side/umo-web-frontend/src/style.css` 与公开端组件
 
 ## 1. 视觉方向
@@ -78,7 +78,7 @@
 
 ## 6. 当前边界
 
-- 首页、书库、文章详情、About 和 404 已接入静态 fixtures。
-- 搜索、Project、在线编辑器和管理端仍保留原占位或原有行为。
-- 当前没有 API 联调、真实搜索限流、鉴权、CRUD 或上传逻辑。
+- 首页、书库、搜索、文章详情、About、Project 和 404 已接入真实 API。
+- 在线编辑器和管理端业务页仍保留原占位或原有行为。
+- 公开端错误态不回退静态 fixtures；搜索 429 使用倒计时反馈。
 - `marked` 渲染禁用原始 HTML；代码高亮按需加载 Java、JavaScript、SQL 和 Bash。

@@ -11,7 +11,7 @@
 |---|---:|
 | Entity | 6 |
 | DTO | 10 |
-| VO | 7 |
+| VO | 8 |
 | Mapper 接口 | 8 |
 | Mapper XML | 8 |
 
@@ -134,7 +134,8 @@ Controller 的 `@Valid` 会在进入 Service 前拒绝非法 page/size。
 | VO | 字段 |
 |---|---|
 | `ContentListVO` | `id`、`title`、`slug`、`summary`、`type`、`categories`、`tags`、`metadata`、`publishedAt` |
-| `ContentDetailVO` | 继承列表 VO，增加 `body` |
+| `ContentDetailVO` | 继承列表 VO，增加 `body`、`previous`、`next` |
+| `ContentNeighborVO` | `id`、`title`、`slug`、`publishedAt` |
 | `CategoryTreeVO` | `id`、`name`、`slug`、`type`、`children` |
 | `CategoryVO` | `id`、`name`、`slug`、`parentId`、`type`、`sortOrder` |
 | `TagVO` | `id`、`name`、`slug` |
@@ -187,6 +188,8 @@ List<Tag> findByContentId(Long contentId);
 List<Content> findPublished(ContentQuery query);
 long countPublished(ContentQuery query);
 Content findBySlug(String slug);
+Content findPreviousPublished(LocalDateTime publishedAt, Long id);
+Content findNextPublished(LocalDateTime publishedAt, Long id);
 List<Content> findAll(ContentQuery query);
 long countAll(ContentQuery query);
 Content findById(Long id);
@@ -293,7 +296,20 @@ WHERE c.status = 'PUBLISHED'
 
 不查询文件系统，也不查询 Markdown 正文。
 
-### 6.5 站点配置更新
+### 6.5 详情前后文章
+
+`findPreviousPublished` 只返回 `PUBLISHED` 且发布时间更早的记录：
+
+```sql
+published_at < #{publishedAt}
+OR (published_at = #{publishedAt} AND id < #{id})
+ORDER BY published_at DESC, id DESC
+LIMIT 1
+```
+
+`findNextPublished` 使用相反方向和排序，同时间以大 ID 为更晚。
+
+### 6.6 站点配置更新
 
 ```sql
 INSERT INTO site_options (option_key, option_value)

@@ -2,7 +2,7 @@
 
 > 基线日期: 2026-09-11
 > 项目路径: `Client Side/umo-web-frontend/`
-> 状态: 公开端主路径已实现静态视觉 MVP，搜索、Project、编辑器和管理端仍待继续实现
+> 状态: 公开端主路径已接入真实 API，编辑器和管理端业务页仍待继续实现
 
 ---
 
@@ -40,15 +40,18 @@ umo-web-frontend/
     ├── style.css
     ├── directives/
     │   └── reveal.js
-    ├── demo/
-    │   └── content.js
+    ├── config/
+    │   └── contentTypes.js
     ├── layouts/
     │   └── PublicLayout.vue
     ├── theme/
     │   ├── theme.js
     │   └── useTheme.js
     ├── utils/
-    │   └── markdown.js
+    │   ├── apiError.js
+    │   ├── format.js
+    │   ├── markdown.js
+    │   └── publicContent.js
     ├── api/
     │   ├── client.js
     │   ├── public.js
@@ -63,6 +66,7 @@ umo-web-frontend/
     │   │   └── ThemeToggle.vue
     │   ├── public/
     │   │   ├── ContentCard.vue
+    │   │   ├── ContentState.vue
     │   │   ├── MarkdownArticle.vue
     │   │   ├── SectionHeading.vue
     │   │   ├── SiteFooter.vue
@@ -113,12 +117,12 @@ umo-web-frontend/
 
 | 路径 | 名称 | 组件 | 状态 |
 |---|---|---|---|
-| `/` | `home` | `HomePage.vue` | 静态视觉 MVP |
-| `/library` | `library` | `LibraryPage.vue` | 静态视觉 MVP |
-| `/search` | `search` | `SearchPage.vue` | 占位 |
-| `/post/:slug` | `post` | `PostDetailPage.vue` | 静态视觉 MVP |
-| `/about` | `about` | `AboutPage.vue` | 静态视觉 MVP |
-| `/project` | `project` | `ProjectPage.vue` | 占位 |
+| `/` | `home` | `HomePage.vue` | 已接入真实 API |
+| `/library` | `library` | `LibraryPage.vue` | 已接入真实 API |
+| `/search` | `search` | `SearchPage.vue` | 已接入真实 API |
+| `/post/:slug` | `post` | `PostDetailPage.vue` | 已接入真实 API |
+| `/about` | `about` | `AboutPage.vue` | 已接入真实 API |
+| `/project` | `project` | `ProjectPage.vue` | 已接入真实 API |
 | `/editor` | `editor` | `EditorPage.vue` | 占位 |
 | `/secret-admin` | - | `AdminLayout.vue` | 重定向到文章页 |
 | `/secret-admin/login` | `login` | `LoginPage.vue` | 已实现 |
@@ -128,7 +132,7 @@ umo-web-frontend/
 | `/secret-admin/categories` | `admin-cats` | `CategoryManagePage.vue` | 占位 |
 | `/secret-admin/tags` | `admin-tags` | `TagManagePage.vue` | 占位 |
 | `/secret-admin/options` | `admin-options` | `OptionPage.vue` | 占位 |
-| `/:pathMatch(.*)*` | `not-found` | `NotFoundPage.vue` | 静态视觉 MVP |
+| `/:pathMatch(.*)*` | `not-found` | `NotFoundPage.vue` | 已实现 |
 
 守卫逻辑直接读取 `localStorage.token`，没有在路由进入时调用后端验证 token。
 
@@ -154,13 +158,7 @@ umo-web-frontend/
 | 文件 | 实际函数数 | 内容 |
 |---|---:|---|
 | `api/public.js` | 8 | 8 个公开端接口 |
-| `api/admin.js` | 18 | 18 个管理端函数 |
-
-`admin.js` 当前缺少修改密码函数：
-
-```js
-changePassword(data) => client.put('/admin/change-password', data)
-```
+| `api/admin.js` | 19 | 19 个管理端函数，包含修改密码 |
 
 ---
 
@@ -198,16 +196,17 @@ token 来源和存储位置都是 `localStorage`。
 |---|---|
 | `LoginPage.vue` | 表单、调用登录 API、错误提示、跳转 |
 | `AdminLayout.vue` | 侧栏导航、退出登录、`router-view` |
-| `NotFoundPage.vue` | 静态视觉 MVP，提供返回首页和书库入口 |
+| `NotFoundPage.vue` | 公开端视觉样式，提供返回首页和书库入口 |
 
-### 7.2 静态视觉 MVP
+### 7.2 公开端真实 API
 
-以下页面使用 `src/demo/content.js` 本地数据，不调用真实 API：
+以下页面读取现有公开接口，并提供加载、空数据、错误和重试状态：
 
 - 首页：站点介绍、主推文章、最新内容、类型入口和 About 预览。
-- 书库：类型、分类、标签本地筛选和分页。
-- 文章详情：Markdown、代码高亮、分类标签和前后文章。
-- About：静态 Markdown 阅读页。
+- 书库：类型、分类、标签服务端筛选和分页。
+- 搜索：显式提交、URL 同步和 429 倒计时。
+- 文章详情：Markdown、代码高亮、分类标签和后端返回的前后文章。
+- About 与 Project：分别读取配置页 Markdown。
 
 主题由 `data-theme` 控制，亮暗偏好保存在 `localStorage`。公开端支持首页电影化动效、滚动揭示和减少动态偏好。
 
@@ -215,8 +214,6 @@ token 来源和存储位置都是 `localStorage`。
 
 公开端：
 
-- 搜索
-- Project
 - Markdown 编辑器
 
 管理端：
@@ -227,7 +224,7 @@ token 来源和存储位置都是 `localStorage`。
 - 标签管理
 - 站点设置
 
-搜索、Project 和编辑器仍只渲染标题与“待实现”文本；管理端仍为原有基础设施和占位页面。
+编辑器仍只渲染占位内容；管理端仍为原有基础设施和占位页面。
 
 ---
 
@@ -258,9 +255,8 @@ server: {
 
 ## 9. 下一步实现顺序
 
-1. 将公开端静态 fixtures 替换为现有 8 个公开 API，并补齐加载、空数据和错误状态。
-2. 实现真实搜索、Project、在线编辑器和图片上传交互。
-3. 实现文章管理列表和编辑表单。
-4. 实现分类、标签和站点配置管理。
-5. 补齐修改密码入口和 API。
-6. 增加浏览器 E2E 和视觉回归。
+1. 实现在线 Markdown 编辑器。
+2. 实现文章管理列表和编辑表单。
+3. 实现分类、标签和站点配置管理。
+4. 补齐修改密码入口。
+5. 增加可重复执行的浏览器 E2E 和视觉回归。

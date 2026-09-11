@@ -118,10 +118,14 @@ ContentMapper.countPublished(query)
 ```text
 ContentMapper.findBySlug(slug)
 -> FileUtil.readMarkdown(bodyPath)
+-> ContentMapper.findPreviousPublished(publishedAt, id)
+-> ContentMapper.findNextPublished(publishedAt, id)
 ```
 
 详情与列表使用同一个 `ContentVOMapper`，分类和标签按 contentIds 批量查询后组装为数组。
 资源不存在时抛 `NotFoundException`。文件不存在或读取失败时，`body` 设置为空字符串，接口仍返回 200。
+邻居对象只暴露 `id/title/slug/publishedAt`；`previous` 为更早内容，`next` 为更晚内容，
+同时间以较小 ID 为更早，边界返回 `null`。
 
 #### search
 
@@ -201,6 +205,7 @@ SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 - 搜索无参数返回 200。
 - 详情不存在返回 404。
 - 详情分类/标签数组已由 MockMvc 断言覆盖。
+- Service 测试覆盖详情前后文章与边界 `null`。
 - 空分类和标签返回 `[]`。
 - `type` 过滤调用路径。
 

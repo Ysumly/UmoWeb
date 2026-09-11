@@ -1,7 +1,7 @@
 # UmoWeb 前端续作提示
 
 > 基线日期: 2026-09-10
-> 目标: 在不误改现有基础设施的前提下完成前端业务页面
+> 目标: 在不误改现有基础设施的前提下完成剩余前端业务页面
 > 事实来源: `Client Side/umo-web-frontend/src`
 
 ---
@@ -47,7 +47,7 @@
 | `src/router/index.js` | 路由和 Token 守卫已实现 |
 | `src/api/client.js` | Axios、JWT、401 处理已实现 |
 | `src/api/public.js` | 8 个公开 API 函数 |
-| `src/api/admin.js` | 18 个管理 API 函数，缺 `changePassword` |
+| `src/api/admin.js` | 19 个管理 API 函数，包含 `changePassword` |
 | `src/stores/auth.js` | token、login、logout |
 | `src/stores/site.js` | title、subtitle、fetch |
 | `src/views/admin/LoginPage.vue` | 已实现 |
@@ -56,19 +56,19 @@
 
 ---
 
-## 4. 待实现页面
+## 4. 页面状态
 
 ### 4.1 公开端
 
-| 页面 | 任务 |
+| 页面 | 状态 |
 |---|---|
-| `HomePage.vue` | 站点信息、最新文章、分类入口 |
-| `LibraryPage.vue` | 文章列表、分类/标签/type 筛选、分页 |
-| `SearchPage.vue` | URL 查询同步、搜索、429 提示 |
-| `PostDetailPage.vue` | 详情、Markdown 渲染、代码高亮、404 |
-| `AboutPage.vue` | 获取 Markdown 并渲染 |
-| `ProjectPage.vue` | 获取 Markdown 并渲染 |
-| `EditorPage.vue` | 本地导入、编辑、预览、下载 |
+| `HomePage.vue` | 已接入站点信息、列表与类型统计 API |
+| `LibraryPage.vue` | 已接入服务端筛选和分页 |
+| `SearchPage.vue` | 已接入显式搜索、URL 同步和 429 倒计时 |
+| `PostDetailPage.vue` | 已接入详情、分类标签和前后文章 |
+| `AboutPage.vue` | 已接入 About 页面 API |
+| `ProjectPage.vue` | 已接入 Project 页面 API |
+| `EditorPage.vue` | 待实现本地导入、编辑、预览、下载 |
 
 ### 4.2 管理端
 
@@ -128,12 +128,10 @@
 
 ## 6. 推荐实施顺序
 
-1. 补齐 `changePassword` 和 Markdown 渲染工具。
-2. 完成文章详情、首页、分类列表、搜索。
-3. 完成文章管理列表和编辑表单。
-4. 完成分类、标签、站点设置。
-5. 完成本地编辑器。
-6. 做响应式和错误态回归。
+1. 完成文章管理列表和编辑表单。
+2. 完成分类、标签、站点设置和修改密码入口。
+3. 完成本地编辑器。
+4. 做管理端响应式和错误态回归。
 
 ---
 

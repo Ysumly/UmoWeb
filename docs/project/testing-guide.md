@@ -92,7 +92,7 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 75 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 77 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器和登录限流测试。MockMvc 边界测试不连接 MySQL；
 `UmoWebBackendApplicationTests` 仍是一条空测试，不会加载完整 Spring Context。
 
@@ -123,6 +123,7 @@ cd "Server Side\UmoWebBackend"
 - 无有效 JWT 的管理端请求返回 401。
 - 修改密码返回 204，旧 token 立即失效。
 - 搜索首次返回 200，10 秒内重复请求返回 429。
+- 详情 `previous` 为更早文章、`next` 为更新文章，首尾边界为 `null`。
 - PNG 上传同时通过 MIME 和文件签名校验。
 - 测试创建的分类、标签、草稿文章全部删除，密码和 `site_title` 恢复原值。
 
@@ -134,14 +135,15 @@ cd "Server Side\UmoWebBackend"
 ```powershell
 cd "Client Side\umo-web-frontend"
 npm run build
-npm run test:router
+npm test
 ```
 
 2026-09-11 已验证：
 
 - 后端完整测试通过。
 - Vite 8.1.0 前端生产构建成功。
-- 前端公开路由、404、登录页和受保护路由守卫测试通过。
+- 前端 21 个 Node 测试通过，覆盖路由、管理路径、主题、API 错误解析、日期格式、查询规范化和 Markdown 安全。
+- 浏览器桌面与 390px 已验证公开页面、筛选、搜索 429、详情导航和离线错误态。
 
 ---
 
@@ -284,8 +286,11 @@ GET {{baseUrl}}/api/public/contents/no-such-slug
 }
 ```
 
-存在时预期 200，并包含 `body`、`categories` 和 `tags` 数组。如果 Markdown 文件缺失，
+存在时预期 200，并包含 `body`、`categories`、`tags`、`previous` 和 `next`。如果 Markdown 文件缺失，
 仍返回 200，但 `body` 为 `""`。
+
+`previous` 指向更早发布的内容，`next` 指向更晚发布的内容；边界为 `null`。同发布时间下，
+小 ID 为更早，大 ID 为更晚。
 
 ### 4.8 搜索
 
