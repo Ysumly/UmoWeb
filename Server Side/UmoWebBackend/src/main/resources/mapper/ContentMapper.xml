@@ -84,6 +84,32 @@
         WHERE c.slug = #{slug} AND c.status = 'PUBLISHED'
     </select>
 
+    <select id="findPreviousPublished" resultType="Content">
+        SELECT <include refid="baseColumns"/>
+        FROM contents c
+        WHERE c.status = 'PUBLISHED'
+          AND c.id != #{id}
+          AND (
+              c.published_at &lt; #{publishedAt}
+              OR (c.published_at = #{publishedAt} AND c.id &lt; #{id})
+          )
+        ORDER BY c.published_at DESC, c.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="findNextPublished" resultType="Content">
+        SELECT <include refid="baseColumns"/>
+        FROM contents c
+        WHERE c.status = 'PUBLISHED'
+          AND c.id != #{id}
+          AND (
+              c.published_at &gt; #{publishedAt}
+              OR (c.published_at = #{publishedAt} AND c.id &gt; #{id})
+          )
+        ORDER BY c.published_at ASC, c.id ASC
+        LIMIT 1
+    </select>
+
     <!-- =========================== 管理端 =========================== -->
 
     <select id="findAll" resultType="Content">

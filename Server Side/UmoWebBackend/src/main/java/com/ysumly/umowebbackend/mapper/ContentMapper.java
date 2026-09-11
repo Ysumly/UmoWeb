@@ -4,6 +4,8 @@ import com.ysumly.umowebbackend.model.dto.ContentQuery;
 import com.ysumly.umowebbackend.model.entity.Content;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -12,6 +14,10 @@ public interface ContentMapper {
     List<Content> findPublished(ContentQuery query);
     long countPublished(ContentQuery query);
     Content findBySlug(String slug);
+    Content findPreviousPublished(@Param("publishedAt") LocalDateTime publishedAt,
+                                  @Param("id") Long id);
+    Content findNextPublished(@Param("publishedAt") LocalDateTime publishedAt,
+                              @Param("id") Long id);
 
     // 管理端
     List<Content> findAll(ContentQuery query);

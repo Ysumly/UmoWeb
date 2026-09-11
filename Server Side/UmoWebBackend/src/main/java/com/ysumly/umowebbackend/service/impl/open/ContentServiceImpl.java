@@ -8,6 +8,7 @@ import com.ysumly.umowebbackend.model.dto.PageResult;
 import com.ysumly.umowebbackend.model.entity.Content;
 import com.ysumly.umowebbackend.model.vo.ContentDetailVO;
 import com.ysumly.umowebbackend.model.vo.ContentListVO;
+import com.ysumly.umowebbackend.model.vo.ContentNeighborVO;
 import com.ysumly.umowebbackend.service.ContentVOMapper;
 import com.ysumly.umowebbackend.service.open.ContentService;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,16 @@ public class ContentServiceImpl implements ContentService {
         } catch (IOException e) {
             body = "";
         }
-        return voMapper.toDetailVO(content, body);
+        ContentDetailVO detail = voMapper.toDetailVO(content, body);
+        if (content.getPublishedAt() != null) {
+            detail.setPrevious(toNeighborVO(contentMapper.findPreviousPublished(
+                    content.getPublishedAt(),
+                    content.getId())));
+            detail.setNext(toNeighborVO(contentMapper.findNextPublished(
+                    content.getPublishedAt(),
+                    content.getId())));
+        }
+        return detail;
     }
 
     @Override
@@ -66,5 +76,17 @@ public class ContentServiceImpl implements ContentService {
 
     private List<ContentListVO> assembleListVO(List<Content> contents) {
         return voMapper.toListVOs(contents);
+    }
+
+    private ContentNeighborVO toNeighborVO(Content content) {
+        if (content == null) {
+            return null;
+        }
+        ContentNeighborVO vo = new ContentNeighborVO();
+        vo.setId(content.getId());
+        vo.setTitle(content.getTitle());
+        vo.setSlug(content.getSlug());
+        vo.setPublishedAt(content.getPublishedAt());
+        return vo;
     }
 }

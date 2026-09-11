@@ -15,6 +15,7 @@ import com.ysumly.umowebbackend.service.ContentVOMapper;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +39,7 @@ class ContentServiceImplTest {
         content.setBodyPath("contents/NOTE/article.md");
         content.setType("NOTE");
         content.setStatus("PUBLISHED");
+        content.setPublishedAt(LocalDateTime.of(2026, 6, 20, 10, 0));
         when(contentMapper.findBySlug("article")).thenReturn(content);
         when(fileUtil.readMarkdown("contents/NOTE/article.md")).thenReturn("# Article");
 
@@ -77,5 +79,80 @@ class ContentServiceImplTest {
         assertThat(detail.getBody()).isEqualTo("# Article");
         assertThat(detail.getCategories()).extracting("slug").containsExactly("java");
         assertThat(detail.getTags()).extracting("slug").containsExactly("backend");
+    }
+
+    @Test
+    void publicDetailIncludesOlderPreviousAndNewerNext() throws Exception {
+        Content current = content(
+                2L,
+                "current",
+                LocalDateTime.of(2026, 6, 22, 10, 0));
+        Content older = content(
+                1L,
+                "older",
+                LocalDateTime.of(2026, 6, 20, 10, 0));
+        Content newer = content(
+                3L,
+                "newer",
+                LocalDateTime.of(2026, 6, 24, 10, 0));
+
+        when(contentMapper.findBySlug("current")).thenReturn(current);
+        when(contentMapper.findPreviousPublished(current.getPublishedAt(), current.getId()))
+                .thenReturn(older);
+        when(contentMapper.findNextPublished(current.getPublishedAt(), current.getId()))
+                .thenReturn(newer);
+        when(fileUtil.readMarkdown(current.getBodyPath())).thenReturn("# Current");
+
+        ContentServiceImpl service = service();
+
+        var detail = service.getBySlug("current");
+
+        assertThat(detail.getPrevious()).extracting("id", "title", "slug", "publishedAt")
+                .containsExactly(1L, "older", "older", older.getPublishedAt());
+        assertThat(detail.getNext()).extracting("id", "title", "slug", "publishedAt")
+                .containsExactly(3L, "newer", "newer", newer.getPublishedAt());
+    }
+
+    @Test
+    void publicDetailReturnsNullNeighborsAtPublishedBoundaries() throws Exception {
+        Content only = content(
+                1L,
+                "only",
+                LocalDateTime.of(2026, 6, 20, 10, 0));
+
+        when(contentMapper.findBySlug("only")).thenReturn(only);
+        when(contentMapper.findPreviousPublished(only.getPublishedAt(), only.getId()))
+                .thenReturn(null);
+        when(contentMapper.findNextPublished(only.getPublishedAt(), only.getId()))
+                .thenReturn(null);
+
+        ContentServiceImpl service = service();
+
+        var detail = service.getBySlug("only");
+
+        assertThat(detail.getPrevious()).isNull();
+        assertThat(detail.getNext()).isNull();
+    }
+
+    private ContentServiceImpl service() {
+        ContentVOMapper voMapper = new ContentVOMapper(
+                contentCategoryMapper,
+                contentTagMapper,
+                categoryMapper,
+                tagMapper,
+                new ObjectMapper());
+        return new ContentServiceImpl(contentMapper, fileUtil, voMapper);
+    }
+
+    private Content content(Long id, String slug, LocalDateTime publishedAt) {
+        Content content = new Content();
+        content.setId(id);
+        content.setTitle(slug);
+        content.setSlug(slug);
+        content.setBodyPath("contents/NOTE/" + slug + ".md");
+        content.setType("NOTE");
+        content.setStatus("PUBLISHED");
+        content.setPublishedAt(publishedAt);
+        return content;
     }
 }

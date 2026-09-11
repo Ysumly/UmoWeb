@@ -7,4 +7,6 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 public class ContentDetailVO extends ContentListVO {
     private String body;
+    private ContentNeighborVO previous;
+    private ContentNeighborVO next;
 }

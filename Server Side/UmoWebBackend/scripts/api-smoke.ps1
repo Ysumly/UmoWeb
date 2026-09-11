@@ -133,6 +133,11 @@ try {
     Assert-True (-not [string]::IsNullOrWhiteSpace($publicDetail.body)) "public detail must load Markdown body"
     Assert-True ($publicDetail.categories.Count -gt 0) "public detail must include categories"
     Assert-True ($publicDetail.tags.Count -gt 0) "public detail must include tags"
+    Assert-True ($null -eq $publicDetail.previous) "oldest public detail must not have a previous article"
+    Assert-True ($publicDetail.next.slug -eq "java-collections") "oldest public detail must point to the next published article"
+    $middleDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents/java-collections")
+    Assert-True ($middleDetail.previous.slug -eq "spring-boot-quickstart") "middle detail previous must be older"
+    Assert-True ($middleDetail.next.slug -eq "vue3-composition-api") "middle detail next must be newer"
     Step 7 "GET /api/public/contents/{slug}"
 
     $headers = @{ Authorization = "Bearer invalid" }
