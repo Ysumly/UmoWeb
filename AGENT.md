@@ -38,11 +38,11 @@
 - `categoryId` 只精确匹配该分类，不自动包含子分类。
 - Markdown 正文保存在 `app.storage-path`，数据库只存 `body_path`；创建/更新使用临时文件和回滚恢复策略，图片限制 50MB。
 - 管理端前端路径由 `VITE_ADMIN_PATH` 控制，默认 `/secret-admin`。
-- 后端当前有 75 个单元/边界/容器装配测试；自动测试仍不连接真实 MySQL。
+- 后端当前有 79 个单元/边界/容器装配测试；自动测试仍不连接真实 MySQL。
 - 2026-09-11 已用隔离 MySQL 5.7 副本完成旧库迁移演练和 27/27 接口冒烟，脚本位于
   `Server Side/UmoWebBackend/scripts/api-smoke.ps1`。
-- 前端公开阅读主路径、管理端文章/分类/标签/站点设置/修改密码均已接入真实 API；
-  公开在线 Markdown 编辑器仍是占位页。
+- 前端公开阅读主路径、公开在线 Markdown 编辑器、管理端文章/分类/标签/站点设置/修改密码均已实现；
+  编辑器草稿只保存在当前浏览器的 `umo-editor-draft-v1`。
 
 ## 常用命令
 

@@ -2,7 +2,7 @@
 
 > 基线日期: 2026-09-11
 > 项目路径: `Client Side/umo-web-frontend/`
-> 状态: 公开端主路径和管理端核心业务页已接入真实 API，仅公开在线编辑器待实现
+> 状态: 公开端、公开在线编辑器和管理端核心业务页均已实现
 
 ---
 
@@ -50,6 +50,7 @@ umo-web-frontend/
     ├── utils/
     │   ├── adminContent.js
     │   ├── apiError.js
+    │   ├── editor.js
     │   ├── format.js
     │   ├── markdown.js
     │   └── publicContent.js
@@ -124,7 +125,7 @@ umo-web-frontend/
 | `/post/:slug` | `post` | `PostDetailPage.vue` | 已接入真实 API |
 | `/about` | `about` | `AboutPage.vue` | 已接入真实 API |
 | `/project` | `project` | `ProjectPage.vue` | 已接入真实 API |
-| `/editor` | `editor` | `EditorPage.vue` | 占位 |
+| `/editor` | `editor` | `EditorPage.vue` | 纯浏览器本地编辑器 |
 | `/secret-admin` | - | `AdminLayout.vue` | 重定向到文章页 |
 | `/secret-admin/login` | `login` | `LoginPage.vue` | 已实现 |
 | `/secret-admin/contents` | `admin-contents` | `ContentListPage.vue` | 已接入真实 API |
@@ -207,6 +208,7 @@ token 来源和存储位置都是 `localStorage`。
 | `TagManagePage.vue` | 标签增改删、字段校验、409 提示和未保存保护 |
 | `OptionPage.vue` | 站点信息、About/Project Markdown 预览、统一保存和部分失败反馈 |
 | `ChangePasswordPage.vue` | 密码校验、修改后清 token、跳转登录页 |
+| `EditorPage.vue` | `.md` 导入/下载、Markdown 编辑与安全预览、移动端切换和本地草稿恢复 |
 | `NotFoundPage.vue` | 公开端视觉样式，提供返回首页和书库入口 |
 
 ### 7.2 公开端真实 API
@@ -221,17 +223,9 @@ token 来源和存储位置都是 `localStorage`。
 
 主题由 `data-theme` 控制，亮暗偏好保存在 `localStorage`。公开端支持首页电影化动效、滚动揭示和减少动态偏好。
 
-### 7.3 占位
+### 7.3 公开在线编辑器
 
-公开端：
-
-- Markdown 编辑器
-
-管理端：
-
-- 无；核心业务页已接入真实 API。
-
-公开在线编辑器仍只渲染占位内容；管理端核心业务页已完成。
+`EditorPage.vue` 不调用后端，使用原生 `textarea` 和 `MarkdownArticle` 完成分屏编辑/预览；窄屏切换单栏。支持导入与下载 `.md`、文件名规范化、导入替换确认和清空；草稿写入 `localStorage["umo-editor-draft-v1"]`，页面重新进入时恢复。
 
 ---
 
@@ -256,11 +250,10 @@ server: {
 }
 ```
 
-2026-09-11 执行 `npm test` 和 `npm run build` 成功。当前 41 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密规则、静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
+2026-09-11 执行 `npm test` 和 `npm run build` 成功。当前 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
 
 ---
 
 ## 9. 下一步实现顺序
 
-1. 实现在线 Markdown 编辑器。
-2. 增加可重复执行的浏览器 E2E 和视觉回归。
+1. 增加可重复执行的浏览器 E2E 和视觉回归。

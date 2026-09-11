@@ -61,7 +61,7 @@ UmoWeb/
 | HTTP | Axios 1.18.x |
 | Markdown | marked 18.0.x、highlight.js 11.11.x |
 | 样式 | Tailwind CSS 4.3.x |
-| 编辑器 | 未安装 CodeMirror/Monaco |
+| 编辑器 | 原生 textarea；未安装 CodeMirror/Monaco |
 
 ---
 
@@ -314,19 +314,19 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 管理端标签管理：列表增改删、字段校验和关联内容 409 提示。
 - 管理端站点设置：统一读取/保存四项配置，About/Project 支持 Markdown 预览、部分保存反馈和缓存刷新。
 - 管理端修改密码：独立受保护页面；成功后清理本地 token，并在登录页提示重新登录。
+- 公开在线 Markdown 编辑器：导入/下载 `.md`、实时安全预览、移动端编辑/预览切换和 `umo-editor-draft-v1` 本地草稿恢复。
 - 公开端布局、页头页脚、主题切换和 `v-reveal` 滚动揭示指令。
 - 首页、书库、搜索、文章详情、About 和 Project 已接入真实公开 API。
 - 亮暗双主题，主题值写入 `data-theme` 并持久化到 `localStorage`。
 - 基于服务端契约的书库筛选/分页、搜索 429 倒计时、Markdown 渲染和代码高亮。
 - 404 页面采用公开端视觉布局。
 
-### 6.2 占位或未实现
+### 6.2 其他前端事实
 
-- 在线编辑器。
 - 管理端路径由统一 `VITE_ADMIN_PATH` 工具控制，默认 `/secret-admin`，不再依赖后端 `app.admin-path`。
 - 当前存在公开端 `SiteHeader`、`SiteFooter`、`ContentCard`、`ContentState`、`MarkdownArticle` 和 `ThemeToggle`；管理端仍没有统一表单/表格组件。
 
-公开端主路径和管理端核心业务页已接入真实 API；公开在线编辑器仍为占位。
+公开端主路径、在线编辑器和全部管理端核心业务页均已实现。
 
 ---
 
@@ -339,8 +339,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 新增 Mapper XML 别名解析、`ClientIpResolver` 容器装配和 Jackson 3 自动配置回归测试。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
 - 自动测试仍没有真实 MySQL 集成测试；2026-09-11 已在隔离 MySQL 5.7 副本完成迁移和 27/27 接口冒烟。
-- 前端 41 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- 公开端和管理端文章工作流已完成桌面与 390px 移动端浏览器检查；尚未建立可重复的浏览器 E2E。
+- 前端 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
+- 公开端、在线编辑器和管理端工作流已完成桌面与 390px 移动端浏览器检查；尚未建立可重复的浏览器 E2E。
 
 ### 7.2 当前代码风险
 

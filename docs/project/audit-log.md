@@ -1,5 +1,40 @@
 # 审计日志
 
+## 审计 #9 - 2026-09-11 — 公开在线编辑器
+
+### 范围
+
+- `/editor` 纯浏览器 Markdown 编辑、预览、导入、下载、清空和本地草稿恢复。
+- 编辑器文件/草稿纯函数、安全 Markdown 预览、桌面与 390px 响应式样式。
+- 前端单元测试、生产构建、亮暗主题和浏览器交互验证。
+
+### 实现
+
+- 新增 `src/utils/editor.js`，统一文件名安全化、`.md` 扩展名、Markdown 文件识别、v1 草稿解析/序列化和 UTF-8 Blob。
+- `EditorPage.vue` 使用原生 textarea 和现有 `MarkdownArticle`，桌面分屏、窄屏编辑/预览切换，不调用后端 API。
+- 草稿写入 `localStorage["umo-editor-draft-v1"]`，结构为 `{ version, content, fileName, updatedAt }`；300ms 防抖保存并在路由离开/`pagehide` 前刷新。
+- 损坏或旧版草稿被忽略并清理；存储失败保留当前内存内容并显示错误，离页前要求确认。
+- 内容非空时导入 `.md` 前确认替换；下载文件名补充 `.md`；清空同步删除本地草稿。
+- 预览复用现有 marked/highlight.js 安全渲染，原始 HTML 被转义，危险 URL 协议被降级。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 前端 `npm test` | 通过，46 tests / 0 failures |
+| 前端 `npm run build` | Vite 8.1.0 生产构建通过 |
+| 桌面浏览器 | 编辑/预览同步、代码高亮、刷新恢复、导入替换路径通过 |
+| 安全预览 | `<script>` 不进入 `innerHTML`，危险链接无 `href` |
+| 390px 浏览器 | 编辑/预览切换、工具栏、亮暗主题和无横向溢出通过 |
+| Markdown 下载 | UTF-8 Blob 与文件名规则通过单元测试；in-app browser 未派发自动化 download 事件 |
+| 导入确认 | 替换流程已执行；in-app browser 未捕获原生 confirm 对话框 |
+
+### 剩余风险
+
+1. 浏览器验证仍为手工编排，不是可重复的 E2E 工程。
+2. 当前 in-app browser 无法稳定观测原生 confirm 和 Blob download 事件，缺少对应浏览器自动化断言。
+3. 桌面和移动端视觉回归尚未工程化。
+
 ## 审计 #8 - 2026-09-11 — 管理端业务闭环
 
 ### 范围

@@ -225,13 +225,10 @@ GET /api/public/contents/search
 - 公开/管理 API 函数。
 - 公开端首页、书库、搜索、详情、About、Project 和 404。
 - 管理端登录、响应式布局、文章、分类、标签、站点设置和修改密码。
+- 纯浏览器 Markdown 编辑器，支持 `.md` 导入/下载和本地草稿恢复。
 - Markdown 渲染、代码高亮和图片拖入/粘贴上传。
 
-尚未实现：
-
-- 公开在线 Markdown 编辑器。
-
-因此，当前版本是“后端 API、公开阅读端和管理端核心业务页完成，公开在线编辑器待开发”的状态。
+当前版本已完成后端 API、公开阅读端、公开在线编辑器和全部管理端核心业务页。
 
 ---
 
@@ -241,7 +238,5 @@ GET /api/public/contents/search
 2. 自动测试尚未连接真实 MySQL，集成验证仍为手工脚本。
 3. 浏览器 E2E 和视觉回归尚未工程化。
 4. 图片没有删除接口，测试或误上传文件只能保留。
-5. 公开在线编辑器仍未实现。
-6. 浏览器 E2E 和视觉回归尚未工程化。
 
 完整风险见 [codebase-memory.md](../project/codebase-memory.md) 和 [audit-log.md](../project/audit-log.md)。

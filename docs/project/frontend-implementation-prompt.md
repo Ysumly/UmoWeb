@@ -1,7 +1,7 @@
 # UmoWeb 前端续作提示
 
 > 基线日期: 2026-09-11
-> 目标: 在不误改现有基础设施的前提下完成剩余前端业务页面
+> 目标: 在不误改现有基础设施的前提下维护已完成的公开端、在线编辑器和管理端业务页面
 > 事实来源: `Client Side/umo-web-frontend/src`
 
 ---
@@ -52,6 +52,7 @@
 | `src/stores/site.js` | siteTitle、siteSubtitle、状态和缓存加载 |
 | `src/utils/adminContent.js` | 管理端查询、表单、metadata、分类顺序和图片插入规则 |
 | `src/utils/adminManagement.js` | 分类父级、分类/标签/站点/改密校验和删除错误映射 |
+| `src/utils/editor.js` | 本地编辑器文件名、草稿序列化和 Markdown Blob |
 | `src/views/admin/LoginPage.vue` | 已实现 |
 | `src/components/admin/AdminLayout.vue` | 已实现响应式布局 |
 | `src/views/admin/ContentListPage.vue` | 已接入列表、筛选、分页和删除 |
@@ -76,7 +77,7 @@
 | `PostDetailPage.vue` | 已接入详情、分类标签和前后文章 |
 | `AboutPage.vue` | 已接入 About 页面 API |
 | `ProjectPage.vue` | 已接入 Project 页面 API |
-| `EditorPage.vue` | 待实现本地导入、编辑、预览、下载 |
+| `EditorPage.vue` | 已实现本地导入、编辑、预览、下载和草稿恢复 |
 
 ### 4.2 管理端
 
@@ -107,6 +108,7 @@
 - 使用 `highlight.js` 做代码高亮。
 - 禁用或净化不受信任的原始 HTML。
 - 图片 URL 可能是 `/images/...`，开发环境由 Vite 代理。
+- 公开在线编辑器只使用 `umo-editor-draft-v1` 保存本地草稿，不上传后端。
 
 ### 5.3 文章表单
 
@@ -135,9 +137,8 @@
 
 ## 6. 推荐实施顺序
 
-1. 完成本地编辑器。
-2. 增加管理端和公开端的可重复浏览器 E2E。
-3. 做剩余视觉回归。
+1. 增加管理端和公开端的可重复浏览器 E2E。
+2. 做剩余视觉回归。
 
 ---
 
@@ -147,7 +148,6 @@
 
 - 统一正常响应包装。
 - 新建接口返回 201。
-- 公开在线编辑器的导入/下载流程。
 - 内容、分类、标签通用 store。
 - 可重复执行的浏览器 E2E 工程。
 - 自动包含子分类的筛选。
