@@ -119,10 +119,12 @@ test('分类编辑加载态不会改变表格列位置', async ({ page, apiMock 
 
   const row = page.getByRole('row', { name: /技术笔记/ })
   const typeCell = row.locator('td').nth(1)
+  const editButton = row.getByRole('button', { name: '编辑' })
   const before = await typeCell.boundingBox()
 
-  await row.getByRole('button', { name: '编辑' }).click()
-  await expect(row.getByRole('button', { name: '读取中' })).toBeVisible()
+  await editButton.click()
+  await expect(editButton).toHaveAttribute('aria-busy', 'true')
+  await expect(editButton).toHaveText('编辑')
 
   const during = await typeCell.boundingBox()
   expect(Math.abs(during.x - before.x)).toBeLessThan(1)

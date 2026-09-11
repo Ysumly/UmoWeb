@@ -270,9 +270,10 @@ onBeforeUnmount(() => {
               <button
                 type="button"
                 :disabled="saving || deletingId === tag.id"
+                :aria-busy="deletingId === tag.id"
                 @click="handleDelete(tag)"
               >
-                {{ deletingId === tag.id ? '删除中' : '删除' }}
+                删除
               </button>
             </td>
           </tr>

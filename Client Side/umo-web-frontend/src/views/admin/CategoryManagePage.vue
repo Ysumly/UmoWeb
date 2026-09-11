@@ -391,17 +391,19 @@ onBeforeUnmount(() => {
             <td class="admin-table__actions">
               <button
                 type="button"
-                :disabled="saving || deletingId === category.id"
+                :disabled="saving || loadingDetailId === category.id || deletingId === category.id"
+                :aria-busy="loadingDetailId === category.id"
                 @click="openEdit(category)"
               >
-                {{ loadingDetailId === category.id ? '读取中' : '编辑' }}
+                编辑
               </button>
               <button
                 type="button"
-                :disabled="saving || deletingId === category.id"
+                :disabled="saving || loadingDetailId === category.id || deletingId === category.id"
+                :aria-busy="deletingId === category.id"
                 @click="handleDelete(category)"
               >
-                {{ deletingId === category.id ? '删除中' : '删除' }}
+                删除
               </button>
             </td>
           </tr>

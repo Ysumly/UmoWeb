@@ -333,9 +333,10 @@ onMounted(() => {
                 <button
                   type="button"
                   :disabled="deletingId === content.id"
+                  :aria-busy="deletingId === content.id"
                   @click="handleDelete(content)"
                 >
-                  {{ deletingId === content.id ? '删除中' : '删除' }}
+                  删除
                 </button>
               </td>
             </tr>
