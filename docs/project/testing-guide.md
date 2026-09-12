@@ -193,6 +193,7 @@ docker compose --env-file .env.docker ps
 - 首次数据卷初始化后公开列表返回 5 篇已发布文章，管理端可见 6 篇内容（含 1 篇草稿）。
 - 首页、`/library` SPA 深链接和演示文章 Markdown 正文通过 Nginx 正常加载。
 - 通过 Nginx 入口执行 `api-smoke.ps1`，27/27 接口通过。
+- 站点副标题和文章摘要中文显示正常。
 - 2MB PNG 经 Nginx 上传返回 200，后端保存文件大小一致。
 - 重启容器但不删除命名卷后，文章、管理员和上传图片仍然存在。
 

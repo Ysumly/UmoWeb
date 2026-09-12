@@ -16,6 +16,7 @@
 - Nginx 对 SPA 路由回退 `index.html`，代理 `/api/**`、`/images/**`，覆盖 `X-Forwarded-For`，请求体上限 52MB。
 - `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，并保留多级转发链的由右向左解析。
 - Playwright 改用 `e2e/runPlaywright.js` 和轻量静态服务器，避免 Windows 上 Vite preview 无法被 Playwright 清理而残留。
+- Docker 首次试运行发现中文副标题和摘要乱码，在 schema/seed 脚本加入 `SET NAMES utf8mb4`，并让内容 `ON DUPLICATE KEY UPDATE` 刷新完整字段。
 - 本机 `8080` 由既有 Java 进程占用，本地 `.env.docker` 改用 `18080`，未停止用户进程。
 
 ### 验证
@@ -30,6 +31,7 @@
 | Docker 真实接口 | `api-smoke.ps1` 通过，27/27 |
 | 大文件上传 | 2MB PNG 经 Nginx 返回 200，后端保存 2,097,152 字节 |
 | 代理限流 | 固定 Nginx `/32`；伪造不同 XFF 的连续搜索请求仍为 200 后 429 |
+| 中文内容 | 副标题、文章摘要和 Markdown 正文均正常显示 |
 | 持久化 | 重启容器后 5 篇公开文章、管理员登录和 2MB 图片仍可用 |
 
 ### 剩余风险

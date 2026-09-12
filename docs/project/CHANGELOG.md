@@ -9,6 +9,7 @@
 - Nginx 提供 SPA fallback，代理 `/api`、`/images`，覆盖客户端 `X-Forwarded-For`，支持 50MB 图片边界。
 - `TRUSTED_PROXIES` 扩展为精确 IP 与 IPv4/IPv6 CIDR，保留多级可信代理链行为并对非法配置快速失败。
 - Playwright 改用可清理的 Node 静态服务器包装器，修复 Windows 上 Vite preview 在测试完成后残留的问题。
+- 数据库初始化脚本显式使用 `utf8mb4`，并让内容种子重复执行时刷新完整字段，修复容器首次导入后的中文乱码。
 - 新增 Docker 运行的端口冲突处理、日志、备份/清空、正式部署注意事项和完整运行指南。
 - 验证结果：后端 83 tests、前端 46 tests、生产构建、Playwright 34 checks、Docker MySQL 8.4 下 27/27 接口冒烟、2MB 上传和卷重启持久化通过。
 

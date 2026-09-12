@@ -356,6 +356,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 仅前端映射宿主端口，默认 `8080`；MySQL 与后端只在 Compose 网络内访问。
 - `mysql_data` 持久化数据库，`app_data` 持久化 Markdown 和上传图片。
 - MySQL 空数据卷首次启动执行 `docs/design/schema.sql` 与 `docs/design/seed-data.sql`。
+- 两个数据库脚本均显式 `SET NAMES utf8mb4`；内容种子重复执行时会刷新完整字段，避免容器初始化中文乱码。
 - 后端镜像包含 6 篇演示 Markdown，公开端返回 5 篇已发布内容，管理端可见 1 篇草稿。
 - `.env.docker` 由 `scripts/docker-up.ps1` 自动生成并被 Git 忽略，示例见 `.env.docker.example`。
 - Nginx 代理 `/api/**` 和 `/images/**`，SPA 路由回退到 `index.html`，上传请求上限 52MB。

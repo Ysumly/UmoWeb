@@ -68,6 +68,8 @@ MySQL 数据卷首次创建时依次执行：
 1. `docs/design/schema.sql`
 2. `docs/design/seed-data.sql`
 
+两个脚本均显式使用 `utf8mb4`，避免容器客户端默认字符集导致中文乱码。
+
 后端运行后创建 `.env.docker` 中配置的管理员。后端镜像同时包含 6 篇演示 Markdown，
 首次创建 `app_data` 卷时复制到 `/app/data`。因此启动后公开端有 5 篇已发布文章，
 管理端还能看到 1 篇草稿。

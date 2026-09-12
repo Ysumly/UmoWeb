@@ -6,6 +6,8 @@
 -- 管理员账号由后端 DataInitializer 自动创建，不在本脚本中写入明文或固定 BCrypt hash。
 -- ============================================================
 
+SET NAMES utf8mb4;
+
 USE umo_blog;
 
 -- 清空旧数据 (可选，按需执行)
@@ -124,7 +126,15 @@ INSERT INTO contents (id, title, slug, body_path, summary, type, status, metadat
  '{"readingTime": 20, "difficulty": "advanced"}',
  NULL)
 
-ON DUPLICATE KEY UPDATE title = VALUES(title);
+ON DUPLICATE KEY UPDATE
+    title = VALUES(title),
+    slug = VALUES(slug),
+    body_path = VALUES(body_path),
+    summary = VALUES(summary),
+    type = VALUES(type),
+    status = VALUES(status),
+    metadata = VALUES(metadata),
+    published_at = VALUES(published_at);
 
 -- ============================================================
 -- 4. 文章 ↔ 分类关联

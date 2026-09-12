@@ -6,6 +6,8 @@
 -- 管理员账号不在本脚本中预置，由后端 DataInitializer 在 users 为空时创建。
 -- ============================================================
 
+SET NAMES utf8mb4;
+
 CREATE DATABASE IF NOT EXISTS umo_blog
     DEFAULT CHARACTER SET utf8mb4
     DEFAULT COLLATE utf8mb4_unicode_ci;
