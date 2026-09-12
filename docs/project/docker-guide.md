@@ -185,7 +185,7 @@ docker compose --env-file .env.docker up -d --no-build --wait
 - 数据库已有管理员后，修改 `.env.docker` 不会自动修改密码或用户名。
 - 旧密码可用时优先调用改密接口；旧密码未知时，应先备份管理员记录，再更新 BCrypt
   `password_hash` 并递增 `token_version`，使旧 JWT 失效。
-- 当前仍使用首次启动导入的演示数据，没有域名或 HTTPS；自动备份和隔离恢复已经建立。
+- 当前已导入正式内容并轮换数据库、JWT 和管理员凭据；仍未配置域名或 HTTPS。
 - 镜像构建和传输目前是人工流程；服务器若恢复仓库访问能力，应改为可审计的 CI/CD。
 
 ## 8. 备份与恢复
@@ -257,4 +257,27 @@ umoweb-backup-<UTC时间>-<commit>.tar.gz.sha256
 - 备份只保存在同一台 ECS；归档可人工导出，但尚未自动上传 OSS 或其他异地存储。
 - 归档和校验文件权限为 `0600`，目录权限为 `0700`；当前不做归档内加密。
 - 自动备份会在秒级到分钟级内停止写入，当前个人博客规模接受该维护窗口。
-- 正式数据导入后必须重新执行备份恢复演练，发布清单 `REL-04` 才能勾选。
+- 正式内容导入后的最终备份已重新完成空卷恢复演练，发布清单 `REL-04` 已具备证据。
+
+### 8.5 正式内容候选包
+
+候选包生成器位于 `scripts/content-import/`。它读取 `<notes-root>` 和 `catalog.json`，输出
+`umoweb-content-*.tar.gz` 及对应 `.sha256`，不会修改源笔记或生产环境：
+
+```powershell
+python scripts/content-import/build_content_backup.py `
+  --source "<notes-root>" `
+  --catalog scripts/content-import/catalog.json `
+  --output Downloads/content-import/umoweb-content-<date>.tar.gz
+```
+
+候选包先通过现有 `restore-backup.sh` 在 `umoweb-restore-*` 项目恢复，并执行
+`Server Side/UmoWebBackend/scripts/api-smoke.py`。只有 27/27 通过后，才允许使用提升脚本：
+
+```bash
+/opt/umoweb/scripts/content-import/promote-content-backup.sh \
+  --confirm /opt/umoweb/imports/umoweb-content-<date>.tar.gz
+```
+
+提升脚本会先创建生产备份，替换正式数据库与 `app_data`，轮换 MySQL/JWT/管理员凭据，最后再次
+执行 27/27。归档和 `.env.docker` 始终不进入仓库。

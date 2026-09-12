@@ -48,7 +48,7 @@ assert_project_name() {
 
 assert_restore_project_name() {
     local value="$1"
-    [[ "$value" =~ ^umoweb-restore-[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] ||
+    [[ "$value" =~ ^umoweb-restore-[a-z0-9][a-z0-9_.-]*$ ]] ||
         return 1
     [[ "$value" != "umoweb" ]] || return 1
     return 0

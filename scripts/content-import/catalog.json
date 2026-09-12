@@ -1,0 +1,330 @@
+{
+  "site_options": {
+    "site_title": "Umo Blog",
+    "site_subtitle": "代码 · 游戏开发 · 学习笔记",
+    "about_page": "# 关于本站\n\n这里收录个人在计算机基础、Java、Spring、Unity 和游戏开发方向的学习笔记。\n\n内容按主题分类整理，并持续修订。",
+    "project_page": "# 项目\n\n本站作为个人学习笔记与长期写作的公开入口，运行在 UmoWeb 上。"
+  },
+  "categories": [
+    {
+      "key": "computer-basics",
+      "name": "计算机基础",
+      "slug": "computer-basics",
+      "parent": null,
+      "sort_order": 1
+    },
+    {
+      "key": "algorithms",
+      "name": "数据结构与算法",
+      "slug": "data-structures-algorithms",
+      "parent": "computer-basics",
+      "sort_order": 1
+    },
+    {
+      "key": "database",
+      "name": "数据库",
+      "slug": "database",
+      "parent": "computer-basics",
+      "sort_order": 2
+    },
+    {
+      "key": "linux",
+      "name": "Linux",
+      "slug": "linux",
+      "parent": "computer-basics",
+      "sort_order": 3
+    },
+    {
+      "key": "java-development",
+      "name": "Java 开发",
+      "slug": "java-development",
+      "parent": null,
+      "sort_order": 2
+    },
+    {
+      "key": "design-patterns",
+      "name": "设计模式",
+      "slug": "design-patterns",
+      "parent": "java-development",
+      "sort_order": 1
+    },
+    {
+      "key": "spring",
+      "name": "Spring",
+      "slug": "spring",
+      "parent": "java-development",
+      "sort_order": 2
+    },
+    {
+      "key": "unity-development",
+      "name": "Unity 开发",
+      "slug": "unity-development",
+      "parent": null,
+      "sort_order": 3
+    },
+    {
+      "key": "unity-basics",
+      "name": "Unity 入门",
+      "slug": "unity-basics",
+      "parent": "unity-development",
+      "sort_order": 1
+    },
+    {
+      "key": "unity-ui",
+      "name": "UGUI",
+      "slug": "unity-ui",
+      "parent": "unity-development",
+      "sort_order": 2
+    },
+    {
+      "key": "unity-core",
+      "name": "动画与寻路",
+      "slug": "unity-animation-navigation",
+      "parent": "unity-development",
+      "sort_order": 3
+    },
+    {
+      "key": "unity-api",
+      "name": "脚本 API",
+      "slug": "unity-scripting-api",
+      "parent": "unity-development",
+      "sort_order": 4
+    },
+    {
+      "key": "unity-components",
+      "name": "组件与手册",
+      "slug": "unity-components-reference",
+      "parent": "unity-development",
+      "sort_order": 5
+    },
+    {
+      "key": "unity-persistence",
+      "name": "数据持久化",
+      "slug": "unity-data-persistence",
+      "parent": "unity-development",
+      "sort_order": 6
+    },
+    {
+      "key": "life",
+      "name": "生活",
+      "slug": "life",
+      "parent": null,
+      "sort_order": 4
+    },
+    {
+      "key": "recipes",
+      "name": "菜谱",
+      "slug": "recipes",
+      "parent": "life",
+      "sort_order": 1
+    },
+    {
+      "key": "thesis",
+      "name": "学年论文",
+      "slug": "thesis",
+      "parent": null,
+      "sort_order": 5
+    },
+    {
+      "key": "data-oriented-design",
+      "name": "数据导向设计",
+      "slug": "data-oriented-design",
+      "parent": "thesis",
+      "sort_order": 1
+    }
+  ],
+  "tags": [
+    {"key": "computer-basics", "name": "计算机基础", "slug": "computer-basics"},
+    {"key": "algorithm", "name": "算法", "slug": "algorithm"},
+    {"key": "mysql", "name": "MySQL", "slug": "mysql"},
+    {"key": "linux", "name": "Linux", "slug": "linux"},
+    {"key": "java", "name": "Java", "slug": "java"},
+    {"key": "design-pattern", "name": "设计模式", "slug": "design-patterns"},
+    {"key": "spring", "name": "Spring", "slug": "spring"},
+    {"key": "spring-boot", "name": "Spring Boot", "slug": "spring-boot"},
+    {"key": "unity", "name": "Unity", "slug": "unity"},
+    {"key": "csharp", "name": "C#", "slug": "csharp"},
+    {"key": "ugui", "name": "UGUI", "slug": "ugui"},
+    {"key": "animation", "name": "动画", "slug": "animation"},
+    {"key": "navigation", "name": "寻路", "slug": "navigation"},
+    {"key": "component", "name": "组件", "slug": "component"},
+    {"key": "manual", "name": "Unity 手册", "slug": "unity-manual"},
+    {"key": "playerprefs", "name": "PlayerPrefs", "slug": "playerprefs"},
+    {"key": "life", "name": "生活", "slug": "life"},
+    {"key": "recipe", "name": "菜谱", "slug": "recipe"},
+    {"key": "thesis", "name": "学年论文", "slug": "thesis"},
+    {"key": "data-oriented-design", "name": "数据导向设计", "slug": "data-oriented-design"},
+    {"key": "performance", "name": "性能优化", "slug": "performance"},
+    {"key": "graphics", "name": "图形与硬件", "slug": "graphics"}
+  ],
+  "articles": [
+    {
+      "source": "01_计算机基础/01_数据结构与算法/常见算法解析.md",
+      "slug": "common-algorithms",
+      "category": "algorithms",
+      "tags": ["computer-basics", "algorithm"]
+    },
+    {
+      "source": "01_计算机基础/02_数据库/01_MySQL基础.md",
+      "slug": "mysql-basics",
+      "category": "database",
+      "tags": ["computer-basics", "mysql"]
+    },
+    {
+      "source": "01_计算机基础/02_数据库/02_MySQL常用指令.md",
+      "slug": "mysql-commands",
+      "category": "database",
+      "tags": ["computer-basics", "mysql"]
+    },
+    {
+      "source": "01_计算机基础/03_Linux/Linux基础.md",
+      "slug": "linux-basics",
+      "category": "linux",
+      "tags": ["computer-basics", "linux"]
+    },
+    {
+      "source": "02_Java开发/01_设计模式/Java设计模式.md",
+      "slug": "java-design-patterns",
+      "category": "design-patterns",
+      "tags": ["java", "design-pattern"]
+    },
+    {
+      "source": "02_Java开发/02_Spring/01_Spring入门与JUnit.md",
+      "slug": "spring-junit-basics",
+      "category": "spring",
+      "tags": ["java", "spring"]
+    },
+    {
+      "source": "02_Java开发/02_Spring/02_SpringBoot附录.md",
+      "slug": "spring-boot-appendix",
+      "category": "spring",
+      "tags": ["java", "spring", "spring-boot"]
+    },
+    {
+      "source": "03_Unity开发/01_入门/Unity入门.md",
+      "slug": "unity-basics",
+      "category": "unity-basics",
+      "tags": ["unity", "csharp"]
+    },
+    {
+      "source": "03_Unity开发/02_UI/UGUI.md",
+      "slug": "unity-ugui",
+      "category": "unity-ui",
+      "tags": ["unity", "ugui"]
+    },
+    {
+      "source": "03_Unity开发/03_动画与寻路/Unity核心.md",
+      "slug": "unity-core",
+      "category": "unity-core",
+      "tags": ["unity", "animation", "navigation"]
+    },
+    {
+      "source": "03_Unity开发/04_脚本API/UnityAPI.md",
+      "slug": "unity-scripting-api",
+      "category": "unity-api",
+      "tags": ["unity", "csharp"]
+    },
+    {
+      "source": "03_Unity开发/05_组件与手册/01_组件学习.md",
+      "slug": "unity-components",
+      "category": "unity-components",
+      "tags": ["unity", "component"]
+    },
+    {
+      "source": "03_Unity开发/05_组件与手册/02_特性.md",
+      "slug": "unity-attributes",
+      "category": "unity-components",
+      "tags": ["unity", "csharp"]
+    },
+    {
+      "source": "03_Unity开发/05_组件与手册/03_手册学习.md",
+      "slug": "unity-manual",
+      "category": "unity-components",
+      "tags": ["unity", "manual"]
+    },
+    {
+      "source": "03_Unity开发/06_数据持久化/PlayerPrefs.md",
+      "slug": "unity-playerprefs",
+      "category": "unity-persistence",
+      "tags": ["unity", "playerprefs"]
+    },
+    {
+      "source": "04_生活/菜谱.md",
+      "slug": "recipes",
+      "category": "recipes",
+      "tags": ["life", "recipe"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/Data-oriented_design.md",
+      "slug": "data-oriented-design",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design", "performance"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/AoS_and_SoA.md",
+      "slug": "dod-aos-soa",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design", "performance"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/Cache-oblivious_algorithm.md",
+      "slug": "cache-oblivious-algorithms",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design", "algorithm", "performance"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/CPU_cache.md",
+      "slug": "cpu-cache",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design", "graphics", "performance"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/DOD_练习题.md",
+      "slug": "dod-exercises",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/DOD_练习题_参考答案.md",
+      "slug": "dod-exercises-solutions",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/Entity_component_system.md",
+      "slug": "entity-component-system",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design", "performance"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/Locality_of_reference.md",
+      "slug": "locality-of-reference",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design", "performance"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/Parallel_array.md",
+      "slug": "parallel-arrays",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design", "performance"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/SIMD.md",
+      "slug": "simd",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design", "graphics", "performance"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/Unity_DOTS.md",
+      "slug": "unity-dots",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design", "unity", "performance"]
+    },
+    {
+      "source": "05_学年论文/数据导向设计/Von_Neumann_bottleneck.md",
+      "slug": "von-neumann-bottleneck",
+      "category": "data-oriented-design",
+      "tags": ["thesis", "data-oriented-design", "graphics", "performance"]
+    }
+  ]
+}
