@@ -130,6 +130,49 @@ test('分类编辑加载态不会改变表格列位置', async ({ page, apiMock 
   expect(Math.abs(during.x - before.x)).toBeLessThan(1)
 })
 
+test('文章编辑器的分类和标签不拆字且超过一页时分页', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  apiMock.state.categories.push(
+    ...Array.from({ length: 15 }, (_, index) => ({
+      id: 100 + index,
+      name: `扩展分类${index + 1}号`,
+      slug: `category-${index + 1}`,
+      type: 'NOTE',
+      parentId: null,
+      sortOrder: index + 10,
+    })),
+  )
+  apiMock.state.tags.push(
+    ...Array.from({ length: 15 }, (_, index) => ({
+      id: 100 + index,
+      name: `扩展标签${index + 1}号`,
+      slug: `tag-${index + 1}`,
+    })),
+  )
+  await page.goto('/secret-admin/contents/new')
+
+  const categoryGroup = page.getByRole('group', { name: '分类' })
+  const tagGroup = page.getByRole('group', { name: '标签' })
+
+  await expect(categoryGroup.locator('.admin-choice-list label')).toHaveCount(12)
+  await expect(tagGroup.locator('.admin-choice-list label')).toHaveCount(12)
+  await expect(categoryGroup.getByRole('navigation', { name: '分类分页' })).toBeVisible()
+  await expect(tagGroup.getByRole('navigation', { name: '标签分页' })).toBeVisible()
+
+  for (const text of ['技术笔记', '长期主义']) {
+    const label = page.locator('.admin-choice-list label', { hasText: text })
+    const box = await label.locator('span').boundingBox()
+    expect(box.height).toBeLessThan(24)
+    expect(box.width).toBeGreaterThan(box.height)
+  }
+
+  await categoryGroup.getByRole('button', { name: '下一页' }).click()
+  await expect(categoryGroup.locator('.admin-choice-list label')).toHaveCount(5)
+
+  await tagGroup.getByRole('button', { name: '下一页' }).click()
+  await expect(tagGroup.locator('.admin-choice-list label')).toHaveCount(6)
+})
+
 test('站点设置保存后刷新公开站点缓存', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/options')

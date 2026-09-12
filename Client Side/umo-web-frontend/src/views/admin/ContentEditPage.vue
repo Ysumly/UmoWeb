@@ -32,6 +32,7 @@ import { flattenCategoryTree } from '@/utils/publicContent'
 
 const route = useRoute()
 const router = useRouter()
+const CHOICE_PAGE_SIZE = 12
 
 const isEdit = computed(() => Boolean(route.params.id))
 const loading = ref(true)
@@ -48,6 +49,8 @@ const textareaRef = ref(null)
 const fileInputRef = ref(null)
 const initialSnapshot = ref('')
 const pendingSelection = ref(null)
+const categoryPage = ref(1)
+const tagPage = ref(1)
 
 const form = reactive({
   title: '',
@@ -64,6 +67,20 @@ const form = reactive({
 const allCategories = computed(() => flattenCategoryTree(categories.value))
 const categoryOptions = computed(() => {
   return allCategories.value.filter((category) => category.type === form.type)
+})
+const categoryPageCount = computed(() => {
+  return Math.max(1, Math.ceil(categoryOptions.value.length / CHOICE_PAGE_SIZE))
+})
+const pagedCategoryOptions = computed(() => {
+  const start = (categoryPage.value - 1) * CHOICE_PAGE_SIZE
+  return categoryOptions.value.slice(start, start + CHOICE_PAGE_SIZE)
+})
+const tagPageCount = computed(() => {
+  return Math.max(1, Math.ceil(tags.value.length / CHOICE_PAGE_SIZE))
+})
+const pagedTags = computed(() => {
+  const start = (tagPage.value - 1) * CHOICE_PAGE_SIZE
+  return tags.value.slice(start, start + CHOICE_PAGE_SIZE)
 })
 const categoryMap = computed(() => {
   return new Map(allCategories.value.map((category) => [category.id, category]))
@@ -97,7 +114,16 @@ function friendlySaveError(error) {
 function handleTypeChange() {
   const validIds = new Set(categoryOptions.value.map((category) => category.id))
   form.categoryIds = form.categoryIds.filter((id) => validIds.has(id))
+  categoryPage.value = 1
   delete errors.value.categoryIds
+}
+
+function changeCategoryPage(offset) {
+  categoryPage.value = Math.max(1, Math.min(categoryPage.value + offset, categoryPageCount.value))
+}
+
+function changeTagPage(offset) {
+  tagPage.value = Math.max(1, Math.min(tagPage.value + offset, tagPageCount.value))
 }
 
 async function load() {
@@ -363,14 +389,32 @@ onBeforeUnmount(() => {
             </p>
             <div v-else class="admin-choice-list">
               <label
-                v-for="category in categoryOptions"
+                v-for="category in pagedCategoryOptions"
                 :key="category.id"
+                :title="category.name"
                 :style="{ paddingLeft: `${category.depth * 16}px` }"
               >
                 <input v-model="form.categoryIds" type="checkbox" :value="category.id" />
                 <span>{{ category.name }}</span>
               </label>
             </div>
+            <nav
+              v-if="categoryPageCount > 1"
+              class="admin-choice-pagination"
+              aria-label="分类分页"
+            >
+              <button type="button" :disabled="categoryPage <= 1" @click="changeCategoryPage(-1)">
+                上一页
+              </button>
+              <span>{{ categoryPage }} / {{ categoryPageCount }}</span>
+              <button
+                type="button"
+                :disabled="categoryPage >= categoryPageCount"
+                @click="changeCategoryPage(1)"
+              >
+                下一页
+              </button>
+            </nav>
             <small v-if="errors.categoryIds">{{ errors.categoryIds }}</small>
             <small v-else-if="form.type === 'NOVEL'">
               小说必须选择至少一个小说分类；第一条小说分类会作为作品目录。
@@ -384,11 +428,20 @@ onBeforeUnmount(() => {
             <legend>标签</legend>
             <p v-if="!tags.length" class="admin-field__empty">暂无标签。</p>
             <div v-else class="admin-choice-list admin-choice-list--tags">
-              <label v-for="tag in tags" :key="tag.id">
+              <label v-for="tag in pagedTags" :key="tag.id" :title="tag.name">
                 <input v-model="form.tagIds" type="checkbox" :value="tag.id" />
                 <span>{{ tag.name }}</span>
               </label>
             </div>
+            <nav v-if="tagPageCount > 1" class="admin-choice-pagination" aria-label="标签分页">
+              <button type="button" :disabled="tagPage <= 1" @click="changeTagPage(-1)">
+                上一页
+              </button>
+              <span>{{ tagPage }} / {{ tagPageCount }}</span>
+              <button type="button" :disabled="tagPage >= tagPageCount" @click="changeTagPage(1)">
+                下一页
+              </button>
+            </nav>
           </fieldset>
 
           <label class="admin-field">

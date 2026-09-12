@@ -2941,26 +2941,66 @@ fieldset.admin-field {
 }
 
 .admin-choice-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 10px 16px;
 }
 
 .admin-choice-list label {
-  display: inline-flex;
+  display: flex;
+  min-width: 0;
   align-items: center;
   gap: 7px;
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
+.admin-choice-list label span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .admin-choice-list input {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   accent-color: var(--accent);
 }
 
 .admin-choice-list--tags {
+  grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
   gap: 8px;
+}
+
+.admin-choice-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 12px;
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.admin-choice-pagination button {
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.admin-choice-pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .admin-editor-toolbar {
