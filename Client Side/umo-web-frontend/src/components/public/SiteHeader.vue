@@ -33,7 +33,7 @@ watch(
   <header class="site-header">
     <div class="site-header__inner">
       <router-link class="site-brand" to="/" :aria-label="`返回 ${siteTitle} 首页`">
-        <span class="site-brand__seal">U</span>
+        <img class="site-brand__seal" src="/umo-logo.png" alt="" width="38" height="38" />
         <span>
           <strong>{{ siteTitle }}</strong>
           <small v-if="siteSubtitle">{{ siteSubtitle }}</small>

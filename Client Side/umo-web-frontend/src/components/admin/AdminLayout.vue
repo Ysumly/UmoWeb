@@ -54,7 +54,7 @@ function handleLogout() {
 
     <aside id="admin-navigation" class="admin-sidebar" :class="{ 'is-open': menuOpen }">
       <div class="admin-brand">
-        <span>U</span>
+        <img class="admin-brand__seal" src="/umo-logo.png" alt="" width="42" height="42" />
         <div>
           <strong>Umo 管理</strong>
           <small>CONTENT STUDIO</small>

@@ -41,7 +41,8 @@ umo-web-frontend/
 │   ├── public.spec.js
 │   └── visual.spec.js
 ├── public/
-│   ├── favicon.svg
+│   ├── favicon.png
+│   ├── umo-logo.png
 │   └── icons.svg
 └── src/
     ├── main.js
