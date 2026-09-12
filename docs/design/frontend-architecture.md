@@ -268,5 +268,12 @@ server: {
 ## 9. 下一步实现顺序
 
 当前已提供 Docker Compose 全栈入口，前端由 Nginx 提供静态构建并代理 `/api`、`/images`；
-详细命令见 `docs/project/docker-guide.md`。下一项仍是将本地 Playwright 套件接入 CI，
-并为 Linux 环境建立独立视觉基线。
+详细命令见 `docs/project/docker-guide.md`。后续工作按四阶段推进：
+
+1. 第一阶段完成正式数据、HTTPS、备份恢复和上线回滚。
+2. 第二阶段接入 CI、Linux Playwright、真实 MySQL 集成和版本化镜像发布。
+3. 第三阶段完成 Markdown 导入、子分类筛选、图片删除、全文搜索和四个训练游戏。
+4. 第四阶段在需求明确后评估 AI 能力。
+
+完整路线见
+[`docs/superpowers/plans/2026-09-12-four-phase-roadmap.md`](../superpowers/plans/2026-09-12-four-phase-roadmap.md)。

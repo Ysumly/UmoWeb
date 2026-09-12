@@ -137,8 +137,15 @@
 
 ## 6. 推荐实施顺序
 
-1. 将现有 Playwright 套件接入 CI，并建立 Linux 视觉基线。
-2. 增加真实 MySQL 自动集成测试。
+后续实施顺序已调整为四阶段路线：
+
+1. 正式上线与数据安全。
+2. 工程交付与质量基线，包括 CI、Linux 视觉基线和真实 MySQL 集成。
+3. 功能设计，包括 Markdown 导入、子分类筛选、图片删除、全文搜索和四个训练游戏。
+4. 需求明确后评估 AI 能力。
+
+完整顺序和出口条件见
+[`../superpowers/plans/2026-09-12-four-phase-roadmap.md`](../superpowers/plans/2026-09-12-four-phase-roadmap.md)。
 
 ---
 
