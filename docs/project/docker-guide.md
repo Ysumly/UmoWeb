@@ -139,3 +139,51 @@ $password = ((Get-Content .env.docker |
 - 生产环境不要自动导入演示数据，应在空库后导入真实备份或由管理员创建内容。
 - 定期备份 `mysql_data` 和 `app_data`，并在副本验证恢复流程。
 - 当前限流仍是单实例内存状态；多后端实例部署需要共享限流存储或网关限流。
+
+## 7. 阿里云 ECS 公网测试部署（脱敏）
+
+### 7.1 环境基线
+
+- 单台阿里云 ECS，Ubuntu 24.04，Docker Engine 与 Compose Plugin 已安装。
+- 部署目录为 `/opt/umoweb`，`.env.docker` 仅 root 可读，权限为 `600`。
+- 当前通过宿主机 TCP `80` 直接提供 HTTP 服务，尚未绑定域名或启用 HTTPS。
+- 仅前端端口暴露到宿主；MySQL 和后端只位于 Compose 网络内。
+- 真实实例标识、公网地址、随机管理路径、密码和密钥不写入仓库。
+
+### 7.2 受限网络下的部署
+
+该 ECS 无法稳定访问 Docker Hub、npm 官方仓库和 Maven Central，因此不能直接执行
+`compose up --build`。已验证流程是在开发机构建前后端镜像，校验归档 SHA-256 后传到 ECS：
+
+```powershell
+docker build --build-arg VITE_ADMIN_PATH=<管理端路径> `
+  -t umoweb-frontend:latest -f docker/frontend/Dockerfile .
+docker build -t umoweb-backend:latest -f docker/backend/Dockerfile .
+docker save -o umoweb-images.tar umoweb-backend:latest umoweb-frontend:latest mysql:8.4
+```
+
+在 ECS 导入镜像后使用已存在镜像启动，避免再次访问镜像仓库：
+
+```bash
+cd /opt/umoweb
+docker load -i umoweb-images.tar
+docker compose --env-file .env.docker up -d --no-build --wait
+```
+
+如果改用可访问的阿里云 ACR 或个人镜像加速器，应同步评估镜像来源、认证和更新流程。
+
+### 7.3 安全组与验证
+
+- ECS 安全组入方向仅需放行 `TCP 80`；不要暴露 MySQL `3306` 和后端 `8080`。
+- 系统 UFW 同样需要允许 `80/tcp`，安全组与主机防火墙两层必须同时放行。
+- 验证顺序：容器 healthy、`127.0.0.1` 首页 200、公开 API 正常 JSON、管理端登录 200、
+  再从公网访问首页为 200。
+
+### 7.4 凭据语义与当前风险
+
+- `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASS` 只在 `users` 表为空时创建管理员。
+- 数据库已有管理员后，修改 `.env.docker` 不会自动修改密码或用户名。
+- 旧密码可用时优先调用改密接口；旧密码未知时，应先备份管理员记录，再更新 BCrypt
+  `password_hash` 并递增 `token_version`，使旧 JWT 失效。
+- 当前仍使用首次启动导入的演示数据，没有域名、HTTPS、自动备份或恢复演练。
+- 镜像构建和传输目前是人工流程；服务器若恢复仓库访问能力，应改为可审计的 CI/CD。

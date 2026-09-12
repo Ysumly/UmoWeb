@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-09-12 — 阿里云 ECS 公网测试部署
+
+- 在单台阿里云 ECS 的 Ubuntu 24.04 环境完成 Docker Compose 全栈部署，部署目录为
+  `/opt/umoweb`，入口为 Nginx 宿主 TCP 80。
+- 因 ECS 外部仓库访问受限，采用开发机构建镜像、SHA-256 校验、传输后 `docker load`
+  的方式交付，并使用 `compose up -d --no-build --wait` 启动。
+- 明确安全组和 UFW 只放行 TCP 80，MySQL 3306 与后端 8080 不暴露公网。
+- 验证首页、公开 API、管理员登录和公网访问均为 200，三个容器健康。
+- 明确 `.env.docker` 仅保留服务器侧；真实实例标识、公网地址、随机管理路径、密码和密钥
+  均不进入仓库。
+- 当前仍为无域名 HTTP 测试部署，使用演示数据；HTTPS、正式内容、自动备份和 CI/CD 尚未完成。
+
 ## 2026-09-12 — Docker 全栈启动与部署基线
 
 - 新增 MySQL 8.4、Spring Boot 后端和 Nginx 前端的 Docker Compose 全栈，默认一条命令启动。

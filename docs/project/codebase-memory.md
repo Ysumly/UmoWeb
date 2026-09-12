@@ -362,6 +362,19 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - Nginx 代理 `/api/**` 和 `/images/**`，SPA 路由回退到 `index.html`，上传请求上限 52MB。
 - Docker 默认网络为 `172.30.0.0/24`，前端固定为 `172.30.0.10`，后端只信任该地址 `/32` 转发的 `X-Forwarded-For`。
 
+### 6.4 阿里云 ECS 公网测试部署
+
+- 2026-09-12 已在单台阿里云 ECS 完成无域名部署，系统为 Ubuntu 24.04，部署目录为
+  `/opt/umoweb`，入口为 Nginx 宿主 TCP 80。
+- 该 ECS 访问 Docker Hub、npm 官方仓库和 Maven Central 受限；实际部署采用开发机构建镜像、
+  校验归档后传输并在 ECS `docker load`，再执行 `compose up -d --no-build --wait`。
+- 安全组与 UFW 均放行 TCP 80；MySQL 3306 和后端 8080 没有暴露到公网。
+- 2026-09-12 已验证首页、公开 API、管理员登录和公网访问；三个容器均为 healthy，
+  Docker 服务已设置开机自启。
+- 当前是公网测试部署，仍使用演示数据，没有域名、HTTPS、自动备份、恢复演练或 CI/CD。
+- 实例标识、公网地址、随机管理路径、数据库密码、JWT secret 和管理员密码只保存在服务器侧，
+  不进入版本库。
+
 ---
 
 ## 7. 测试与已知风险
