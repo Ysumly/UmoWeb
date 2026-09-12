@@ -366,6 +366,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 
 - 2026-09-12 已在单台阿里云 ECS 完成无域名部署，系统为 Ubuntu 24.04，部署目录为
   `/opt/umoweb`，入口为 Nginx 宿主 TCP 80。
+- 2026-09-12 已冻结 v1 正式发布范围，明确当前 ECS 原地升级路径、发布职责、阻断条件、
+  回滚触发条件和第一阶段排除项；清单见 `docs/project/release-checklist-v1.md`。
 - 该 ECS 访问 Docker Hub、npm 官方仓库和 Maven Central 受限；实际部署采用开发机构建镜像、
   校验归档后传输并在 ECS `docker load`，再执行 `compose up -d --no-build --wait`。
 - 安全组与 UFW 均放行 TCP 80；MySQL 3306 和后端 8080 没有暴露到公网。

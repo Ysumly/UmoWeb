@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-09-12 — v1 正式发布范围冻结
+
+- 新增 `docs/project/release-checklist-v1.md`，冻结公开端、管理端和 27 个接口的 v1 发布范围。
+- 明确 Markdown 导入、子分类筛选、图片删除、全文搜索、训练游戏、访问统计、CI/CD、多实例限流、
+  RBAC、AI 和搜索收录优化不进入 v1 正式发布范围。
+- 定义 `release-owner`、`platform-operator`、`data-verifier`、`acceptance-owner` 四类发布职责。
+- 建立正式数据、凭据、备份恢复、HTTPS、可信代理、接口冒烟、草稿隔离、回滚点和敏感信息等阻断项。
+- 定义数据/安全事件即时回滚、核心入口一次修复失败后回滚，以及其他阻断项 30 分钟无法修复时回滚。
+- 明确当前阿里云 ECS 原地升级为正式环境的路径；Task 1.2 至 Task 1.4 尚未执行。
+
 ## 2026-09-12 — 阿里云 ECS 公网测试部署
 
 - 在单台阿里云 ECS 的 Ubuntu 24.04 环境完成 Docker Compose 全栈部署，部署目录为
