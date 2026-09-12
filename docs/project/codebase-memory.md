@@ -1,6 +1,6 @@
 # UmoWeb 代码基线记忆
 
-> 基线日期: 2026-09-11
+> 基线日期: 2026-09-12
 > 范围: 当前工作区中的前端、后端、数据库脚本和文档
 > 原则: 代码行为优先；计划能力与已实现能力必须分开记录
 
@@ -13,14 +13,21 @@ UmoWeb/
 ├── AGENT.md
 ├── AGENTS.md
 ├── CLAUDE.md
+├── compose.yaml
 ├── Client Side/
 │   └── umo-web-frontend/
 ├── Server Side/
 │   └── UmoWebBackend/
+├── docker/
+│   ├── backend/
+│   ├── demo-data/
+│   └── frontend/
 ├── docs/
 │   ├── design/
 │   ├── modules/
 │   └── project/
+├── scripts/
+│   └── docker-up.ps1
 ├── Downloads/                  # 敏感目录，禁止提交
 └── .superpowers/
 ```
@@ -48,7 +55,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；79 个测试 |
+| 测试 | Spring Boot Test、Mockito、MockMvc；83 个测试 |
 
 ### 2.2 前端
 
@@ -63,6 +70,7 @@ UmoWeb/
 | 样式 | Tailwind CSS 4.3.x |
 | 编辑器 | 原生 textarea；未安装 CodeMirror/Monaco |
 | 浏览器测试 | Playwright Test 1.63，本机 Chrome channel，Mock API |
+| 容器构建 | Node 24.12 Alpine、Maven 3.9.11/JDK 17、JRE 17、Nginx 1.29 |
 
 ---
 
@@ -86,7 +94,7 @@ mvn test
 
 若机器级 Maven `settings.xml` 的仓库路径不可写，应通过 `-gs` 和 `-s` 指向隔离的临时 settings 文件运行 Maven，不要修改系统安装目录。
 
-说明：项目自带 `mvnw.cmd`，但在当前 Windows/PowerShell 环境中曾因 wrapper 脚本执行失败；系统 Maven 可用。2026-09-11 使用隔离临时 settings 执行 `mvn test`，79 个测试全部通过。
+说明：项目自带 `mvnw.cmd`，但在当前 Windows/PowerShell 环境中曾因 wrapper 脚本执行失败；系统 Maven 可用。2026-09-12 使用项目内 `.m2/repository` 隔离仓库执行 `mvn test`，83 个测试全部通过。
 
 真实接口冒烟：
 
@@ -96,6 +104,13 @@ cd "Server Side\UmoWebBackend"
 ```
 
 脚本覆盖 27 个接口，并校验管理端 401、搜索 429、详情前后文章、改密后旧 token 失效和真实 PNG 上传。
+
+Docker 全栈：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\docker-up.ps1
+docker compose --env-file .env.docker ps
+```
 
 ### 3.2 前端
 
@@ -271,6 +286,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 修改密码递增 `users.token_version`，旧 token 立即失效。
 - 登录按规范化 username + client IP 在 15 分钟窗口内限制 5 次失败。
 - CORS 来源由 `app.cors.allowed-origins` 配置，开发默认 `http://localhost:5173`。
+- `app.security.trusted-proxies` 支持逗号分隔的精确 IP 或 CIDR，例如 `172.30.0.10/32`；非法配置启动失败。
 
 ---
 
@@ -334,6 +350,17 @@ Spring Multipart 限制单文件和请求均为 50MB。
 
 公开端主路径、在线编辑器和全部管理端核心业务页均已实现。
 
+### 6.3 Docker 全栈
+
+- 根目录 `compose.yaml` 启动 MySQL 8.4、Spring Boot 后端和 Nginx 前端。
+- 仅前端映射宿主端口，默认 `8080`；MySQL 与后端只在 Compose 网络内访问。
+- `mysql_data` 持久化数据库，`app_data` 持久化 Markdown 和上传图片。
+- MySQL 空数据卷首次启动执行 `docs/design/schema.sql` 与 `docs/design/seed-data.sql`。
+- 后端镜像包含 6 篇演示 Markdown，公开端返回 5 篇已发布内容，管理端可见 1 篇草稿。
+- `.env.docker` 由 `scripts/docker-up.ps1` 自动生成并被 Git 忽略，示例见 `.env.docker.example`。
+- Nginx 代理 `/api/**` 和 `/images/**`，SPA 路由回退到 `index.html`，上传请求上限 52MB。
+- Docker 默认网络为 `172.30.0.0/24`，前端固定为 `172.30.0.10`，后端只信任该地址 `/32` 转发的 `X-Forwarded-For`。
+
 ---
 
 ## 7. 测试与已知风险
@@ -343,11 +370,12 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `BoundaryTest` 使用独立 MockMvc 和 Mock Service，覆盖参数错误、404、401、409 和接口状态码。
 - 新增文件路径/事务、上传签名、JWT/tokenVersion、登录限流、可信代理、VO 批量组装和安全配置测试。
 - 新增 Mapper XML 别名解析、`ClientIpResolver` 容器装配和 Jackson 3 自动配置回归测试。
+- `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，覆盖非法配置、可信代理链和未授权转发头。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
-- 自动测试仍没有真实 MySQL 集成测试；2026-09-11 已在隔离 MySQL 5.7 副本完成迁移和 27/27 接口冒烟。
+- 自动测试仍没有真实 MySQL 集成测试；2026-09-11 已在隔离 MySQL 5.7 副本完成迁移，2026-09-12 已通过 Docker MySQL 8.4 执行 27/27 接口冒烟。
 - 前端 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
 - Playwright 共 34 个浏览器检查：20 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
-- Playwright 使用 `/api/**` Mock 路由、本机 Chrome channel 和 Vite preview；不依赖 MySQL。视觉基线只保证当前 Windows Chrome 环境。
+- Playwright 使用 `/api/**` Mock 路由、本机 Chrome channel 和 `e2e/runPlaywright.js` 静态服务器；不依赖 MySQL。视觉基线只保证当前 Windows Chrome 环境。
 
 ### 7.2 当前代码风险
 

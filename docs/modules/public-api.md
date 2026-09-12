@@ -137,7 +137,8 @@ ContentMapper.countSearch(q)
 SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 
 搜索限流由 `RateLimitInterceptor` 在进入 Controller 前执行。默认只信任 `remoteAddr`；
-仅当直连地址在 `app.security.trusted-proxies` 中时才读取 `X-Forwarded-For`。过期记录会定期清理。
+仅当直连地址匹配 `app.security.trusted-proxies` 中的精确 IP 或 CIDR 时才读取
+`X-Forwarded-For`。过期记录会定期清理。
 
 ### 3.3 CategoryService
 

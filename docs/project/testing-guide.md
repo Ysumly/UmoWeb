@@ -93,7 +93,7 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 79 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 83 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器和登录限流测试。MockMvc 边界测试不连接 MySQL；
 `UmoWebBackendApplicationTests` 仍是一条空测试，不会加载完整 Spring Context。
 
@@ -141,11 +141,11 @@ npm test
 npm run test:e2e
 ```
 
-2026-09-11 已验证：
+2026-09-12 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
 - 前端 46 个 Node 测试通过，覆盖路由、管理路径、主题、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、API 错误解析、日期格式、查询规范化和 Markdown 安全。
-- Playwright 30 个浏览器检查通过，其中 16 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖核心页面的桌面与 390px 基线。
+- Playwright 34 个浏览器检查通过，其中 20 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖核心页面的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口仍由第 2.2 节的 MySQL 副本与 `api-smoke.ps1` 验证。
 
 ### 2.4 Playwright 浏览器回归
@@ -158,7 +158,7 @@ npm run test:e2e
 执行流程：
 
 1. 先运行 `npm run build` 生成生产构建。
-2. Playwright 在 `http://127.0.0.1:4173` 启动 Vite preview。
+2. `e2e/runPlaywright.js` 在 `http://127.0.0.1:4173` 启动轻量 Node 静态服务器并运行 Playwright；测试结束后关闭服务器，避免 Windows 上 Vite preview 残留进程。
 3. 使用本机稳定版 Chrome channel，不下载独立 Playwright Chromium。
 4. 浏览器级路由拦截 `/api/**`，每个测试使用独立的状态化 Mock API。
 5. functional 项目覆盖公开阅读、在线编辑器、管理端认证与 CRUD，以及 390px 布局。
@@ -177,6 +177,24 @@ npm run test:all
 ```
 
 视觉基线位于 `e2e/visual.spec.js-snapshots/`。当前基线只在 Windows 与本机稳定 Chrome 下生成；切换到 Linux 或其他浏览器后应重新生成并审查。
+
+### 2.5 Docker 全栈
+
+首次启动和日常命令见 [docker-guide.md](docker-guide.md)。核心验证命令：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\docker-up.ps1
+docker compose --env-file .env.docker ps
+```
+
+2026-09-12 在本机验证：
+
+- MySQL 8.4、后端和 Nginx 三个容器均达到健康状态。
+- 首次数据卷初始化后公开列表返回 5 篇已发布文章，管理端可见 6 篇内容（含 1 篇草稿）。
+- 首页、`/library` SPA 深链接和演示文章 Markdown 正文通过 Nginx 正常加载。
+- 通过 Nginx 入口执行 `api-smoke.ps1`，27/27 接口通过。
+- 2MB PNG 经 Nginx 上传返回 200，后端保存文件大小一致。
+- 重启容器但不删除命名卷后，文章、管理员和上传图片仍然存在。
 
 ---
 
@@ -347,7 +365,7 @@ GET {{baseUrl}}/api/public/contents/search?q=java&page=1&size=10
 3. 响应消息形如 `Too many requests. Please wait N seconds.`。
 
 不要用伪造 `X-Forwarded-For` 绕过限流；默认只有 `remoteAddr` 参与限流，
-直连地址还需出现在 `TRUSTED_PROXIES` 中才读取转发头。
+直连地址还需匹配 `TRUSTED_PROXIES` 中的精确 IP 或 CIDR 才读取转发头。
 
 ### 4.9 公开在线编辑器
 

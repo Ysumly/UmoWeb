@@ -62,7 +62,8 @@
 - 使用 `compute` 原子检查/更新时间，避免并发请求同时通过。
 - 请求过频时抛出 `BusinessException(429, ...)`。
 - 每隔 256 次操作清理过期记录。
-- 默认使用 `remoteAddr`。仅当直连地址在 `app.security.trusted-proxies` 中时读取 `X-Forwarded-For`。
+- 默认使用 `remoteAddr`。仅当直连地址匹配 `app.security.trusted-proxies` 中的精确 IP 或 CIDR 时读取 `X-Forwarded-For`。
+- 配置项支持逗号分隔的 IPv4/IPv6 地址和 CIDR，例如 `10.0.0.2,10.0.0.0/8`；非法条目会阻止应用启动。
 - `ClientIpResolver` 同时提供生产构造器和测试用构造器，生产构造器显式标注 `@Autowired`，保证 Spring 容器可以实例化。
 
 多实例部署时各实例仍为独立内存限流。
@@ -180,6 +181,9 @@ app:
 `SPRING_PROFILES_ACTIVE=prod` 时 `application-prod.yml` 禁止默认凭据，
 `SecurityConfigValidator` 会在 JWT secret 或管理员密码仍为默认值时拒绝启动。
 
+Docker Compose 将 Nginx 固定为 `172.30.0.10`，后端只信任 `172.30.0.10/32`。
+Nginx 使用 `$remote_addr` 覆盖客户端请求中的 `X-Forwarded-For`，避免外来转发头绕过限流。
+
 管理端前端路径不再由后端 YAML 控制，前端通过 `VITE_ADMIN_PATH` 配置并默认 `/secret-admin`，
 示例见 `Client Side/umo-web-frontend/.env.example`。
 
@@ -223,6 +227,7 @@ app:
 | 路径穿越 | slug/bookSlug 和安全化路径已检查，读写删必须位于 storage root |
 | 上传校验 | MIME、文件签名和固定扩展名同时校验 |
 | 搜索限流 | 仅信任显式代理，使用原子更新并定期清理 |
+| 反向代理 | Nginx 覆盖 `X-Forwarded-For`，后端仅信任 Compose 专用 CIDR |
 | 生产 CORS | 通过 `CORS_ALLOWED_ORIGINS` 配置 |
 | 数据库完整性 | 新库已含外键/索引；旧库需执行兼容迁移 |
 | 文件事务 | 使用临时文件、提交后清理和回滚恢复策略 |
@@ -239,6 +244,7 @@ app:
 
 - JWT 过期、tokenVersion 和旧 token 失效测试。
 - 登录失败限流、搜索限流和可信代理测试。
+- 可信代理精确 IP、IPv4/IPv6 CIDR、非法配置和多级转发链测试。
 - 路径穿越、临时文件、回滚和原子替换测试。
 - 伪造 MIME、空原始文件名和上传数据库失败清理测试。
 

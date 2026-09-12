@@ -1,6 +1,6 @@
 # UmoWeb 软件规格与当前实现
 
-> 基线日期: 2026-09-10
+> 基线日期: 2026-09-12
 > 状态: 公开端、核心 API 和管理端核心业务页已实现
 > 事实来源: 当前源代码
 
@@ -99,6 +99,7 @@ UmoWeb 是个人作品和内容展示型博客，不是社区、论坛或多人�
 | 爬虫控制 | `index.html` 有 `noindex`，无 `robots.txt` |
 | 错误格式 | `{ code, message }` |
 | 前端缓存 | 尚无部署级缓存配置 |
+| 本地容器 | Docker Compose 运行 MySQL 8.4、Spring Boot 和 Nginx 前端 |
 
 ---
 
@@ -114,7 +115,8 @@ UmoWeb 是个人作品和内容展示型博客，不是社区、论坛或多人�
 | 前端 | Vue 3.5 + Vite 8 + Vue Router 5 + Pinia 3 |
 | 构建 | Maven + npm |
 
-前后端分离部署。开发环境由 Vite 代理 `/api` 和 `/images` 到后端。
+前后端分离部署。开发环境由 Vite 代理 `/api` 和 `/images` 到后端；本地全栈可由
+`compose.yaml` 启动，Nginx 作为唯一宿主入口。
 
 ---
 
