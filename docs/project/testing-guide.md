@@ -197,6 +197,38 @@ docker compose --env-file .env.docker ps
 - 2MB PNG 经 Nginx 上传返回 200，后端保存文件大小一致。
 - 重启容器但不删除命名卷后，文章、管理员和上传图片仍然存在。
 
+### 2.6 备份与恢复
+
+Bash 单元测试：
+
+```bash
+bash scripts/backup/tests/backup-unit.sh
+```
+
+覆盖保留数量和 8GiB 容量上限、恢复项目名护栏、外层/内部校验和及导出后校验。
+
+生产或隔离环境的端到端验证顺序：
+
+```bash
+/opt/umoweb/scripts/backup/create-backup.sh
+/opt/umoweb/scripts/backup/verify-backup.sh /opt/umoweb/backups/umoweb-backup-<时间>.tar.gz
+/opt/umoweb/scripts/backup/restore-backup.sh /opt/umoweb/backups/umoweb-backup-<时间>.tar.gz
+```
+
+执行恢复栈的 `api-smoke.ps1`，要求 27/27 通过，然后：
+
+```bash
+/opt/umoweb/scripts/backup/cleanup-restore.sh umoweb-restore-<时间>
+```
+
+2026-09-12 已验证：
+
+- Bash 单元测试全部通过。
+- 本地隔离源栈完成一致备份，归档包含 6 个 app 文件、5 篇 Markdown 和完整 8 张表元数据。
+- 从空环境恢复后表行数和逐文件 SHA-256 清单一致，恢复栈 27/27 接口冒烟通过。
+- ECS systemd 服务手动执行成功，`frontend`、`backend`、`mysql` 在备份后全部恢复为 healthy。
+- 将 ECS 归档下载到开发机后可跨主机恢复，恢复栈再次执行 27/27 通过。
+
 ---
 
 ## 3. Apifox 环境

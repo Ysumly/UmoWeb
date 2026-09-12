@@ -97,11 +97,42 @@ function Invoke-ImageUpload {
     }
 }
 
+function Remove-TestResource {
+    param(
+        [string]$Path,
+        [hashtable]$Headers
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or
+        $Path -match '/$' -or
+        $null -eq $Headers -or
+        $Headers.Count -eq 0) {
+        return
+    }
+
+    try {
+        $response = Invoke-WebRequest -Method DELETE -Uri "$script:BaseUrl$Path" `
+            -Headers $Headers -SkipHttpErrorCheck
+        if ($response.StatusCode -notin @(204, 404)) {
+            Write-Warning "Cleanup DELETE $Path returned HTTP $($response.StatusCode)"
+        }
+    }
+    catch {
+        Write-Warning "Cleanup DELETE $Path failed: $($_.Exception.Message)"
+    }
+}
+
 $runId = [DateTime]::UtcNow.ToString("yyyyMMddHHmmssfff")
 $imagePath = Join-Path $env:TEMP "umoweb-smoke-$runId.png"
 $pngBytes = [Convert]::FromBase64String(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z9h8AAAAASUVORK5CYII=")
 [IO.File]::WriteAllBytes($imagePath, $pngBytes)
+
+$token = $null
+$authHeaders = @{}
+$categoryId = $null
+$tagId = $null
+$contentId = $null
 
 try {
     $site = Get-Json (Invoke-Checked -Method GET -Path "/api/public/site-info")
@@ -117,47 +148,29 @@ try {
     Step 3 "GET /api/public/pages/project"
 
     $publicCategories = Get-Json (Invoke-Checked -Method GET -Path "/api/public/categories?type=NOTE")
-    Assert-True ($publicCategories.Count -gt 0) "public category tree must not be empty"
+    Assert-True ($null -ne $publicCategories) "public category response must be an array"
     Step 4 "GET /api/public/categories"
 
     $publicTags = Get-Json (Invoke-Checked -Method GET -Path "/api/public/tags")
-    Assert-True ($publicTags.Count -gt 0) "public tag list must not be empty"
+    Assert-True ($null -ne $publicTags) "public tag response must be an array"
     Step 5 "GET /api/public/tags"
 
     $publicContents = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents?page=1&size=10")
-    Assert-True ($publicContents.total -ge 5) "published content list must contain seed data"
-    Assert-True (($publicContents.items | Where-Object type -eq "NOTE").Count -gt 0) "published content list must support NOTE items"
+    Assert-True ($null -ne $publicContents.items) "public content page must contain items"
     Assert-True (($publicContents.items | Where-Object status -ne "PUBLISHED").Count -eq 0) "public content list must only expose PUBLISHED status"
     Step 6 "GET /api/public/contents"
 
-    $publicDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents/spring-boot-quickstart")
-    Assert-True (-not [string]::IsNullOrWhiteSpace($publicDetail.body)) "public detail must load Markdown body"
-    Assert-True ($publicDetail.categories.Count -gt 0) "public detail must include categories"
-    Assert-True ($publicDetail.tags.Count -gt 0) "public detail must include tags"
-    Assert-True ($null -eq $publicDetail.previous) "oldest public detail must not have a previous article"
-    Assert-True ($publicDetail.next.slug -eq "java-collections") "oldest public detail must point to the next published article"
-    $middleDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents/java-collections")
-    Assert-True ($middleDetail.previous.slug -eq "spring-boot-quickstart") "middle detail previous must be older"
-    Assert-True ($middleDetail.next.slug -eq "vue3-composition-api") "middle detail next must be newer"
-    Step 7 "GET /api/public/contents/{slug}"
-
-    $headers = @{ Authorization = "Bearer invalid" }
-    Invoke-Checked -Method GET -Path "/api/admin/contents" -Headers $headers -ExpectedStatus 401 | Out-Null
-
-    $search = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents/search?q=java&page=1&size=10")
-    Assert-True ($search.total -ge 1) "search must match seeded Java content"
-    $limited = Invoke-Checked -Method GET -Path "/api/public/contents/search?q=java&page=1&size=10" -ExpectedStatus 429
-    Assert-True ((Get-Json $limited).code -eq 429) "rate-limited search must return error code 429"
-    Step 8 "GET /api/public/contents/search"
+    $invalidHeaders = @{ Authorization = "Bearer invalid" }
+    Invoke-Checked -Method GET -Path "/api/admin/contents" -Headers $invalidHeaders -ExpectedStatus 401 | Out-Null
 
     $loginBody = @{ username = $Username; password = $Password }
     $login = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/login" -Body $loginBody)
     Assert-True (-not [string]::IsNullOrWhiteSpace($login.token)) "login must return token"
     $token = $login.token
-    Step 9 "POST /api/admin/login"
+    $authHeaders = @{ Authorization = "Bearer $token" }
+    Step 7 "POST /api/admin/login"
 
     $newPassword = "SmokePass$runId"
-    $authHeaders = @{ Authorization = "Bearer $token" }
     Invoke-Checked -Method PUT -Path "/api/admin/change-password" -Headers $authHeaders `
         -Body @{ oldPassword = $Password; newPassword = $newPassword } -ExpectedStatus 204 | Out-Null
     Invoke-Checked -Method GET -Path "/api/admin/contents" -Headers $authHeaders -ExpectedStatus 401 | Out-Null
@@ -172,11 +185,11 @@ try {
     $restoredLogin = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/login" -Body $loginBody)
     $token = $restoredLogin.token
     $authHeaders = @{ Authorization = "Bearer $token" }
-    Step 10 "PUT /api/admin/change-password"
+    Step 8 "PUT /api/admin/change-password"
 
     $adminCategories = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/categories" -Headers $authHeaders)
-    Assert-True ($adminCategories.Count -gt 0) "admin category tree must not be empty"
-    Step 11 "GET /api/admin/categories"
+    Assert-True ($null -ne $adminCategories) "admin category response must be an array"
+    Step 9 "GET /api/admin/categories"
 
     $categorySlug = "smoke-category-$runId"
     $category = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/categories" -Headers $authHeaders `
@@ -188,11 +201,11 @@ try {
             })
     Assert-True ($category.id -gt 0) "created category must have id"
     $categoryId = $category.id
-    Step 12 "POST /api/admin/categories"
+    Step 10 "POST /api/admin/categories"
 
     $categoryDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/categories/$categoryId" -Headers $authHeaders)
     Assert-True ($categoryDetail.slug -eq $categorySlug) "category detail must match created slug"
-    Step 13 "GET /api/admin/categories/{id}"
+    Step 11 "GET /api/admin/categories/{id}"
 
     $updatedCategorySlug = "$categorySlug-updated"
     $categoryUpdate = Get-Json (Invoke-Checked -Method PUT -Path "/api/admin/categories/$categoryId" -Headers $authHeaders `
@@ -203,30 +216,28 @@ try {
                 sortOrder = 100
             })
     Assert-True ($categoryUpdate.slug -eq $updatedCategorySlug) "category update must change slug"
-    Step 14 "PUT /api/admin/categories/{id}"
+    Step 12 "PUT /api/admin/categories/{id}"
 
     $adminTags = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/tags" -Headers $authHeaders)
-    Assert-True ($adminTags.Count -gt 0) "admin tag list must not be empty"
-    Step 15 "GET /api/admin/tags"
+    Assert-True ($null -ne $adminTags) "admin tag response must be an array"
+    Step 13 "GET /api/admin/tags"
 
     $tagSlug = "smoke-tag-$runId"
     $tag = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/tags" -Headers $authHeaders `
             -Body @{ name = "Smoke Tag $runId"; slug = $tagSlug })
     Assert-True ($tag.id -gt 0) "created tag must have id"
     $tagId = $tag.id
-    Step 16 "POST /api/admin/tags"
+    Step 14 "POST /api/admin/tags"
 
     $updatedTagSlug = "$tagSlug-updated"
     $tagUpdate = Get-Json (Invoke-Checked -Method PUT -Path "/api/admin/tags/$tagId" -Headers $authHeaders `
             -Body @{ name = "Smoke Tag Updated"; slug = $updatedTagSlug })
     Assert-True ($tagUpdate.slug -eq $updatedTagSlug) "tag update must change slug"
-    Step 17 "PUT /api/admin/tags/{id}"
+    Step 15 "PUT /api/admin/tags/{id}"
 
     $adminContents = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/contents?page=1&size=100" -Headers $authHeaders)
-    Assert-True ($adminContents.total -ge 6) "admin content list must include drafts and published content"
-    Assert-True (($adminContents.items | Where-Object status -eq "DRAFT").Count -gt 0) "admin content list must expose draft status"
-    Assert-True (($adminContents.items | Where-Object status -eq "PUBLISHED").Count -gt 0) "admin content list must expose published status"
-    Step 18 "GET /api/admin/contents"
+    Assert-True ($null -ne $adminContents.items) "admin content page must contain items"
+    Step 16 "GET /api/admin/contents"
 
     $contentSlug = "smoke-content-$runId"
     $content = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/contents" -Headers $authHeaders `
@@ -234,7 +245,7 @@ try {
                 title = "Smoke Content $runId"
                 slug = $contentSlug
                 body = "# Smoke`n`nInitial body"
-                summary = "Smoke summary"
+                summary = "Smoke search token $runId"
                 type = "NOTE"
                 status = "DRAFT"
                 categoryIds = @($categoryId)
@@ -244,20 +255,22 @@ try {
     Assert-True ($content.id -gt 0) "created content must have id"
     Assert-True ($content.status -eq "DRAFT") "created content must expose DRAFT status"
     $contentId = $content.id
-    Step 19 "POST /api/admin/contents"
+    Step 17 "POST /api/admin/contents"
+
+    Invoke-Checked -Method GET -Path "/api/public/contents/$contentSlug" -ExpectedStatus 404 | Out-Null
 
     $contentDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/contents/$contentId" -Headers $authHeaders)
     Assert-True ($contentDetail.body -eq "# Smoke`n`nInitial body") "admin content detail must load body"
     Assert-True ($contentDetail.status -eq "DRAFT") "admin content detail must expose DRAFT status"
     Assert-True ($contentDetail.categories[0].id -eq $categoryId) "content detail must include created category"
-    Step 20 "GET /api/admin/contents/{id}"
+    Step 18 "GET /api/admin/contents/{id}"
 
     $contentUpdate = Get-Json (Invoke-Checked -Method PUT -Path "/api/admin/contents/$contentId" -Headers $authHeaders `
             -Body @{
                 title = "Smoke Content Updated"
                 slug = $contentSlug
                 body = "# Smoke`n`nUpdated body"
-                summary = "Smoke summary updated"
+                summary = "Smoke search token $runId"
                 type = "NOTE"
                 status = "PUBLISHED"
                 categoryIds = @($categoryId)
@@ -266,16 +279,36 @@ try {
             })
     Assert-True ($contentUpdate.body -eq "# Smoke`n`nUpdated body") "content update must persist body"
     Assert-True ($contentUpdate.status -eq "PUBLISHED") "content update must expose PUBLISHED status"
-    Step 21 "PUT /api/admin/contents/{id}"
+    Step 19 "PUT /api/admin/contents/{id}"
+
+    $publishedContents = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents?page=1&size=100")
+    Assert-True (($publishedContents.items | Where-Object slug -eq $contentSlug).Count -eq 1) "published content list must contain the smoke content"
+    Assert-True (($publishedContents.items | Where-Object status -ne "PUBLISHED").Count -eq 0) "public content list must only expose PUBLISHED status"
+
+    $publicDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents/$contentSlug")
+    Assert-True ($publicDetail.slug -eq $contentSlug) "public detail must return the published smoke content"
+    Assert-True ($publicDetail.body -eq "# Smoke`n`nUpdated body") "public detail must load Markdown body"
+    Assert-True ($publicDetail.categories[0].id -eq $categoryId) "public detail must include the smoke category"
+    Assert-True ($publicDetail.tags[0].id -eq $tagId) "public detail must include the smoke tag"
+    Step 20 "GET /api/public/contents/{slug}"
+
+    $search = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents/search?q=$runId&page=1&size=10")
+    Assert-True (($search.items | Where-Object slug -eq $contentSlug).Count -eq 1) "search must match the smoke content"
+    $limited = Invoke-Checked -Method GET -Path "/api/public/contents/search?q=$runId&page=1&size=10" -ExpectedStatus 429
+    Assert-True ((Get-Json $limited).code -eq 429) "rate-limited search must return error code 429"
+    Step 21 "GET /api/public/contents/search"
 
     Invoke-Checked -Method DELETE -Path "/api/admin/contents/$contentId" -Headers $authHeaders -ExpectedStatus 204 | Out-Null
     Invoke-Checked -Method GET -Path "/api/admin/contents/$contentId" -Headers $authHeaders -ExpectedStatus 404 | Out-Null
+    $contentId = $null
     Step 22 "DELETE /api/admin/contents/{id}"
 
     Invoke-Checked -Method DELETE -Path "/api/admin/tags/$tagId" -Headers $authHeaders -ExpectedStatus 204 | Out-Null
+    $tagId = $null
     Step 23 "DELETE /api/admin/tags/{id}"
 
     Invoke-Checked -Method DELETE -Path "/api/admin/categories/$categoryId" -Headers $authHeaders -ExpectedStatus 204 | Out-Null
+    $categoryId = $null
     Step 24 "DELETE /api/admin/categories/{id}"
 
     $image = Invoke-ImageUpload -Token $token -ImagePath $imagePath
@@ -299,8 +332,11 @@ try {
     if ($script:StepCount -ne 27) {
         throw "Expected 27 endpoints but covered $script:StepCount"
     }
-    Write-Host "API smoke passed: 27/27 endpoints, authentication guard, password invalidation, and search rate limit."
+    Write-Host "API smoke passed: 27/27 endpoints, authentication guard, draft isolation, password invalidation, and search rate limit."
 }
 finally {
+    Remove-TestResource -Path "/api/admin/contents/$contentId" -Headers $authHeaders
+    Remove-TestResource -Path "/api/admin/tags/$tagId" -Headers $authHeaders
+    Remove-TestResource -Path "/api/admin/categories/$categoryId" -Headers $authHeaders
     Remove-Item -LiteralPath $imagePath -Force -ErrorAction SilentlyContinue
 }

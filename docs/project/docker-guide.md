@@ -185,5 +185,76 @@ docker compose --env-file .env.docker up -d --no-build --wait
 - 数据库已有管理员后，修改 `.env.docker` 不会自动修改密码或用户名。
 - 旧密码可用时优先调用改密接口；旧密码未知时，应先备份管理员记录，再更新 BCrypt
   `password_hash` 并递增 `token_version`，使旧 JWT 失效。
-- 当前仍使用首次启动导入的演示数据，没有域名、HTTPS、自动备份或恢复演练。
+- 当前仍使用首次启动导入的演示数据，没有域名或 HTTPS；自动备份和隔离恢复已经建立。
 - 镜像构建和传输目前是人工流程；服务器若恢复仓库访问能力，应改为可审计的 CI/CD。
+
+## 8. 备份与恢复
+
+### 8.1 自动备份
+
+ECS 使用 `systemd` timer 每周日 `03:30`（Asia/Shanghai）执行备份，允许最多 10 分钟随机延迟，
+服务器错过执行时间后会在下次启动补跑：
+
+```bash
+systemctl status umoweb-backup.timer
+systemctl list-timers umoweb-backup.timer
+systemctl start umoweb-backup.service
+journalctl -u umoweb-backup.service -n 120 --no-pager
+```
+
+备份脚本位于 `scripts/backup/`，默认输出到 `/opt/umoweb/backups`。每次备份会短暂停止
+`frontend` 和 `backend`，确保 MySQL 与 `app_data` 来自同一时点；无论成功或失败都会尝试恢复
+服务并等待健康检查。
+
+归档格式为：
+
+```text
+umoweb-backup-<UTC时间>-<commit>.tar.gz
+umoweb-backup-<UTC时间>-<commit>.tar.gz.sha256
+```
+
+归档包含 MySQL 逻辑 dump、`app_data` 压缩包、逐文件 SHA-256 清单和数据库版本/表行数等元数据。
+默认保留最多 6 份，且总大小不超过 8GiB；容量达到任一上限时从最旧完整备份开始清理。
+元数据同时保存前后端和 helper 镜像 ID；非 Git 部署可在 `/etc/umoweb/backup.env` 中显式设置
+`GIT_COMMIT`，避免归档标识继续使用 `unknown`。
+
+### 8.2 手动校验与导出
+
+```bash
+/opt/umoweb/scripts/backup/verify-backup.sh \
+  /opt/umoweb/backups/umoweb-backup-<时间>.tar.gz
+
+/opt/umoweb/scripts/backup/export-backup.sh \
+  /opt/umoweb/backups/umoweb-backup-<时间>.tar.gz \
+  /path/to/export-directory
+```
+
+导出只复制归档和校验文件，不删除源备份。归档未加密，导出后由管理员负责目标位置权限和数据保护。
+
+### 8.3 隔离恢复
+
+恢复脚本拒绝使用生产项目名 `umoweb`，只允许 `umoweb-restore-*`，并使用独立 Compose 项目、
+`172.31.0.0/24` 网络和 `127.0.0.1:18080`：
+
+```bash
+/opt/umoweb/scripts/backup/restore-backup.sh \
+  /opt/umoweb/backups/umoweb-backup-<时间>.tar.gz
+```
+
+脚本会先校验外层和内部 SHA-256，再从空数据卷恢复数据库与文件，比较表行数和文件清单。
+恢复后的管理员密码来自备份中的密码哈希，不包含在归档元数据中，需要由管理员在仓库外提供。
+
+验证完成后只清理隔离项目：
+
+```bash
+/opt/umoweb/scripts/backup/cleanup-restore.sh umoweb-restore-<时间>
+```
+
+`cleanup-restore.sh` 只接受 `umoweb-restore-*` 项目名，不会删除生产 `umoweb` 项目。
+
+### 8.4 当前边界
+
+- 备份只保存在同一台 ECS；归档可人工导出，但尚未自动上传 OSS 或其他异地存储。
+- 归档和校验文件权限为 `0600`，目录权限为 `0700`；当前不做归档内加密。
+- 自动备份会在秒级到分钟级内停止写入，当前个人博客规模接受该维护窗口。
+- 正式数据导入后必须重新执行备份恢复演练，发布清单 `REL-04` 才能勾选。
