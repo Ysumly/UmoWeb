@@ -1,5 +1,43 @@
 # 审计日志
 
+## 审计 #17 - 2026-09-12 — Docker 全栈启动
+
+### 范围
+
+- MySQL 8.4、Spring Boot 后端和 Nginx 前端的三服务 Compose 栈。
+- 自动凭据引导、演示数据库/Markdown、SPA 代理、大文件上传和命名卷持久化。
+- 可信代理在 Docker 网络中的客户端 IP 与限流语义。
+
+### 实现
+
+- 新增根 `compose.yaml`、后端/前端多阶段 Dockerfile、Nginx 配置、演示 Markdown 和 `.dockerignore`。
+- 新增 `scripts/docker-up.ps1`，缺少 `.env.docker` 时生成数据库密码、JWT secret 和管理员密码，并执行 `compose up --build --wait`。
+- MySQL 空数据卷首次执行 `schema.sql`、`seed-data.sql`；后端镜像将 6 篇演示 Markdown 复制到 `app_data`。
+- Nginx 对 SPA 路由回退 `index.html`，代理 `/api/**`、`/images/**`，覆盖 `X-Forwarded-For`，请求体上限 52MB。
+- `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，并保留多级转发链的由右向左解析。
+- Playwright 改用 `e2e/runPlaywright.js` 和轻量静态服务器，避免 Windows 上 Vite preview 无法被 Playwright 清理而残留。
+- 本机 `8080` 由既有 Java 进程占用，本地 `.env.docker` 改用 `18080`，未停止用户进程。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 后端 `mvn test` | 通过，83 tests / 0 failures / 0 errors |
+| 前端 `npm test` | 通过，46 tests / 0 failures |
+| 前端 `npm run build` | Vite 8.1.0 生产构建通过 |
+| Playwright | 34 checks 全部显示通过 |
+| Docker 健康状态 | MySQL、backend、frontend 均 healthy |
+| Docker 真实接口 | `api-smoke.ps1` 通过，27/27 |
+| 大文件上传 | 2MB PNG 经 Nginx 返回 200，后端保存 2,097,152 字节 |
+| 代理限流 | 固定 Nginx `/32`；伪造不同 XFF 的连续搜索请求仍为 200 后 429 |
+| 持久化 | 重启容器后 5 篇公开文章、管理员登录和 2MB 图片仍可用 |
+
+### 剩余风险
+
+1. Nginx 只覆盖直接代理场景，前置 Cloudflare 等代理时仍需扩展真实 IP 链配置。
+2. 当前 Docker 默认包含演示数据和初始管理员；正式部署前必须替换种子数据和凭据。
+3. 图片仍没有删除接口，冒烟与边界验证上传的文件会保留在测试卷中。
+
 ## 审计 #16 - 2026-09-12 — Markdown 一级标题排版统一
 
 ### 范围

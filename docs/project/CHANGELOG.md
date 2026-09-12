@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-09-12 — Docker 全栈启动与部署基线
+
+- 新增 MySQL 8.4、Spring Boot 后端和 Nginx 前端的 Docker Compose 全栈，默认一条命令启动。
+- 新增 `scripts/docker-up.ps1`，首次运行自动生成数据库密码、JWT secret 和管理员密码到被忽略的 `.env.docker`。
+- MySQL 空数据卷首次启动导入 schema、种子数据；后端镜像包含 6 篇演示 Markdown。
+- 新增 `mysql_data` 和 `app_data` 命名卷，分别持久化数据库与 Markdown/图片。
+- Nginx 提供 SPA fallback，代理 `/api`、`/images`，覆盖客户端 `X-Forwarded-For`，支持 50MB 图片边界。
+- `TRUSTED_PROXIES` 扩展为精确 IP 与 IPv4/IPv6 CIDR，保留多级可信代理链行为并对非法配置快速失败。
+- Playwright 改用可清理的 Node 静态服务器包装器，修复 Windows 上 Vite preview 在测试完成后残留的问题。
+- 新增 Docker 运行的端口冲突处理、日志、备份/清空、正式部署注意事项和完整运行指南。
+- 验证结果：后端 83 tests、前端 46 tests、生产构建、Playwright 34 checks、Docker MySQL 8.4 下 27/27 接口冒烟、2MB 上传和卷重启持久化通过。
+
 ## 2026-09-11 — Playwright 浏览器 E2E 与视觉回归
 
 - 新增 `@playwright/test` 本地测试体系，使用本机 Chrome channel、Vite 生产预览和状态化 Mock API。

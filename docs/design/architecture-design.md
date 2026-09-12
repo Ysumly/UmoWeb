@@ -1,6 +1,6 @@
 # UmoWeb 当前架构
 
-> 基线日期: 2026-09-10
+> 基线日期: 2026-09-12
 > 状态: 与当前代码一致
 > 详细代码事实: [codebase-memory.md](../project/codebase-memory.md)
 
@@ -24,6 +24,19 @@ Browser
 ```
 
 项目是前后端分离的单体应用。后端提供 REST API；前端是纯 SPA，没有 SSR/SSG。
+
+Docker 本地部署在上述拓扑外加一层 Nginx：
+
+```text
+Browser
+  -> Nginx: ${APP_PORT:-8080} -> Vue 静态构建
+                             -> /api/**、/images/** -> Spring Boot:8080
+                                                        -> MySQL:3306
+                                                        -> app_data 卷
+```
+
+MySQL 和 Spring Boot 不映射宿主端口；`mysql_data` 与 `app_data` 分别持久化数据库和
+Markdown/图片。详细操作见 [docker-guide.md](../project/docker-guide.md)。
 
 ---
 
@@ -89,7 +102,7 @@ site_options                   站点 KV 配置
 | `images` | 图片元信息 | `original_name`、`stored_name`、`path`、`size`、`content_type` |
 | `site_options` | 站点配置 | `option_key`、`option_value` |
 
-当前 DDL 没有外键和级联约束，删除关联由 Service 手动处理。
+当前 DDL 已包含必要外键和级联约束，Service 仍负责返回可读的 409 业务错误。
 
 ### 3.3 内容类型
 
@@ -170,7 +183,7 @@ API 分两组：
   -> ContentController
   -> ContentServiceImpl
   -> ContentMapper 查询 PUBLISHED
-  -> 列表批量组装分类/标签；详情当前不组装分类/标签
+  -> 列表和详情批量组装分类/标签
   -> 从磁盘读取 Markdown
   -> 返回 ContentListVO / ContentDetailVO
 ```
@@ -209,8 +222,9 @@ GET /api/public/contents/search
 | 管理认证 | `AdminInterceptor` 校验 Bearer JWT |
 | 密码 | BCrypt |
 | 搜索限流 | `ConcurrentHashMap` 内存计数 |
-| CORS | 仅允许 `http://localhost:5173` |
-| 静默入口 | 前端硬编码 `/secret-admin`；`app.admin-path` 未读取 |
+| CORS | 由 `CORS_ALLOWED_ORIGINS` 配置，开发默认 `http://localhost:5173` |
+| 静默入口 | 前端由 `VITE_ADMIN_PATH` 控制，默认 `/secret-admin` |
+| 可信代理 | `TRUSTED_PROXIES` 支持精确 IP/CIDR；Docker Nginx 直接代理默认信任专用 `/24` |
 | JWT 密钥 | 环境变量 `JWT_SECRET`，默认占位值仅用于本地 |
 | 管理员初始化 | `users` 表为空时由 `DataInitializer` 创建 |
 

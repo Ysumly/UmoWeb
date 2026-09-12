@@ -26,6 +26,7 @@
 | 前端 | Vue 3.5、Vite 8、Vue Router 5、Pinia 3、Axios 1.18 |
 | Markdown | marked 18、highlight.js 11；不使用 CodeMirror |
 | 样式 | Tailwind CSS 4 |
+| 本地容器 | Docker Compose、MySQL 8.4、Nginx；Node 24.12 构建前端 |
 
 ## 关键事实
 
@@ -38,9 +39,11 @@
 - `categoryId` 只精确匹配该分类，不自动包含子分类。
 - Markdown 正文保存在 `app.storage-path`，数据库只存 `body_path`；创建/更新使用临时文件和回滚恢复策略，图片限制 50MB。
 - 管理端前端路径由 `VITE_ADMIN_PATH` 控制，默认 `/secret-admin`。
-- 后端当前有 79 个单元/边界/容器装配测试；自动测试仍不连接真实 MySQL。
+- 后端当前有 83 个单元/边界/容器装配测试；自动测试仍不连接真实 MySQL。
 - 2026-09-11 已用隔离 MySQL 5.7 副本完成旧库迁移演练和 27/27 接口冒烟，脚本位于
   `Server Side/UmoWebBackend/scripts/api-smoke.ps1`。
+- 2026-09-12 已建立 Docker Compose 全栈，MySQL 8.4 首次启动导入演示数据，前端由 Nginx
+  提供并通过 `/api`、`/images` 反向代理；入口和运维说明见 `docs/project/docker-guide.md`。
 - 前端公开阅读主路径、公开在线 Markdown 编辑器、管理端文章/分类/标签/站点设置/修改密码均已实现；
   编辑器草稿只保存在当前浏览器的 `umo-editor-draft-v1`。
 
@@ -55,6 +58,10 @@ npm test
 npm run build
 npm run dev
 npm run test:e2e
+
+# 仓库根目录：Docker 全栈
+.\scripts\docker-up.ps1
+docker compose --env-file .env.docker ps
 ```
 
 若机器级 Maven `settings.xml` 的仓库路径不可写，应使用一份隔离的临时 global/user settings 执行 Maven；不要修改系统级 Maven 安装目录。

@@ -261,10 +261,12 @@ server: {
 }
 ```
 
-2026-09-11 执行 `npm test`、`npm run build` 和 `npm run test:e2e` 成功。当前 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；Playwright 另含 16 个 functional 和 14 个视觉检查。
+2026-09-12 执行 `npm test`、`npm run build` 和 `npm run test:e2e` 成功。当前 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；Playwright 另含 20 个 functional 和 14 个视觉检查。
 
 ---
 
 ## 9. 下一步实现顺序
 
-1. 将本地 Playwright 套件接入 CI，并为 Linux 环境建立独立视觉基线。
+当前已提供 Docker Compose 全栈入口，前端由 Nginx 提供静态构建并代理 `/api`、`/images`；
+详细命令见 `docs/project/docker-guide.md`。下一项仍是将本地 Playwright 套件接入 CI，
+并为 Linux 环境建立独立视觉基线。

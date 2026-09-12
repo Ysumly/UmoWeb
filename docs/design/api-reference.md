@@ -308,7 +308,7 @@ Content-Type: application/json
 ```
 
 此接口不经过 `AdminInterceptor`，但同一用户名/IP 在 15 分钟内连续失败 5 次后会返回 429。
-客户端 `X-Forwarded-For` 仅在请求直接来自 `app.security.trusted-proxies` 配置的代理时生效。
+客户端 `X-Forwarded-For` 仅在请求直接来自 `app.security.trusted-proxies` 配置的精确 IP 或 CIDR 代理时生效。
 
 ### 3.2 修改密码
 
