@@ -140,9 +140,9 @@
 后续实施顺序已调整为四阶段路线：
 
 1. 正式上线与数据安全。
-2. 工程交付与质量基线，包括 CI、Linux 视觉基线和真实 MySQL 集成。
+2. 工程交付、质量基线与安全统计，包括 CI、Linux 视觉基线、真实 MySQL 集成和最小化访问日志。
 3. 功能设计，包括 Markdown 导入、子分类筛选、图片删除、全文搜索和四个训练游戏。
-4. 需求明确后评估 AI 能力。
+4. 需求明确后评估 AI 能力，当前暂缓。
 
 完整顺序和出口条件见
 [`../superpowers/plans/2026-09-12-four-phase-roadmap.md`](../superpowers/plans/2026-09-12-four-phase-roadmap.md)。
