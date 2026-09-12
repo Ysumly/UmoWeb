@@ -65,6 +65,9 @@ npm run test:e2e
 # 仓库根目录：Docker 全栈
 .\scripts\docker-up.ps1
 docker compose --env-file .env.docker ps
+
+# 阿里云 ECS 远程运维；PATH 未包含该目录，必须使用完整路径
+& 'C:\Program Files\workbench\workbench.exe' version
 ```
 
 若机器级 Maven `settings.xml` 的仓库路径不可写，应使用一份隔离的临时 global/user settings 执行 Maven；不要修改系统级 Maven 安装目录。

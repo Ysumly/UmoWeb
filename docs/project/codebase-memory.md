@@ -376,6 +376,9 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 当前是公网测试部署，仍使用演示数据，没有域名、HTTPS、自动备份、恢复演练或 CI/CD。
 - 实例标识、公网地址、随机管理路径、数据库密码、JWT secret 和管理员密码只保存在服务器侧，
   不进入版本库。
+- 开发机已安装阿里云 Workbench CLI v1.0.1，绝对路径为
+  `C:\Program Files\workbench\workbench.exe`；当前 `PATH` 不包含该目录，远程 ECS 操作必须使用
+  完整路径。凭据配置位于用户目录的 `.workbench/config.json`，内容不进入版本库。
 
 ---
 
