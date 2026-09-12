@@ -54,14 +54,12 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: 'node ./node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173 --strictPort',
-    url: baseURL,
-    reuseExistingServer: false,
-    timeout: 120_000,
-    gracefulShutdown: {
-      signal: 'SIGINT',
-      timeout: 5_000,
-    },
-  },
+  webServer: process.env.PLAYWRIGHT_EXTERNAL_SERVER
+    ? undefined
+    : {
+        command: 'node ./e2e/support/previewServer.js',
+        url: baseURL,
+        reuseExistingServer: false,
+        timeout: 120_000,
+      },
 })

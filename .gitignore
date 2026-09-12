@@ -49,6 +49,8 @@ data/
 .env
 .env.*
 !.env.example
+!.env.docker.example
+.env.docker
 
 # === 日志 ===
 *.log
