@@ -1,5 +1,46 @@
 # 审计日志
 
+## 审计 #18 - 2026-09-12 — 阿里云 ECS 公网测试部署
+
+### 范围
+
+- 单台阿里云 ECS 上 Docker Compose 全栈的公网测试部署。
+- 受限网络下的镜像交付、安全组边界、`.env.docker` 凭据边界和部署验收。
+- 文档只保留脱敏环境事实，不上传任何真实身份或凭据。
+
+### 实现
+
+- 在 Ubuntu 24.04 ECS 创建 `/opt/umoweb`，写入仅 root 可读且权限为 `600` 的
+  `.env.docker`，未把文件加入版本库。
+- ECS 无法稳定访问 Docker Hub、npm 官方仓库和 Maven Central，因此改为在开发机构建
+  `umoweb-frontend`、`umoweb-backend` 镜像并传送到 ECS。
+- 镜像归档传输后先校验 SHA-256，再通过 `docker load` 导入；启动使用
+  `docker compose up -d --no-build --wait`，避免服务器重新访问外部仓库。
+- 安全组和 UFW 仅新增公网 TCP 80，MySQL 3306 与后端 8080 未暴露。
+- 无域名环境使用 HTTP；公网地址、实例 ID、随机管理路径和全部密码/密钥未写入仓库。
+- 发现并确认 `INIT_ADMIN_USER` / `INIT_ADMIN_PASS` 只影响空 `users` 表首次初始化，
+  修改 `.env.docker` 不会自动更新已有管理员。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| Compose 健康状态 | MySQL、backend、frontend 均为 healthy |
+| 内部首页 | HTTP 200 |
+| 公开站点信息 API | 返回预期 JSON |
+| 管理员登录 | 重置数据库 BCrypt 哈希后 HTTP 200 |
+| 会话失效 | `token_version` 递增，旧 JWT 失效 |
+| 公网首页 | 安全组放行 TCP 80 后 HTTP 200 |
+| 开机恢复 | Docker 服务 `enabled`，容器策略为 `unless-stopped` |
+
+### 剩余风险
+
+1. 当前无域名和 HTTPS，公网入口仍为明文 HTTP。
+2. 首次启动导入了演示数据，尚未替换为正式内容。
+3. 没有自动备份、保留策略和恢复演练。
+4. 单实例内存限流仍不适用于多实例横向扩展。
+5. 镜像交付是人工流程，私有仓库认证和 CI/CD 尚未配置。
+
 ## 审计 #17 - 2026-09-12 — Docker 全栈启动
 
 ### 范围

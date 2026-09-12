@@ -44,6 +44,9 @@
   `Server Side/UmoWebBackend/scripts/api-smoke.ps1`。
 - 2026-09-12 已建立 Docker Compose 全栈，MySQL 8.4 首次启动导入演示数据，前端由 Nginx
   提供并通过 `/api`、`/images` 反向代理；入口和运维说明见 `docs/project/docker-guide.md`。
+- 2026-09-12 已在单台阿里云 ECS 完成无域名公网测试部署（Ubuntu 24.04、Docker Compose、
+  安全组放行 TCP 80）。部署目录为 `/opt/umoweb`，当前仍使用演示数据且未启用 HTTPS；
+  实例标识、公网地址、管理路径和凭据均保留在服务器侧，不进入仓库。
 - 前端公开阅读主路径、公开在线 Markdown 编辑器、管理端文章/分类/标签/站点设置/修改密码均已实现；
   编辑器草稿只保存在当前浏览器的 `umo-editor-draft-v1`。
 
