@@ -319,6 +319,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 管理端修改密码：独立受保护页面；成功后清理本地 token，并在登录页提示重新登录。
 - 公开在线 Markdown 编辑器：导入/下载 `.md`、实时安全预览、移动端编辑/预览切换和 `umo-editor-draft-v1` 本地草稿恢复。
 - 公开端布局、页头页脚、主题切换和 `v-reveal` 滚动揭示指令。
+- Markdown `h1` 由共享 `.markdown-body` 规则统一，公开文章页与管理端预览字号、字重和行高一致。
 - 首页、书库、搜索、文章详情、About 和 Project 已接入真实公开 API。
 - 亮暗双主题，主题值写入 `data-theme` 并持久化到 `localStorage`。
 - 基于服务端契约的书库筛选/分页、搜索 429 倒计时、Markdown 渲染和代码高亮。
@@ -345,7 +346,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
 - 自动测试仍没有真实 MySQL 集成测试；2026-09-11 已在隔离 MySQL 5.7 副本完成迁移和 27/27 接口冒烟。
 - 前端 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- Playwright 共 33 个浏览器检查：19 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+- Playwright 共 34 个浏览器检查：20 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - Playwright 使用 `/api/**` Mock 路由、本机 Chrome channel 和 Vite preview；不依赖 MySQL。视觉基线只保证当前 Windows Chrome 环境。
 
 ### 7.2 当前代码风险

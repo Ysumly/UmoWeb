@@ -1350,6 +1350,7 @@ svg {
   margin-top: 0;
 }
 
+.markdown-body h1,
 .markdown-body h2,
 .markdown-body h3,
 .markdown-body h4 {
@@ -1357,6 +1358,13 @@ svg {
   font-weight: 600;
   line-height: 1.45;
   letter-spacing: 0.04em;
+}
+
+.markdown-body h1 {
+  margin: 0 0 1em;
+  font-size: 48px;
+  font-weight: 500;
+  line-height: 1.15;
 }
 
 .markdown-body h2 {
@@ -2000,6 +2008,10 @@ svg {
     font-size: 16px;
   }
 
+  .markdown-body h1 {
+    font-size: 36px;
+  }
+
   .markdown-body h2 {
     font-size: 27px;
   }
@@ -2573,7 +2585,7 @@ svg {
   letter-spacing: 0.18em;
 }
 
-.admin-page h1 {
+.admin-page__header h1 {
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(34px, 4vw, 48px);

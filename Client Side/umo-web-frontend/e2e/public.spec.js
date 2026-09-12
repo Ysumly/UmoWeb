@@ -69,6 +69,34 @@ test('文章详情展示正文、分类标签和前后文章', async ({ page, ap
   await expect(page.locator('.markdown-body')).toContainText('这是一篇 E2E 正文。')
 })
 
+test('Markdown 标题在公开页和管理端预览使用相同排版', async ({ page, apiMock }) => {
+  await page.goto('/post/first-public')
+
+  const publicHeadingStyle = await page.locator('.markdown-body h1').evaluate((element) => {
+    const style = getComputedStyle(element)
+    return {
+      fontSize: style.fontSize,
+      fontWeight: style.fontWeight,
+      lineHeight: style.lineHeight,
+    }
+  })
+
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/1/edit')
+  const previewHeadingStyle = await page
+    .locator('.admin-editor-pane--preview .markdown-body h1')
+    .evaluate((element) => {
+      const style = getComputedStyle(element)
+      return {
+        fontSize: style.fontSize,
+        fontWeight: style.fontWeight,
+        lineHeight: style.lineHeight,
+      }
+    })
+
+  expect(previewHeadingStyle).toEqual(publicHeadingStyle)
+})
+
 test('书库接口失败时显示可重试错误态', async ({ page, apiMock }) => {
   void apiMock
   await page.route('**/api/public/contents?*', (route) => {
