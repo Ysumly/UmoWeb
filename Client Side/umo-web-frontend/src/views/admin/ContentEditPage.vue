@@ -449,11 +449,43 @@ onBeforeUnmount(() => {
             <textarea
               v-model="form.metadata"
               rows="5"
-              placeholder="{&#10;  &quot;readingTime&quot;: 10&#10;}"
+              placeholder="{&#10;  &quot;readingTime&quot;: 10,&#10;  &quot;difficulty&quot;: &quot;beginner&quot;,&#10;  &quot;author&quot;: &quot;Umo&quot;,&#10;  &quot;source&quot;: &quot;https://example.com&quot;&#10;}"
               spellcheck="false"
             />
             <small v-if="errors.metadata">{{ errors.metadata }}</small>
             <small v-else>填写非空内容时，必须是合法 JSON 对象。</small>
+            <details class="admin-field__details">
+              <summary>更多</summary>
+              <div class="admin-field__details-body">
+                <p>metadata 用于保存文章的结构化信息，可按内容类型自行扩展。</p>
+                <dl>
+                  <div>
+                    <dt><code>readingTime</code></dt>
+                    <dd>预计阅读分钟数</dd>
+                  </div>
+                  <div>
+                    <dt><code>difficulty</code></dt>
+                    <dd>难度等级，例如 beginner、intermediate、advanced</dd>
+                  </div>
+                  <div>
+                    <dt><code>author</code></dt>
+                    <dd>作者或内容来源</dd>
+                  </div>
+                  <div>
+                    <dt><code>source</code></dt>
+                    <dd>原文链接</dd>
+                  </div>
+                </dl>
+                <p>示例：</p>
+                <pre>{
+  "readingTime": 10,
+  "difficulty": "beginner",
+  "author": "Umo",
+  "source": "https://example.com"
+}</pre>
+                <p>JSON 不支持注释；字段说明只用于提示，不要复制到输入框。</p>
+              </div>
+            </details>
           </label>
 
           <div class="admin-editor-toolbar">

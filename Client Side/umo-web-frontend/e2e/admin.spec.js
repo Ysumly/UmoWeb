@@ -173,6 +173,19 @@ test('文章编辑器的分类和标签不拆字且超过一页时分页', async
   await expect(tagGroup.locator('.admin-choice-list label')).toHaveCount(6)
 })
 
+test('metadata 更多说明可以展开常用字段', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  const details = page.locator('.admin-field__details')
+  await details.getByText('更多', { exact: true }).click()
+
+  await expect(details).toHaveAttribute('open', '')
+  await expect(details.getByText('预计阅读分钟数')).toBeVisible()
+  await expect(details.getByText('原文链接')).toBeVisible()
+  await expect(details.getByText('JSON 不支持注释')).toBeVisible()
+})
+
 test('站点设置保存后刷新公开站点缓存', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/options')
