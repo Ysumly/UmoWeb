@@ -31,6 +31,8 @@
 | 敏感信息扫描器自测 | 通过 |
 | 敏感信息全仓扫描 | 通过 |
 | Shell、Python 和 PowerShell 语法检查 | 通过 |
+| PR #3 第一轮 CI | `34736391676` 五个 job 全部通过，MySQL integration 1m14s |
+| PR #3 第二轮 CI | 同一 run 重跑五个 job 全部通过，MySQL integration 1m21s |
 
 ### 剩余风险
 
