@@ -93,7 +93,11 @@ test_retention_removes_by_total_size() {
 test_restore_project_guard() {
     assert_failure "production project name must be rejected" assert_restore_project_name "umoweb"
     assert_failure "unprefixed project name must be rejected" assert_restore_project_name "other"
+    assert_failure "uppercase restore project name must be rejected" \
+        assert_restore_project_name "umoweb-restore-20260912T145000Z-123"
     assert_success "restore project name should be accepted" assert_restore_project_name "umoweb-restore-test"
+    assert_success "lowercase timestamp restore project name should be accepted" \
+        assert_restore_project_name "umoweb-restore-20260912t145000z-123"
 }
 
 test_checksum_detection() {

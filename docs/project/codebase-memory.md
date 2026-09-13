@@ -337,6 +337,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 公开端布局、页头页脚、主题切换和 `v-reveal` 滚动揭示指令。
 - Markdown `h1` 由共享 `.markdown-body` 规则统一，公开文章页与管理端预览字号、字重和行高一致。
 - 首页、书库、搜索、文章详情、About 和 Project 已接入真实公开 API。
+- 2026-09-12 已导入 28 篇正式学习笔记，形成 18 个分类、22 个标签和 91 张本地图片；
+  两篇导航索引不进入公开文章，About/Project 使用正式配置。
 - 亮暗双主题，主题值写入 `data-theme` 并持久化到 `localStorage`。
 - 基于服务端契约的书库筛选/分页、搜索 429 倒计时、Markdown 渲染和代码高亮。
 - 404 页面采用公开端视觉布局。
@@ -370,12 +372,14 @@ Spring Multipart 限制单文件和请求均为 50MB。
   回滚触发条件和第一阶段排除项；清单见 `docs/project/release-checklist-v1.md`。
 - 2026-09-12 已建立 MySQL 与 `app_data` 一致性备份、校验、导出和隔离恢复链路；ECS 每周日
   03:30 自动执行，保留最多 6 份且不超过 8GiB，恢复环境 27/27 冒烟通过。
+- 2026-09-12 已完成 Task 1.3：正式内容和文件替换演示数据，数据库密码、JWT secret 和管理员
+  凭据均已轮换；生产与最终备份恢复环境均通过 27/27 冒烟。
 - 该 ECS 访问 Docker Hub、npm 官方仓库和 Maven Central 受限；实际部署采用开发机构建镜像、
   校验归档后传输并在 ECS `docker load`，再执行 `compose up -d --no-build --wait`。
 - 安全组与 UFW 均放行 TCP 80；MySQL 3306 和后端 8080 没有暴露到公网。
 - 2026-09-12 已验证首页、公开 API、管理员登录和公网访问；三个容器均为 healthy，
   Docker 服务已设置开机自启。
-- 当前是公网测试部署，仍使用演示数据，没有域名或 HTTPS；自动备份和隔离恢复演练已完成，
+- 当前是公网测试部署，使用正式内容，没有域名或 HTTPS；自动备份和正式数据恢复演练已完成，
   CI/CD 尚未接入。
 - 实例标识、公网地址、随机管理路径、数据库密码、JWT secret 和管理员密码只保存在服务器侧，
   不进入版本库。
@@ -392,7 +396,10 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 恢复项目只允许 `umoweb-restore-*`，使用独立卷、网络和回环端口，不覆盖生产 `umoweb`。
 - ECS systemd timer 每周日 03:30 执行，允许 10 分钟随机延迟并支持补跑；本地文件和目录权限为
   `0600/0700`。
-- 当前归档不做加密和自动异地复制，只提供导出入口；正式数据导入后必须重新执行恢复演练。
+- 当前归档不做加密和自动异地复制，只提供导出入口；正式数据导入后的最终恢复演练已完成。
+- `scripts/content-import/` 提供正式内容候选包生成、生产提升和便携接口冒烟入口。候选包使用
+  `umoweb-content-*` 命名，恢复前校验内外层 SHA-256，提升脚本必须显式传入 `--confirm`。
+- `catalog.json` 为全部 28 篇正文保存人工摘要；构建器优先使用显式摘要，仅在缺失时回退到正文提取。
 
 ---
 
@@ -406,6 +413,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，覆盖非法配置、可信代理链和未授权转发头。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
 - 自动测试仍没有真实 MySQL 集成测试；2026-09-11 已在隔离 MySQL 5.7 副本完成迁移，2026-09-12 已通过 Docker MySQL 8.4 执行 27/27 接口冒烟。
+- 内容导入器有 6 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、图片重写、内容去重、
+  Linux 文件所有权和缺失素材阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 27 个接口。
 - 前端 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
 - Playwright 共 34 个浏览器检查：20 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - Playwright 使用 `/api/**` Mock 路由、本机 Chrome channel 和 `e2e/runPlaywright.js` 静态服务器；不依赖 MySQL。视觉基线只保证当前 Windows Chrome 环境。
@@ -423,6 +432,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | 已修复 | 数据库完整性 | 外键、级联策略和兼容迁移脚本。 |
 | 已修复 | 管理路径 | 前端 `VITE_ADMIN_PATH`，后端移除未使用配置。 |
 | 已修复 | 上下文启动 | MyBatis 同时扫描 entity/dto 别名；`ClientIpResolver` 显式构造注入；业务 JSON 统一使用 Jackson 3。 |
+| 已修复 | 内容导入 | 候选归档显式使用 `umo:umo` 文件所有权；恢复项目名限制为小写；管理员初始化完成后才轮换密码。 |
 | 低 | 爬虫控制 | `index.html` 有 `noindex`，但没有 `public/robots.txt`。 |
 
 ---

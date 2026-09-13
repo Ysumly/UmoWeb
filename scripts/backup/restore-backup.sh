@@ -25,7 +25,7 @@ require_file "$archive"
 verify_sha256_file "$archive" "$archive.sha256" ||
     die "backup checksum verification failed"
 
-stamp="$(utc_stamp)"
+stamp="$(utc_stamp | tr '[:upper:]' '[:lower:]')"
 project="${requested_project:-umoweb-restore-$stamp-$$}"
 assert_restore_project_name "$project" ||
     die "restore project must match umoweb-restore-*: $project"

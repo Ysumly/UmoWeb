@@ -229,6 +229,29 @@ bash scripts/backup/tests/backup-unit.sh
 - ECS systemd 服务手动执行成功，`frontend`、`backend`、`mysql` 在备份后全部恢复为 healthy。
 - 将 ECS 归档下载到开发机后可跨主机恢复，恢复栈再次执行 27/27 通过。
 
+### 2.7 正式内容候选包
+
+内容导入器单元测试：
+
+```powershell
+python -m unittest discover -s scripts\content-import\tests -v
+```
+
+当前 6 个测试覆盖显式人工摘要优先、标题/摘要提取、水平分隔线过滤、目录分类、Markdown 内链、
+图片重写与去重、`umo:umo` 文件所有权和缺失素材阻断。
+
+候选包和提升命令见 [docker-guide.md](docker-guide.md) 第 8.5 节。便携冒烟入口：
+
+```powershell
+python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
+  --base-url "http://127.0.0.1:18080" `
+  --env-file ".env.docker"
+```
+
+该脚本与 PowerShell 版本均覆盖 27 个接口；会从 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASS`
+读取管理员凭据，不输出密码值。2026-09-12 正式数据候选包、生产切换和最终备份恢复均通过
+`27/27`。
+
 ---
 
 ## 3. Apifox 环境
