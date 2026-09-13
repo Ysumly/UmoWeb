@@ -268,9 +268,9 @@ server: {
 }
 ```
 
-2026-09-13 执行 `npm test`、`npm run build` 和完整 Playwright 测试成功。当前 55 个 Node 测试覆盖路由、
+2026-09-13 执行 `npm test`、`npm run build` 和完整 Playwright 测试成功。当前 58 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
-Markdown front matter 导入、静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；Playwright 另含 24 个 functional
+Markdown front matter 导入、静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；Playwright 另含 25 个 functional
 和 14 个视觉检查。
 
 ---

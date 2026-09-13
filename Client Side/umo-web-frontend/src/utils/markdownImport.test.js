@@ -156,3 +156,56 @@ test('requires an existing novel category for novel imports', () => {
   assert.equal(result.form.type, 'NOVEL')
   assert.equal(result.errors.categoryIds, '小说必须选择一个小说分类作为作品目录')
 })
+
+test('rejects category slugs belonging to another content type', () => {
+  const result = parseMarkdownImport({
+    filename: 'note.md',
+    source: [
+      '---',
+      'title: 跨类型分类',
+      'slug: cross-type-category',
+      'type: NOTE',
+      'categorySlugs: [novel-series]',
+      '---',
+      '正文',
+    ].join('\n'),
+    categories: [{ id: 9, slug: 'novel-series', type: 'NOVEL' }],
+  })
+
+  assert.match(result.errors.categoryIds, /novel-series/)
+  assert.deepEqual(result.form.categoryIds, [])
+})
+
+test('uses the first Markdown H1 while ignoring fenced code blocks', () => {
+  const result = parseMarkdownImport({
+    filename: 'fallback.md',
+    source: [
+      '```text',
+      '# 代码块标题',
+      '```',
+      '',
+      '   # 缩进的真实标题',
+      '',
+      '正文',
+    ].join('\n'),
+  })
+
+  assert.equal(result.form.title, '缩进的真实标题')
+})
+
+test('warns about relative images inside Markdown tables', () => {
+  const result = parseMarkdownImport({
+    filename: 'table.md',
+    source: [
+      '# 表格图片',
+      '',
+      '| 图片 |',
+      '| --- |',
+      '| ![本地图](./table.png) |',
+    ].join('\n'),
+  })
+
+  assert.deepEqual(result.warnings, [
+    '图片引用不会自动上传：./table.png',
+  ])
+})

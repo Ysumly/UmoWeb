@@ -87,7 +87,7 @@ export function parseMarkdownImport({
     'tagSlugs',
     errors,
   )
-  const categoryIds = resolveReferenceIds(categorySlugs, categories, 'categoryIds', errors)
+  const categoryIds = resolveCategoryIds(categorySlugs, categories, type, errors)
   const tagIds = resolveReferenceIds(tagSlugs, tags, 'tagIds', errors)
   const metadata = normalizeMetadata(data.metadata, errors)
   const title = stringField(data.title, errors, 'title', '标题必须是字符串')
@@ -223,6 +223,15 @@ function resolveReferenceIds(slugs, items, field, errors) {
   return ids
 }
 
+function resolveCategoryIds(slugs, categories, type, errors) {
+  return resolveReferenceIds(
+    slugs,
+    categories.filter((category) => category.type === type),
+    'categoryIds',
+    errors,
+  )
+}
+
 function normalizeMetadata(value, errors) {
   if (value === undefined || value === null) {
     return '{}'
@@ -245,8 +254,9 @@ function filenameStem(filename) {
 }
 
 function firstHeading(body) {
-  const match = String(body).match(/^#\s+(.+?)\s*#*\s*$/m)
-  return match ? match[1].trim() : ''
+  const heading = marked.lexer(String(body))
+    .find((token) => token.type === 'heading' && token.depth === 1)
+  return heading ? inlineText(heading.tokens) || String(heading.text || '').trim() : ''
 }
 
 function imageReferenceWarnings(body) {
@@ -260,18 +270,39 @@ function imageReferenceWarnings(body) {
   return [...new Set(warnings)]
 }
 
-function collectImageUrls(tokens = []) {
+function collectImageUrls(value) {
   const urls = []
-  for (const token of tokens) {
-    if (token.type === 'image' && token.href) {
-      urls.push(token.href)
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      urls.push(...collectImageUrls(item))
     }
-    if (Array.isArray(token.tokens)) {
-      urls.push(...collectImageUrls(token.tokens))
-    }
-    if (Array.isArray(token.items)) {
-      urls.push(...collectImageUrls(token.items))
+    return urls
+  }
+  if (!value || typeof value !== 'object') {
+    return urls
+  }
+  if (value.type === 'image' && value.href) {
+    urls.push(value.href)
+  }
+  for (const key of ['tokens', 'items', 'header', 'rows']) {
+    if (value[key]) {
+      urls.push(...collectImageUrls(value[key]))
     }
   }
   return urls
+}
+
+function inlineText(tokens = []) {
+  return tokens
+    .map((token) => {
+      if (token.type === 'br' || token.type === 'space') {
+        return ' '
+      }
+      if (Array.isArray(token.tokens)) {
+        return inlineText(token.tokens)
+      }
+      return String(token.text || '')
+    })
+    .join('')
+    .trim()
 }

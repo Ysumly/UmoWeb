@@ -154,15 +154,15 @@ npm run test:e2e
 2026-09-13 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
-- 前端 55 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、API 错误解析、日期格式、查询规范化和 Markdown 安全。
-- Playwright 38 个浏览器检查，其中 24 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入），14 个视觉断言覆盖核心页面的桌面与 390px 基线。
+- 前端 58 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、API 错误解析、日期格式、查询规范化和 Markdown 安全。
+- Playwright 39 个浏览器检查，其中 25 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入），14 个视觉断言覆盖核心页面的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
   MySQL 副本、`api-smoke.py`/`api-smoke.ps1` 和第 2.8 节的 CI 集成 job 验证。
 
 2026-09-13 已验证：
 
-- Windows 本机 Chrome 当前运行 38 个 Playwright 检查，原有 `win32` 视觉快照未变化。
-- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 38 个检查，
+- Windows 本机 Chrome 当前运行 39 个 Playwright 检查，原有 `win32` 视觉快照未变化。
+- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 39 个检查，
   通过独立的 `linux` 视觉快照验证。
 - `browser` job 失败时会保留 Playwright HTML 报告、trace 和失败截图 artifact。
 

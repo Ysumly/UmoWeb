@@ -27,7 +27,7 @@
 
 - 公开端阅读主路径、公开 Markdown 编辑器和全部管理端核心业务页。
 - 27 个真实接口和 27/27 冒烟验证。
-- 后端 84 个测试、前端 55 个 Node 测试和每个平台 38 个 Playwright 检查。
+- 后端 84 个测试、前端 58 个 Node 测试和每个平台 39 个 Playwright 检查。
 - Docker Compose 全栈和单台阿里云 ECS 无域名 HTTP 测试部署。
 - 隔离 MySQL 5.7 迁移演练和 Docker MySQL 8.4 持久化验证。
 

@@ -2736,6 +2736,10 @@ svg {
   margin-top: 4px;
 }
 
+.admin-import-result__error {
+  color: var(--danger, #b42318);
+}
+
 .admin-management-panel {
   display: flex;
   flex-direction: column;

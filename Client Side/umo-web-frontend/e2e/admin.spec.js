@@ -282,6 +282,40 @@ test('Markdown 导入遇到重复 slug 时留在编辑器等待修正', async ({
   await expect(page.getByLabel(/^slug/)).toHaveValue('first-public')
 })
 
+test('Markdown 导入错误阻止提交并在修正后允许创建', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  await page.getByRole('button', { name: '导入 Markdown' }).click()
+  await page.getByLabel('选择 Markdown 文件').setInputFiles({
+    name: 'invalid-metadata.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from([
+      '---',
+      'title: 错误 metadata',
+      'slug: invalid-metadata',
+      'categorySlugs: [missing-category]',
+      'metadata: [not, an, object]',
+      '---',
+      '# 错误 metadata',
+    ].join('\n')),
+  })
+  const contentTypeCount = apiMock.state.contents.length
+
+  await page.getByRole('button', { name: '创建文章' }).click()
+
+  await expect(page.getByRole('alert')).toContainText('请先修正 Markdown 导入错误')
+  await expect(page).toHaveURL(/\/secret-admin\/contents\/new$/)
+  expect(apiMock.state.contents).toHaveLength(contentTypeCount)
+
+  await page.getByLabel('metadata').fill('{"readingTime":3}')
+  await page.getByRole('group', { name: '分类' }).getByLabel('技术笔记').check()
+  await page.getByRole('button', { name: '创建文章' }).click()
+
+  await expect(page).toHaveURL(/\/secret-admin\/contents\?saved=1/)
+  expect(apiMock.state.contents).toHaveLength(contentTypeCount + 1)
+})
+
 test('站点设置保存后刷新公开站点缓存', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/options')
