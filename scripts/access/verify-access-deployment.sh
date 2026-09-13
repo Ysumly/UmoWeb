@@ -9,7 +9,7 @@ BASE_URL="${1:-}"
 [[ -n "$BASE_URL" ]] || access_die "usage: $0 BASE_URL"
 BASE_URL="${BASE_URL%/}"
 
-access_load_config
+ACCESS_REQUIRE_CONFIG=1 access_load_config
 access_require_command curl
 access_require_command python3
 access_require_command ss

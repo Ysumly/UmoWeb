@@ -191,6 +191,9 @@ function Sync-RemoteReleaseControl {
     Invoke-WorkbenchUpload `
         -LocalPath (Join-Path $PSScriptRoot "remote-release.sh") `
         -RemotePath $RemoteReleaseScript
+    Invoke-WorkbenchUpload `
+        -LocalPath (Join-Path $RepositoryRoot "compose.yaml") `
+        -RemotePath "$RemoteRoot/compose.yaml"
 }
 
 function Sync-RemoteAccessControl {

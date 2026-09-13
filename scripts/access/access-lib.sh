@@ -20,13 +20,14 @@ access_require_file() {
 }
 
 access_load_config() {
-    access_require_file "$ACCESS_CONFIG_FILE"
     # The file is root-owned and contains only access-policy settings.
     if [[ -r "$ACCESS_CONFIG_FILE" ]]; then
         # shellcheck disable=SC1090
         set -a
         source "$ACCESS_CONFIG_FILE"
         set +a
+    elif [[ "${ACCESS_REQUIRE_CONFIG:-0}" == "1" ]]; then
+        access_die "required readable config file not found: $ACCESS_CONFIG_FILE"
     fi
 
     : "${ACCESS_LOG_DIR:=/opt/umoweb/access/logs}"

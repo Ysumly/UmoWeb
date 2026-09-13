@@ -17,10 +17,14 @@ REPORT_USER="$(id -un)"
 REPORT_GROUP="umoweb-report-test"
 export INSTALL_ROOT SYSTEMD_ROOT ACCESS_CONFIG_PATH REPORT_USER REPORT_GROUP SKIP_SYSTEMD=1
 
+mkdir -p "$INSTALL_ROOT/access/logs"
+printf 'seed\n' > "$INSTALL_ROOT/access/logs/access.log"
+
 bash "$ACCESS_DIR/install-access-timer.sh"
 
 python3 - "$INSTALL_ROOT" "$ACCESS_CONFIG_PATH" "$SYSTEMD_ROOT" <<'PY'
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -32,6 +36,7 @@ required = [
     config_path,
     install_root / "access/privacy-config.json",
     install_root / "access/trusted-proxies.conf",
+    install_root / "access/logs/access.log",
     install_root / "scripts/access/access_maintenance.py",
     install_root / "scripts/access/report_server.py",
     systemd_root / "umoweb-access-maintenance.service",
@@ -45,6 +50,8 @@ if missing:
 policy = json.loads((install_root / "access/privacy-config.json").read_text(encoding="utf-8"))
 if policy != {"rawRetentionDays": 30, "aggregateRetentionDays": 180}:
     raise SystemExit("installer rendered the wrong privacy policy")
+if os.name != "nt" and (install_root / "access/logs/access.log").stat().st_mode & 0o777 != 0o640:
+    raise SystemExit("installer did not create a 0640 active access log")
 
 report_service = (systemd_root / "umoweb-access-report.service").read_text(encoding="utf-8")
 if "User=" not in report_service:
@@ -63,6 +70,11 @@ with open(sys.argv[2], "r", encoding="utf-8") as handle:
 if runtime_default != frontend_default:
     raise SystemExit("default privacy configuration is inconsistent")
 PY
+
+if ! grep -q 'umask 0027' "$REPO_ROOT/docker/frontend/entrypoint.sh"; then
+    echo "FAIL: frontend entrypoint does not set the access log umask" >&2
+    exit 1
+fi
 
 if grep -R "@INSTALL_ROOT@\\|@REPORT_USER@\\|@REPORT_GROUP@" "$SYSTEMD_ROOT" >/dev/null; then
     echo "FAIL: rendered systemd units still contain placeholders" >&2
