@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-09-13 — CI 基础流水线
+
+- 将 Task 1.2 备份恢复和 Task 1.3 正式内容导入按任务拆分合并到 `master`。
+- 新增 `.github/workflows/ci.yml`，在 PR 和 `master` push 时运行仓库检查、后端测试、前端测试和构建。
+- 新增无第三方依赖的敏感信息扫描器及自测，覆盖公开 IP、ECS 实例 ID、AccessKey、Token、私钥和环境文件。
+- GitHub Actions 固定使用 Ubuntu、Temurin Java 17、Node 24.12.0 和只读仓库权限。
+- 当前私有仓库套餐不支持分支保护或规则集，CI 失败不能自动阻止合并；Task 2.4 将把 CI 成功作为发布门禁。
+
 ## 2026-09-12 — 正式内容导入与凭据轮换
 
 - 新增 `scripts/content-import/`，支持从无 front matter 的 Markdown 目录生成可恢复候选包。

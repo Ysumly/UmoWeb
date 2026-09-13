@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository:
+    name: Repository checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check changed text for whitespace errors
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git diff --check "$BASE_SHA...$HEAD_SHA"
+          elif [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
+            empty_tree="$(git hash-object -t tree /dev/null)"
+            git diff --check "$empty_tree" "$HEAD_SHA"
+          else
+            git diff --check "$BEFORE_SHA" "$HEAD_SHA"
+          fi
+
+      - name: Test sensitive information scanner
+        run: bash scripts/ci/tests/scan-sensitive-info-test.sh
+
+      - name: Scan tracked files for sensitive information
+        run: bash scripts/ci/scan-sensitive-info.sh
+
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: Server Side/UmoWebBackend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: Server Side/UmoWebBackend/pom.xml
+
+      - name: Run backend tests
+        run: mvn -B test
+
+  frontend:
+    name: Frontend tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: Client Side/umo-web-frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.12.0
+          cache: npm
+          cache-dependency-path: Client Side/umo-web-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build

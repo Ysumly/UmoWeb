@@ -1,6 +1,6 @@
 # UmoWeb 代码基线记忆
 
-> 基线日期: 2026-09-12
+> 基线日期: 2026-09-13
 > 范围: 当前工作区中的前端、后端、数据库脚本和文档
 > 原则: 代码行为优先；计划能力与已实现能力必须分开记录
 
@@ -10,6 +10,8 @@
 
 ```text
 UmoWeb/
+├── .github/
+│   └── workflows/
 ├── AGENT.md
 ├── AGENTS.md
 ├── CLAUDE.md
@@ -27,6 +29,7 @@ UmoWeb/
 │   ├── modules/
 │   └── project/
 ├── scripts/
+│   ├── ci/
 │   └── docker-up.ps1
 ├── Downloads/                  # 敏感目录，禁止提交
 └── .superpowers/
@@ -71,6 +74,17 @@ UmoWeb/
 | 编辑器 | 原生 textarea；未安装 CodeMirror/Monaco |
 | 浏览器测试 | Playwright Test 1.63，本机 Chrome channel，Mock API |
 | 容器构建 | Node 24.12 Alpine、Maven 3.9.11/JDK 17、JRE 17、Nginx 1.29 |
+
+### 2.3 持续集成
+
+| 项 | 实际值 |
+|---|---|
+| 平台 | GitHub Actions，私有仓库 |
+| 触发 | `pull_request` 和 `master` push |
+| 运行环境 | Ubuntu、Temurin Java 17、Node 24.12.0 |
+| 检查 | 后端 Maven 测试、前端 Node 测试、前端构建、diff 检查和敏感信息扫描 |
+| 权限 | `contents: read`，不配置仓库 Secret |
+| 合并门禁 | 当前私有仓库计划不支持分支保护或规则集，失败结果不能强制阻止合并 |
 
 ---
 
@@ -418,6 +432,10 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 前端 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
 - Playwright 共 34 个浏览器检查：20 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - Playwright 使用 `/api/**` Mock 路由、本机 Chrome channel 和 `e2e/runPlaywright.js` 静态服务器；不依赖 MySQL。视觉基线只保证当前 Windows Chrome 环境。
+- `scripts/ci/scan-sensitive-info.sh` 扫描全部已跟踪文件，覆盖公开 IPv4、ECS 实例 ID、AccessKey、
+  GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。
+- GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、前端测试和生产构建；
+  浏览器测试与真实 MySQL 集成分别属于 Task 2.2、Task 2.3。
 
 ### 7.2 当前代码风险
 
@@ -433,6 +451,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | 已修复 | 管理路径 | 前端 `VITE_ADMIN_PATH`，后端移除未使用配置。 |
 | 已修复 | 上下文启动 | MyBatis 同时扫描 entity/dto 别名；`ClientIpResolver` 显式构造注入；业务 JSON 统一使用 Jackson 3。 |
 | 已修复 | 内容导入 | 候选归档显式使用 `umo:umo` 文件所有权；恢复项目名限制为小写；管理员初始化完成后才轮换密码。 |
+| 已知限制 | CI 合并门禁 | 私有仓库当前计划不支持分支保护或规则集，CI 失败只能报告；Task 2.4 需把 CI 成功作为镜像发布前置条件。 |
 | 低 | 爬虫控制 | `index.html` 有 `noindex`，但没有 `public/robots.txt`。 |
 
 ---
