@@ -1,14 +1,16 @@
 package com.ysumly.umowebbackend.mapper;
 
 import com.ysumly.umowebbackend.model.entity.Content;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,7 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @MybatisTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @EnabledIfEnvironmentVariable(named = "MYSQL_INTEGRATION", matches = "true")
-@Transactional
 class ContentSearchIntegrationTest {
 
     @Autowired
@@ -27,6 +28,16 @@ class ContentSearchIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    private final List<Long> insertedContentIds = new ArrayList<>();
+
+    @AfterEach
+    void removeTestContent() {
+        for (Long contentId : insertedContentIds) {
+            jdbcTemplate.update("DELETE FROM contents WHERE id = ?", contentId);
+        }
+        insertedContentIds.clear();
+    }
 
     @Test
     void repeatedUpsertKeepsOneChineseSearchableBody() {
@@ -103,10 +114,12 @@ class ContentSearchIntegrationTest {
                 "contents/NOTE/" + slug + ".md",
                 summary,
                 status);
-        return jdbcTemplate.queryForObject(
+        Long contentId = jdbcTemplate.queryForObject(
                 "SELECT id FROM contents WHERE slug = ?",
                 Long.class,
                 slug);
+        insertedContentIds.add(contentId);
+        return contentId;
     }
 
     private java.util.List<Long> searchIds(String query) {
