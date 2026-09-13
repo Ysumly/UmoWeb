@@ -1,8 +1,8 @@
 # UmoWeb 前端架构
 
-> 基线日期: 2026-09-11
+> 基线日期: 2026-09-13
 > 项目路径: `Client Side/umo-web-frontend/`
-> 状态: 公开端、公开在线编辑器和管理端核心业务页均已实现
+> 状态: 公开端、公开在线编辑器、隐私说明和管理端核心业务页均已实现
 
 ---
 
@@ -43,6 +43,7 @@ umo-web-frontend/
 ├── public/
 │   ├── favicon.png
 │   ├── umo-logo.png
+│   ├── privacy-config.json
 │   └── icons.svg
 └── src/
     ├── main.js
@@ -58,6 +59,7 @@ umo-web-frontend/
     │   ├── theme.js
     │   └── useTheme.js
     ├── utils/
+    │   ├── accessPrivacy.js
     │   ├── adminContent.js
     │   ├── apiError.js
     │   ├── editor.js
@@ -94,6 +96,7 @@ umo-web-frontend/
         │   ├── AboutPage.vue
         │   ├── ProjectPage.vue
         │   ├── EditorPage.vue
+        │   ├── PrivacyPage.vue
         │   └── NotFoundPage.vue
         └── admin/
             ├── LoginPage.vue
@@ -136,6 +139,7 @@ umo-web-frontend/
 | `/about` | `about` | `AboutPage.vue` | 已接入真实 API |
 | `/project` | `project` | `ProjectPage.vue` | 已接入真实 API |
 | `/editor` | `editor` | `EditorPage.vue` | 纯浏览器本地编辑器 |
+| `/privacy` | `privacy` | `PrivacyPage.vue` | 读取运行时访问保留策略 |
 | `/secret-admin` | - | `AdminLayout.vue` | 重定向到文章页 |
 | `/secret-admin/login` | `login` | `LoginPage.vue` | 已实现 |
 | `/secret-admin/contents` | `admin-contents` | `ContentListPage.vue` | 已接入真实 API |
@@ -219,6 +223,7 @@ token 来源和存储位置都是 `localStorage`。
 | `OptionPage.vue` | 站点信息、About/Project Markdown 预览、统一保存和部分失败反馈 |
 | `ChangePasswordPage.vue` | 密码校验、修改后清 token、跳转登录页 |
 | `EditorPage.vue` | `.md` 导入/下载、Markdown 编辑与安全预览、移动端切换和本地草稿恢复 |
+| `PrivacyPage.vue` | 展示收集目的、六字段边界、实际保留期、管理员访问边界和第三方限制 |
 | `NotFoundPage.vue` | 公开端视觉样式，提供返回首页和书库入口 |
 
 ### 7.2 公开端真实 API
@@ -261,7 +266,10 @@ server: {
 }
 ```
 
-2026-09-12 执行 `npm test`、`npm run build` 和 `npm run test:e2e` 成功。当前 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；Playwright 另含 20 个 functional 和 14 个视觉检查。
+2026-09-13 执行 `npm test`、`npm run build` 和新增隐私测试成功。当前 49 个 Node 测试覆盖路由、
+管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
+静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；Playwright 另含 21 个 functional
+和 14 个视觉检查。
 
 ---
 
@@ -272,7 +280,7 @@ server: {
 
 1. 第一阶段完成正式数据、HTTPS、备份恢复和上线回滚。
 2. 第二阶段已接入 CI、Linux Playwright、真实 MySQL 集成和本地版本化镜像发布/回滚；
-   安全访问统计仍待后续任务。
+   安全访问统计已实现，等待 `v1.0.0-rc.2` ECS 发布验收。
 3. 第三阶段完成 Markdown 导入、子分类筛选、图片删除、全文搜索和四个训练游戏。
 4. 第四阶段在需求明确后评估 AI 能力，当前暂缓。
 

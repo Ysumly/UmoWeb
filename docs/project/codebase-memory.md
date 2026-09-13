@@ -349,6 +349,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 管理端站点设置：统一读取/保存四项配置，About/Project 支持 Markdown 预览、部分保存反馈和缓存刷新。
 - 管理端修改密码：独立受保护页面；成功后清理本地 token，并在登录页提示重新登录。
 - 公开在线 Markdown 编辑器：导入/下载 `.md`、实时安全预览、移动端编辑/预览切换和 `umo-editor-draft-v1` 本地草稿恢复。
+- 公开隐私说明：`/privacy` 读取 `/privacy-config.json`，展示实际原始日志与匿名聚合保留期；
+  配置不可读时不展示未经确认的天数。
 - 公开端布局、页头页脚、主题切换和 `v-reveal` 滚动揭示指令。
 - Markdown `h1` 由共享 `.markdown-body` 规则统一，公开文章页与管理端预览字号、字重和行高一致。
 - 首页、书库、搜索、文章详情、About 和 Project 已接入真实公开 API。
@@ -357,6 +359,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 亮暗双主题，主题值写入 `data-theme` 并持久化到 `localStorage`。
 - 基于服务端契约的书库筛选/分页、搜索 429 倒计时、Markdown 渲染和代码高亮。
 - 404 页面采用公开端视觉布局。
+- 公开端已有 8 个业务路由：首页、书库、搜索、文章详情、About、Project、在线编辑器、
+  隐私说明；另有 404 回退。
 
 ### 6.2 其他前端事实
 
@@ -379,6 +383,12 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `.env.docker` 由 `scripts/docker-up.ps1` 自动生成并被 Git 忽略，示例见 `.env.docker.example`。
 - Nginx 代理 `/api/**` 和 `/images/**`，SPA 路由回退到 `index.html`，上传请求上限 52MB。
 - Docker 默认网络为 `172.30.0.0/24`，前端固定为 `172.30.0.10`，后端只信任该地址 `/32` 转发的 `X-Forwarded-For`。
+- Nginx 使用 JSON 六字段访问日志：客户端 IP、ISO 8601 时间、HTTP 方法、无查询字符串的真实路径、
+  状态码和响应字节数；日志写入 `access/logs` 绑定目录，不记录请求体、Cookie、Authorization、
+  Referer 或 User-Agent。
+- `scripts/access/` 提供可信代理配置、每日轮转、7–30 天原始日志清理、180 天默认匿名聚合、
+  零依赖 HTML 报表和 systemd 安装入口。报表包含保留期内 IP，只写入管理员权限目录并由
+  专用非 root 服务监听 `127.0.0.1`。
 
 ### 6.4 阿里云 ECS 公网测试部署
 
@@ -402,7 +412,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 2026-09-12 已验证首页、公开 API、管理员登录和公网访问；三个容器均为 healthy，
   Docker 服务已设置开机自启。
 - 当前是公网测试部署，使用正式内容，没有域名或 HTTPS；自动备份和正式数据恢复演练已完成，
-  基础 CI、Linux Playwright、真实 MySQL 集成和本地镜像发布/回滚已接入；安全访问统计尚未接入。
+  基础 CI、Linux Playwright、真实 MySQL 集成和本地镜像发布/回滚已接入；Task 2.5 代码与本机
+  验证已完成，等待 `v1.0.0-rc.2` 的 ECS 发布验收。
 - 实例标识、公网地址、随机管理路径、数据库密码、JWT secret 和管理员密码只保存在服务器侧，
   不进入版本库。
 - 开发机已安装阿里云 Workbench CLI v1.0.1，绝对路径为
@@ -439,8 +450,10 @@ Spring Multipart 限制单文件和请求均为 50MB。
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
 - 内容导入器有 6 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、图片重写、内容去重、
   Linux 文件所有权和缺失素材阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 27 个接口。
-- 前端 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- Playwright 每个平台运行 34 个浏览器检查：20 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+- 前端 49 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
+- Playwright 每个平台运行 35 个浏览器检查：21 个 functional 用例覆盖公开端、隐私说明、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+- 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
+  IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
 - Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；
   Windows 默认 Chrome channel，Linux CI 使用锁定 Playwright 版本的 Chromium。
 - 仓库分别保存 14 张 `win32` 和 14 张 `linux` 视觉快照；Linux 快照通过手动

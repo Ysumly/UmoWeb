@@ -372,3 +372,75 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
   `4d320a5ca115d63a71afe644493b99ee51d59350f057223f50c4827389bf93d8`。
 - 发布、baseline 回滚和 rc.1 恢复分别约 170、120、122 秒。每一步都通过 ECS 本地容器、
   首页、公开 API、管理员登录和公网入口验证。
+
+## 10. 访问安全日志与报表
+
+### 10.1 日志边界
+
+Nginx 将每个请求写成一行 JSON，只包含：
+
+```text
+time, ip, method, path, status, bytes
+```
+
+`path` 是真实请求路由，不包含 `?` 后的查询参数。请求体、Cookie、Authorization、
+Referer 和 User-Agent 永远不进入该日志。默认 `ACCESS_TRUSTED_PROXIES` 为空；
+只有在最终上游代理拓扑确定后，才在 `/etc/umoweb/access.env` 填写可信 IP 或 CIDR。
+
+### 10.2 安装与检查
+
+发布入口会同步 `scripts/access/` 并执行：
+
+```bash
+/opt/umoweb/scripts/access/install-access-timer.sh
+```
+
+默认策略：
+
+- 原始日志保留 30 天，允许配置 7–30 天。
+- 每日删除超期原始日志，长期匿名聚合默认保留 180 天。
+- systemd timer 每日 `02:40` 后运行，允许 5 分钟随机延迟并支持补跑。
+- 报表服务以专用非 root 账户运行，只监听 `127.0.0.1:7890`。
+
+配置和运行目录：
+
+```text
+/etc/umoweb/access.env
+/opt/umoweb/access/logs/
+/opt/umoweb/access/aggregates/
+/opt/umoweb/access/reports/
+```
+
+目录权限目标为 `0750`，文件目标权限为 `0640`。修改 `/etc/umoweb/access.env` 后重新执行安装脚本，
+它会重新生成 `/privacy-config.json` 并重启报表服务。
+
+### 10.3 运维命令
+
+```bash
+systemctl status umoweb-access-maintenance.timer
+systemctl list-timers umoweb-access-maintenance.timer
+systemctl start umoweb-access-maintenance.service
+journalctl -u umoweb-access-maintenance.service -n 120 --no-pager
+
+systemctl status umoweb-access-report.service
+curl --fail http://127.0.0.1:7890/healthz
+```
+
+查看报表时不新增公网端口。在开发机建立 SSH 隧道：
+
+```bash
+ssh -L 7890:127.0.0.1:7890 <deployment-user>@<server>
+```
+
+然后在开发机打开 `http://127.0.0.1:7890/`。报表包含保留期内的原始 IP，只能由管理员访问，
+并随原始日志保留策略删除；长期聚合文件仍然不含 IP。
+
+### 10.4 部署验收
+
+```bash
+/opt/umoweb/scripts/access/verify-access-deployment.sh http://127.0.0.1:8080
+```
+
+该脚本验证公开隐私配置、目录/文件权限、报表回环监听、六字段日志、真实路径和无查询参数，
+以及非可信 `X-Forwarded-For` 不会被采用。发布 manifest 含 `accessPolicy` 时，
+远端版本切换会自动运行该验收；缺少该字段的旧 manifest 仍可用于回滚。
