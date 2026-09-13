@@ -2717,6 +2717,25 @@ svg {
   cursor: pointer;
 }
 
+.admin-import-result {
+  align-items: flex-start;
+}
+
+.admin-import-result strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.admin-import-result ul {
+  margin: 7px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.admin-import-result li + li {
+  margin-top: 4px;
+}
+
 .admin-management-panel {
   display: flex;
   flex-direction: column;

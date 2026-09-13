@@ -2,7 +2,7 @@
 
 > 基线日期: 2026-09-13
 > 项目路径: `Client Side/umo-web-frontend/`
-> 状态: 公开端、公开在线编辑器、隐私说明和管理端核心业务页均已实现
+> 状态: 公开端、公开在线编辑器、隐私说明和管理端核心业务页均已实现；新建文章支持 Markdown 导入
 
 ---
 
@@ -17,6 +17,7 @@
 | Axios | 1.18.x | REST 请求 |
 | marked | 18.x | 公开详情、About 和 Project 的 Markdown 渲染能力 |
 | highlight.js | 11.x | Markdown 代码块高亮，按语言注册 |
+| yaml | 2.9.x | 管理端 Markdown front matter 解析 |
 | Tailwind CSS | 4.3.x | utility-first 样式 |
 | Playwright Test | 1.63.x | 本机 Chrome 浏览器 E2E 与视觉回归 |
 
@@ -64,6 +65,7 @@ umo-web-frontend/
     │   ├── apiError.js
     │   ├── editor.js
     │   ├── format.js
+    │   ├── markdownImport.js
     │   ├── markdown.js
     │   └── publicContent.js
     ├── api/
@@ -143,7 +145,7 @@ umo-web-frontend/
 | `/secret-admin` | - | `AdminLayout.vue` | 重定向到文章页 |
 | `/secret-admin/login` | `login` | `LoginPage.vue` | 已实现 |
 | `/secret-admin/contents` | `admin-contents` | `ContentListPage.vue` | 已接入真实 API |
-| `/secret-admin/contents/new` | `content-new` | `ContentEditPage.vue` | 已接入真实 API |
+| `/secret-admin/contents/new` | `content-new` | `ContentEditPage.vue` | 已接入真实 API 和 Markdown 导入 |
 | `/secret-admin/contents/:id/edit` | `content-edit` | `ContentEditPage.vue` | 已接入真实 API |
 | `/secret-admin/categories` | `admin-cats` | `CategoryManagePage.vue` | 已接入真实 API |
 | `/secret-admin/tags` | `admin-tags` | `TagManagePage.vue` | 已接入真实 API |
@@ -217,7 +219,7 @@ token 来源和存储位置都是 `localStorage`。
 | `LoginPage.vue` | 表单、调用登录 API、错误提示、跳转 |
 | `AdminLayout.vue` | 桌面侧栏、移动抽屉、主题切换、退出登录和 `router-view` |
 | `ContentListPage.vue` | 文章筛选、分页、状态展示、编辑和删除 |
-| `ContentEditPage.vue` | 新建/编辑、分类标签、metadata、Markdown 分屏预览、图片上传和未保存保护 |
+| `ContentEditPage.vue` | 新建/编辑、Markdown front matter 导入、分类标签、metadata、分屏预览、图片上传和未保存保护 |
 | `CategoryManagePage.vue` | 分类树筛选、父级/排序字段、增改删、409 提示和未保存保护 |
 | `TagManagePage.vue` | 标签增改删、字段校验、409 提示和未保存保护 |
 | `OptionPage.vue` | 站点信息、About/Project Markdown 预览、统一保存和部分失败反馈 |
@@ -266,9 +268,9 @@ server: {
 }
 ```
 
-2026-09-13 执行 `npm test`、`npm run build` 和新增隐私测试成功。当前 49 个 Node 测试覆盖路由、
+2026-09-13 执行 `npm test`、`npm run build` 和完整 Playwright 测试成功。当前 55 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
-静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；Playwright 另含 21 个 functional
+Markdown front matter 导入、静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；Playwright 另含 24 个 functional
 和 14 个视觉检查。
 
 ---

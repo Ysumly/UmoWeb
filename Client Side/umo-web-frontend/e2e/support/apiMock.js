@@ -422,6 +422,9 @@ async function handleAdminApi(route, state, pathname, searchParams) {
     if (method === 'POST') {
       const payload = route.request().postDataJSON()
       const content = normalizeContentPayload(payload, { id: nextId(state.contents) })
+      if (state.contents.some((item) => item.slug === content.slug)) {
+        return error(route, 409, `文章 slug 已存在: ${content.slug}`)
+      }
       state.contents.push(content)
       return json(route, enrichContent(content, state))
     }

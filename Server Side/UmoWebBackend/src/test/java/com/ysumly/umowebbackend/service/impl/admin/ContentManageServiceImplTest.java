@@ -8,7 +8,9 @@ import com.ysumly.umowebbackend.mapper.ContentMapper;
 import com.ysumly.umowebbackend.mapper.ContentTagMapper;
 import com.ysumly.umowebbackend.mapper.TagMapper;
 import com.ysumly.umowebbackend.model.dto.ContentSaveRequest;
+import com.ysumly.umowebbackend.model.entity.Category;
 import com.ysumly.umowebbackend.model.entity.Content;
+import com.ysumly.umowebbackend.model.entity.Tag;
 import com.ysumly.umowebbackend.service.ContentVOMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -136,6 +138,30 @@ class ContentManageServiceImplTest {
         ArgumentCaptor<Content> captor = ArgumentCaptor.forClass(Content.class);
         verify(contentMapper).insert(captor.capture());
         assertThat(captor.getValue().getMetadata()).isNull();
+    }
+
+    @Test
+    void createStoresMarkdownDatabaseRecordAndAssociations() throws IOException {
+        when(contentMapper.countBySlug("new-note", null)).thenReturn(0L);
+        when(categoryMapper.findByIds(List.of(1L))).thenReturn(List.of(new Category()));
+        when(tagMapper.findByIds(List.of(2L))).thenReturn(List.of(new Tag()));
+        doAnswer(invocation -> {
+            Content content = invocation.getArgument(0);
+            content.setId(7L);
+            return null;
+        }).when(contentMapper).insert(any(Content.class));
+
+        ContentSaveRequest request = noteRequest("new-note", "# 正文");
+        request.setCategoryIds(List.of(1L));
+        request.setTagIds(List.of(2L));
+
+        var created = service.create(request);
+
+        assertThat(created.getTitle()).isEqualTo("Title");
+        assertThat(created.getBody()).isEqualTo("# 正文");
+        assertThat(fileUtil.readMarkdown("contents/NOTE/new-note.md")).isEqualTo("# 正文");
+        verify(contentCategoryMapper).insert(7L, 1L);
+        verify(contentTagMapper).insert(7L, 2L);
     }
 
     @Test

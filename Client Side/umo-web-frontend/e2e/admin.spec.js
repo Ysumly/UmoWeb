@@ -186,6 +186,102 @@ test('metadata 更多说明可以展开常用字段', async ({ page, apiMock }) 
   await expect(details.getByText('JSON 不支持注释')).toBeVisible()
 })
 
+test('从 Markdown front matter 预填并创建文章', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  await page.getByRole('button', { name: '导入 Markdown' }).click()
+  await page.getByLabel('选择 Markdown 文件').setInputFiles({
+    name: 'front-matter-note.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from([
+      '---',
+      'title: 导入的文章',
+      'slug: imported-note',
+      'summary: 来自 front matter',
+      'type: NOTE',
+      'status: DRAFT',
+      'categorySlugs: [notes]',
+      'tagSlugs: [vue]',
+      'metadata:',
+      '  readingTime: 8',
+      '---',
+      '# 导入的文章',
+      '',
+      '正文内容。',
+      '',
+      '![本地图](./local.png)',
+    ].join('\n')),
+  })
+
+  await expect(page.getByRole('status', { name: 'Markdown 导入结果' })).toContainText(
+    '已读取 front-matter-note.md',
+  )
+  await expect(page.getByLabel(/^标题/)).toHaveValue('导入的文章')
+  await expect(page.getByLabel(/^slug/)).toHaveValue('imported-note')
+  await expect(page.getByLabel('摘要')).toHaveValue('来自 front matter')
+  await expect(page.getByLabel('metadata')).toHaveValue('{\n  "readingTime": 8\n}')
+  await expect(page.getByText('图片引用不会自动上传：./local.png')).toBeVisible()
+  await expect(page.locator('.admin-editor-pane--preview').getByRole('heading', {
+    name: '导入的文章',
+  })).toBeVisible()
+
+  await page.getByRole('button', { name: '创建文章' }).click()
+  await expect(page).toHaveURL(/\/secret-admin\/contents\?saved=1/)
+  await expect(page.getByText('文章已保存')).toBeVisible()
+  const imported = apiMock.state.contents.find((content) => content.slug === 'imported-note')
+  expect(imported).toMatchObject({
+    title: '导入的文章',
+    summary: '来自 front matter',
+    type: 'NOTE',
+    status: 'DRAFT',
+    categoryIds: [1],
+    tagIds: [1],
+    metadata: { readingTime: 8 },
+  })
+  expect(imported.body).toContain('![本地图](./local.png)')
+})
+
+test('非法 Markdown 不覆盖当前文章表单', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  await page.getByLabel(/^标题/).fill('保留当前草稿')
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '导入 Markdown' }).click()
+  await page.getByLabel('选择 Markdown 文件').setInputFiles({
+    name: 'broken.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from('---\ntitle: [broken\n---\n# 正文'),
+  })
+
+  await expect(page.getByRole('alert')).toContainText('YAML 解析失败')
+  await expect(page.getByLabel(/^标题/)).toHaveValue('保留当前草稿')
+})
+
+test('Markdown 导入遇到重复 slug 时留在编辑器等待修正', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  await page.getByRole('button', { name: '导入 Markdown' }).click()
+  await page.getByLabel('选择 Markdown 文件').setInputFiles({
+    name: 'duplicate.md',
+    mimeType: 'text/markdown',
+    buffer: Buffer.from([
+      '---',
+      'title: 重复文章',
+      'slug: first-public',
+      '---',
+      '# 重复文章',
+    ].join('\n')),
+  })
+  await page.getByRole('button', { name: '创建文章' }).click()
+
+  await expect(page.getByRole('alert')).toContainText('文章 slug 已存在')
+  await expect(page).toHaveURL(/\/secret-admin\/contents\/new$/)
+  await expect(page.getByLabel(/^slug/)).toHaveValue('first-public')
+})
+
 test('站点设置保存后刷新公开站点缓存', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/options')

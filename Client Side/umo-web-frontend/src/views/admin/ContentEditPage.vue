@@ -28,6 +28,10 @@ import {
   validateImageFile,
 } from '@/utils/adminContent'
 import { getApiErrorMessage } from '@/utils/apiError'
+import {
+  parseMarkdownImport,
+  validateMarkdownImportFile,
+} from '@/utils/markdownImport'
 import { flattenCategoryTree } from '@/utils/publicContent'
 
 const route = useRoute()
@@ -47,10 +51,13 @@ const tags = ref([])
 const errors = ref({})
 const textareaRef = ref(null)
 const fileInputRef = ref(null)
+const markdownFileInputRef = ref(null)
 const initialSnapshot = ref('')
 const pendingSelection = ref(null)
 const categoryPage = ref(1)
 const tagPage = ref(1)
+const importMessage = ref('')
+const importWarnings = ref([])
 
 const form = reactive({
   title: '',
@@ -109,6 +116,55 @@ function friendlySaveError(error) {
     return '图片或请求内容超过 50MB'
   }
   return getApiErrorMessage(error, '文章保存失败')
+}
+
+function openMarkdownPicker() {
+  if (dirty.value && !window.confirm('导入会覆盖当前表单内容，确定继续吗？')) {
+    return
+  }
+  importMessage.value = ''
+  importWarnings.value = []
+  markdownFileInputRef.value?.click()
+}
+
+async function handleMarkdownFileInput(event) {
+  const [file] = event.target.files || []
+  event.target.value = ''
+  if (!file) {
+    return
+  }
+
+  const validationMessage = validateMarkdownImportFile(file)
+  if (validationMessage) {
+    generalError.value = validationMessage
+    return
+  }
+
+  try {
+    const result = parseMarkdownImport({
+      filename: file.name,
+      source: await file.text(),
+      categories: allCategories.value,
+      tags: tags.value,
+    })
+    if (!result.form) {
+      generalError.value = result.errors.import || 'Markdown 导入失败'
+      return
+    }
+
+    Object.assign(form, result.form)
+    errors.value = result.errors
+    importWarnings.value = result.warnings
+    importMessage.value = `已读取 ${file.name}`
+    generalError.value = Object.keys(result.errors).length
+      ? 'Markdown 已读取，请检查表单中的错误项'
+      : ''
+    categoryPage.value = 1
+    tagPage.value = 1
+    mobilePane.value = 'editor'
+  } catch (error) {
+    generalError.value = error?.message || 'Markdown 读取失败'
+  }
 }
 
 function handleTypeChange() {
@@ -313,6 +369,23 @@ onBeforeUnmount(() => {
             返回列表
           </button>
           <button
+            v-if="!isEdit"
+            class="button button--outline"
+            type="button"
+            :disabled="saving || uploading"
+            @click="openMarkdownPicker"
+          >
+            导入 Markdown
+          </button>
+          <input
+            ref="markdownFileInputRef"
+            class="sr-only"
+            type="file"
+            accept=".md,.markdown,text/markdown,text/plain"
+            aria-label="选择 Markdown 文件"
+            @change="handleMarkdownFileInput"
+          />
+          <button
             class="button button--primary"
             type="button"
             :disabled="saving || uploading"
@@ -326,6 +399,20 @@ onBeforeUnmount(() => {
       <div v-if="generalError" class="admin-notice" role="alert">
         {{ generalError }}
         <button type="button" @click="generalError = ''">关闭</button>
+      </div>
+
+      <div
+        v-if="importMessage"
+        class="admin-notice admin-import-result"
+        role="status"
+        aria-label="Markdown 导入结果"
+      >
+        <div>
+          <strong>{{ importMessage }}</strong>
+          <ul v-if="importWarnings.length">
+            <li v-for="warning in importWarnings" :key="warning">{{ warning }}</li>
+          </ul>
+        </div>
       </div>
 
       <div class="admin-editor-layout">

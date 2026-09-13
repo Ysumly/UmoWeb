@@ -93,7 +93,7 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 83 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 84 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器和登录限流测试。MockMvc 边界测试不连接 MySQL；
 `UmoWebBackendApplicationTests` 仍是一条空测试，不会加载完整 Spring Context。
 
@@ -151,20 +151,24 @@ npm test
 npm run test:e2e
 ```
 
-2026-09-12 已验证：
+2026-09-13 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
-- 前端 49 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、API 错误解析、日期格式、查询规范化和 Markdown 安全。
-- Playwright 35 个浏览器检查，其中 21 个 functional 用例覆盖公开端、隐私说明、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖核心页面的桌面与 390px 基线。
+- 前端 55 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、API 错误解析、日期格式、查询规范化和 Markdown 安全。
+- Playwright 38 个浏览器检查，其中 24 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入），14 个视觉断言覆盖核心页面的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
   MySQL 副本、`api-smoke.py`/`api-smoke.ps1` 和第 2.8 节的 CI 集成 job 验证。
 
 2026-09-13 已验证：
 
-- Windows 本机 Chrome 当前运行 35 个 Playwright 检查，原有 `win32` 视觉快照未变化。
-- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 35 个检查，
-  同一提交连续两轮均为 34/34，通过独立的 `linux` 视觉快照验证。
+- Windows 本机 Chrome 当前运行 38 个 Playwright 检查，原有 `win32` 视觉快照未变化。
+- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 38 个检查，
+  通过独立的 `linux` 视觉快照验证。
 - `browser` job 失败时会保留 Playwright HTML 报告、trace 和失败截图 artifact。
+
+管理端 Markdown 导入用例覆盖：YAML front matter 与无 front matter 回退、字段错误、相对图片警告、
+非法 YAML 不覆盖当前表单、创建 payload 落库以及重复 slug 留在编辑器修正。导入器只预填现有表单，
+不新增 API，真实数据库与 Markdown 文件一致性仍由文章创建接口的服务层测试和 MySQL 冒烟覆盖。
 
 ### 2.4 Playwright 浏览器回归
 
@@ -180,7 +184,7 @@ npm run test:e2e
 3. Windows 默认使用本机稳定版 Chrome channel，Linux CI 使用锁定 Playwright 版本的
    Chromium；可通过 `PLAYWRIGHT_CHANNEL` 显式覆盖。
 4. 浏览器级路由拦截 `/api/**`，每个测试使用独立的状态化 Mock API。
-5. functional 项目覆盖公开阅读、在线编辑器、管理端认证与 CRUD，以及 390px 布局。
+5. functional 项目覆盖公开阅读、在线编辑器、管理端认证、Markdown 导入与 CRUD，以及 390px 布局。
 6. visual-desktop 和 visual-mobile 项目比较 14 张页面截图。
 
 更新 Windows 视觉基线：
