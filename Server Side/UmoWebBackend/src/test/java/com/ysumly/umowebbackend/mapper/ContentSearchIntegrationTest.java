@@ -87,16 +87,16 @@ class ContentSearchIntegrationTest {
 
     @Test
     void searchMatchesTitleSummaryAndBodyButNeverDraft() {
-        long titleId = insertContent("标题独有词", "普通摘要", "PUBLISHED");
-        long summaryId = insertContent("普通标题", "摘要独有词", "PUBLISHED");
+        long titleId = insertContent("甲丙标题词", "普通摘要", "PUBLISHED");
+        long summaryId = insertContent("普通标题", "乙丁摘要词", "PUBLISHED");
         long bodyId = insertContent("普通标题二", "普通摘要二", "PUBLISHED");
         long draftId = insertContent("草稿标题", "草稿摘要", "DRAFT");
-        contentSearchMapper.upsert(bodyId, "正文独有词只存在于已发布正文");
-        contentSearchMapper.upsert(draftId, "正文独有词只存在于草稿正文");
+        contentSearchMapper.upsert(bodyId, "戊己正文词只存在于已发布正文");
+        contentSearchMapper.upsert(draftId, "戊己正文词只存在于草稿正文");
 
-        assertThat(searchIds("标题独有词")).containsExactly(titleId);
-        assertThat(searchIds("摘要独有词")).containsExactly(summaryId);
-        assertThat(searchIds("正文独有词")).containsExactly(bodyId);
+        assertThat(searchIds("甲丙标题词")).containsExactly(titleId);
+        assertThat(searchIds("乙丁摘要词")).containsExactly(summaryId);
+        assertThat(searchIds("戊己正文词")).containsExactly(bodyId);
         assertThat(searchIds("")).contains(titleId, summaryId, bodyId).doesNotContain(draftId);
     }
 
