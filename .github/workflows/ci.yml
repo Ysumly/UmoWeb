@@ -48,6 +48,14 @@ jobs:
       - name: Scan tracked files for sensitive information
         run: bash scripts/ci/scan-sensitive-info.sh
 
+      - name: Test release scripts
+        shell: bash
+        run: bash scripts/release/tests/release-unit.sh
+
+      - name: Test PowerShell release helpers
+        shell: pwsh
+        run: ./scripts/release/tests/release-unit.ps1
+
   backend:
     name: Backend tests
     runs-on: ubuntu-latest

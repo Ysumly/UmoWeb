@@ -312,7 +312,36 @@ bash scripts/ci/tests/scan-sensitive-info-test.sh
 拒绝公开 IPv4、ECS 实例 ID、AccessKey、Token、私钥头及误提交的 `.env*` 文件。
 
 当前仓库是私有仓库，GitHub 计划不支持分支保护和规则集，因此 CI 失败不能技术性地阻止合并。
-Task 2.4 必须在镜像发布流程中把 CI 成功作为前置条件。
+本地镜像发布入口会显式查询当前 commit 的成功 push CI，并把它作为构建和发布的前置条件。
+
+### 2.9 本地镜像发布与回滚
+
+发布脚本自测：
+
+```powershell
+pwsh -NoProfile -File scripts\release\tests\release-unit.ps1
+```
+
+```bash
+bash scripts/release/tests/release-unit.sh
+```
+
+PowerShell 测试覆盖版本和参数校验、CI run 选择、manifest 生成、敏感字段不泄露、归档保留和
+Workbench 调用入口。Bash 测试覆盖 env 原子更新、归档 SHA-256/大小、镜像 ID、发布锁、
+Compose 健康解析、失败自动回滚、成功后状态记录和远端归档清理。
+
+真实发布与回滚演练按
+[docker-guide.md](docker-guide.md) 第 9 节执行。验收顺序为：
+
+1. `CaptureBaseline` 保存当前 ECS 镜像。
+2. `Publish -Version v1.0.0-rc.1 -PublicBaseUrl <公网入口>`，确认 CI gate、构建、上传、
+   ECS 本地检查和公网检查通过。
+3. `Verify -PublicBaseUrl <公网入口>` 确认当前 release ID、镜像标签和 image ID。
+4. `Rollback -Artifact <baseline-directory> -PublicBaseUrl <公网入口>`，确认回落和健康检查通过。
+5. 再次发布 `v1.0.0-rc.1`，确认生产最终停留在目标版本。
+
+发布记录只在本仓库保留脱敏命令、耗时、版本、commit、镜像 ID 和归档 SHA-256；ECS 实例标识、
+公网地址、管理路径、数据库和管理员凭据不进入仓库。
 
 ---
 
