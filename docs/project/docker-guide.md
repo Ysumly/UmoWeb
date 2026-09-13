@@ -373,6 +373,19 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
 - 发布、baseline 回滚和 rc.1 恢复分别约 170、120、122 秒。每一步都通过 ECS 本地容器、
   首页、公开 API、管理员登录和公网入口验证。
 
+### 9.6 Task 2.5 最终发布
+
+- `v1.0.0-rc.3` 从提交 `59c6971200c5` 构建，发布 CI run `34745585756`；归档 SHA-256 为
+  `d41e5428006df342ffdaac74ba3b86a5c96fa51b479f44271fc8867d85f9450a`。
+- 后端 image ID 为
+  `sha256:a8064b459234ecf2679eeeca1fc9d560dc7975fb1b1b84dee19bb1d9807241d9`，前端 image ID 为
+  `sha256:eae3df2ed622e5bd7574b914493345cf196859d5ddbf57af3f719a2099ea18b2`。
+- rc.2 演练发现 ECS Compose 未随归档更新、Nginx 日志 umask、访问脚本权限和验证输出混杂问题；
+  修复后发布流程会同步 `compose.yaml`，前端镜像设置 `umask 0027`，验证输出写 stderr。
+- rc.3 发布后独立 `Verify`、ECS 27/27 冒烟、六字段日志、权限和回环报表验收通过；
+  `current.json` 的 operation 为 `deploy`。
+- `v1.0.0-rc.2` 仅保留为失败候选审计记录，不应作为回滚目标；当前生产版本为 rc.3。
+
 ## 10. 访问安全日志与报表
 
 ### 10.1 日志边界
@@ -392,7 +405,7 @@ Referer 和 User-Agent 永远不进入该日志。默认 `ACCESS_TRUSTED_PROXIES
 发布入口会同步 `scripts/access/` 并执行：
 
 ```bash
-/opt/umoweb/scripts/access/install-access-timer.sh
+bash /opt/umoweb/scripts/access/install-access-timer.sh
 ```
 
 默认策略：
@@ -438,7 +451,7 @@ ssh -L 7890:127.0.0.1:7890 <deployment-user>@<server>
 ### 10.4 部署验收
 
 ```bash
-/opt/umoweb/scripts/access/verify-access-deployment.sh http://127.0.0.1:8080
+bash /opt/umoweb/scripts/access/verify-access-deployment.sh http://127.0.0.1:80
 ```
 
 该脚本验证公开隐私配置、目录/文件权限、报表回环监听、六字段日志、真实路径和无查询参数，
