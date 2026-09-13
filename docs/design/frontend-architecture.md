@@ -279,8 +279,8 @@ server: {
 详细命令见 `docs/project/docker-guide.md`。后续工作按四阶段推进：
 
 1. 第一阶段完成正式数据、HTTPS、备份恢复和上线回滚。
-2. 第二阶段已接入 CI、Linux Playwright、真实 MySQL 集成和本地版本化镜像发布/回滚；
-   安全访问统计已实现，等待 `v1.0.0-rc.2` ECS 发布验收。
+2. 第二阶段已接入 CI、Linux Playwright、真实 MySQL 集成、本地版本化镜像发布/回滚和
+   自托管访问统计，`v1.0.0-rc.3` 已通过 ECS 验收。
 3. 第三阶段完成 Markdown 导入、子分类筛选、图片删除、全文搜索和四个训练游戏。
 4. 第四阶段在需求明确后评估 AI 能力，当前暂缓。
 

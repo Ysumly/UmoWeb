@@ -351,6 +351,13 @@ Compose 健康解析、失败自动回滚、成功后状态记录和远端归档
 - 回滚到 `baseline-20260913` 约 120 秒，image ID 恢复为发布前记录的原始前后端镜像。
 - 从开发机 rc.1 归档恢复生产约 122 秒；最终 `Verify` 返回 rc.1 及 manifest image ID。
 
+2026-09-13 Task 2.5 最终发布：
+
+- `v1.0.0-rc.3` 从提交 `59c6971200c5` 构建，发布 CI run 为 `34745585756`。
+- rc.2 演练暴露 Compose 未同步、日志 umask 和访问脚本权限问题；PR #9 修复后重新发布 rc.3。
+- ECS 串行执行 `api-smoke.py` 为 27/27，exit code 0；`Verify` 返回 rc.3 及 manifest image ID。
+- 访问 timer/report service 均 enabled/active，报表只监听 `127.0.0.1:7890`。
+
 ### 2.10 访问安全日志
 
 本机单元与安装渲染测试：
@@ -373,8 +380,8 @@ Nginx 测试发送带查询参数、Cookie、Authorization、Token、请求体�
 ECS 部署后的完整验收：
 
 ```bash
-/opt/umoweb/scripts/access/install-access-timer.sh
-/opt/umoweb/scripts/access/verify-access-deployment.sh http://127.0.0.1:8080
+bash /opt/umoweb/scripts/access/install-access-timer.sh
+bash /opt/umoweb/scripts/access/verify-access-deployment.sh http://127.0.0.1:80
 ```
 
 该验证交叉检查公开 `/privacy-config.json` 与 `/etc/umoweb/access.env`，检查
