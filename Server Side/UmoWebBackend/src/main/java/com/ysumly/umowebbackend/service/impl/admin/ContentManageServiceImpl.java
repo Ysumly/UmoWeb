@@ -13,6 +13,7 @@ import com.ysumly.umowebbackend.model.entity.Category;
 import com.ysumly.umowebbackend.model.entity.Content;
 import com.ysumly.umowebbackend.model.vo.ContentDetailVO;
 import com.ysumly.umowebbackend.model.vo.ContentListVO;
+import com.ysumly.umowebbackend.service.CategoryHierarchyResolver;
 import com.ysumly.umowebbackend.service.ContentVOMapper;
 import com.ysumly.umowebbackend.service.admin.ContentManageService;
 import org.slf4j.Logger;
@@ -39,6 +40,7 @@ public class ContentManageServiceImpl implements ContentManageService {
     private final TagMapper tagMapper;
     private final FileUtil fileUtil;
     private final ContentVOMapper voMapper;
+    private final CategoryHierarchyResolver categoryHierarchyResolver;
 
     public ContentManageServiceImpl(ContentMapper contentMapper,
                                     ContentCategoryMapper contentCategoryMapper,
@@ -46,7 +48,8 @@ public class ContentManageServiceImpl implements ContentManageService {
                                     CategoryMapper categoryMapper,
                                     TagMapper tagMapper,
                                     FileUtil fileUtil,
-                                    ContentVOMapper voMapper) {
+                                    ContentVOMapper voMapper,
+                                    CategoryHierarchyResolver categoryHierarchyResolver) {
         this.contentMapper = contentMapper;
         this.contentCategoryMapper = contentCategoryMapper;
         this.contentTagMapper = contentTagMapper;
@@ -54,12 +57,14 @@ public class ContentManageServiceImpl implements ContentManageService {
         this.tagMapper = tagMapper;
         this.fileUtil = fileUtil;
         this.voMapper = voMapper;
+        this.categoryHierarchyResolver = categoryHierarchyResolver;
     }
 
     @Override
     public PageResult<ContentListVO> list(ContentQuery query) {
-        List<Content> contents = contentMapper.findAll(query);
-        long total = contentMapper.countAll(query);
+        List<Long> categoryIds = categoryHierarchyResolver.resolve(query);
+        List<Content> contents = contentMapper.findAll(query, categoryIds);
+        long total = contentMapper.countAll(query, categoryIds);
         List<ContentListVO> items = assembleListVO(contents);
         return new PageResult<>(items, query.getPage(), query.getSize(), total);
     }

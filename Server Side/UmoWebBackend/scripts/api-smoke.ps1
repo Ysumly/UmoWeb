@@ -131,6 +131,7 @@ $pngBytes = [Convert]::FromBase64String(
 $token = $null
 $authHeaders = @{}
 $categoryId = $null
+$childCategoryId = $null
 $tagId = $null
 $contentId = $null
 $previousContentId = $null
@@ -219,6 +220,18 @@ try {
     Assert-True ($categoryUpdate.slug -eq $updatedCategorySlug) "category update must change slug"
     Step 12 "PUT /api/admin/categories/{id}"
 
+    $childCategorySlug = "smoke-child-category-$runId"
+    $childCategory = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/categories" -Headers $authHeaders `
+            -Body @{
+                name = "Smoke Child Category $runId"
+                slug = $childCategorySlug
+                parentId = $categoryId
+                type = "NOTE"
+                sortOrder = 101
+            })
+    Assert-True ($childCategory.id -gt 0) "created child category must have id"
+    $childCategoryId = $childCategory.id
+
     $adminTags = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/tags" -Headers $authHeaders)
     Assert-True ($null -ne $adminTags) "admin tag response must be an array"
     Step 13 "GET /api/admin/tags"
@@ -277,7 +290,7 @@ try {
                 summary = "Smoke search token $runId"
                 type = "NOTE"
                 status = "DRAFT"
-                categoryIds = @($categoryId)
+                categoryIds = @($childCategoryId)
                 tagIds = @($tagId)
                 metadata = '{"source":"api-smoke"}'
             })
@@ -291,7 +304,7 @@ try {
     $contentDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/contents/$contentId" -Headers $authHeaders)
     Assert-True ($contentDetail.body -eq "# Smoke`n`nInitial body") "admin content detail must load body"
     Assert-True ($contentDetail.status -eq "DRAFT") "admin content detail must expose DRAFT status"
-    Assert-True ($contentDetail.categories[0].id -eq $categoryId) "content detail must include created category"
+    Assert-True ($contentDetail.categories[0].id -eq $childCategoryId) "content detail must include created child category"
     Assert-True ($contentDetail.tags[0].id -eq $tagId) "admin content detail must include created tag"
     Step 18 "GET /api/admin/contents/{id}"
 
@@ -303,7 +316,7 @@ try {
                 summary = "Smoke search token $runId"
                 type = "NOTE"
                 status = "PUBLISHED"
-                categoryIds = @($categoryId)
+                categoryIds = @($childCategoryId)
                 tagIds = @($tagId)
                 metadata = '{"source":"api-smoke","updated":true}'
             })
@@ -318,7 +331,7 @@ try {
     $publicDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents/$contentSlug")
     Assert-True ($publicDetail.slug -eq $contentSlug) "public detail must return the published smoke content"
     Assert-True ($publicDetail.body -eq "# Smoke`n`nUpdated body") "public detail must load Markdown body"
-    Assert-True ($publicDetail.categories[0].id -eq $categoryId) "public detail must include the smoke category"
+    Assert-True ($publicDetail.categories[0].id -eq $childCategoryId) "public detail must include the smoke child category"
     Assert-True ($publicDetail.tags[0].id -eq $tagId) "public detail must include the smoke tag"
     Assert-True ($publicDetail.previous.slug -eq $previousContentSlug) "public detail must include the previous smoke content"
     Assert-True ($null -eq $publicDetail.next) "public detail must have no next content at the latest boundary"
@@ -327,7 +340,18 @@ try {
     Assert-True (($noteContents.items | Where-Object type -ne "NOTE").Count -eq 0) "public type filter must only return NOTE content"
     $categoryContents = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents?categoryId=$categoryId&page=1&size=100")
     $expectedSlugs = @($contentSlug, $previousContentSlug)
-    Assert-True (($categoryContents.items | Where-Object { $_.slug -notin $expectedSlugs }).Count -eq 0) "public category filter must only return smoke content"
+    Assert-True ($categoryContents.items.Count -eq 1 -and $categoryContents.items[0].slug -eq $previousContentSlug) `
+        "exact parent category filter must return only parent content"
+    $descendantCategoryContents = Get-Json (Invoke-Checked -Method GET `
+            -Path "/api/public/contents?categoryId=$categoryId&includeDescendants=true&page=1&size=100")
+    Assert-True ($descendantCategoryContents.items.Count -eq 2) `
+        "descendant category filter must return parent and child content"
+    Assert-True (($descendantCategoryContents.items | Where-Object { $_.slug -notin $expectedSlugs }).Count -eq 0) `
+        "descendant category filter must only return smoke content"
+    $adminDescendantContents = Get-Json (Invoke-Checked -Method GET -Headers $authHeaders `
+            -Path "/api/admin/contents?categoryId=$categoryId&includeDescendants=true&page=1&size=100")
+    Assert-True ($adminDescendantContents.items.Count -eq 2) `
+        "admin descendant category filter must return parent and child content"
     $tagContents = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents?tagId=$tagId&page=1&size=100")
     Assert-True (($tagContents.items | Where-Object { $_.slug -notin $expectedSlugs }).Count -eq 0) "public tag filter must only return smoke content"
     $previousDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents/$previousContentSlug")
@@ -352,6 +376,8 @@ try {
     $tagId = $null
     Step 23 "DELETE /api/admin/tags/{id}"
 
+    Invoke-Checked -Method DELETE -Path "/api/admin/categories/$childCategoryId" -Headers $authHeaders -ExpectedStatus 204 | Out-Null
+    $childCategoryId = $null
     Invoke-Checked -Method DELETE -Path "/api/admin/categories/$categoryId" -Headers $authHeaders -ExpectedStatus 204 | Out-Null
     $categoryId = $null
     Step 24 "DELETE /api/admin/categories/{id}"
@@ -383,6 +409,7 @@ finally {
     Remove-TestResource -Path "/api/admin/contents/$contentId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/contents/$previousContentId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/tags/$tagId" -Headers $authHeaders
+    Remove-TestResource -Path "/api/admin/categories/$childCategoryId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/categories/$categoryId" -Headers $authHeaders
     Remove-Item -LiteralPath $imagePath -Force -ErrorAction SilentlyContinue
 }

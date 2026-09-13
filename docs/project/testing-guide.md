@@ -93,9 +93,10 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 84 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
-Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器和登录限流测试。MockMvc 边界测试不连接 MySQL；
-`UmoWebBackendApplicationTests` 仍是一条空测试，不会加载完整 Spring Context。
+当前完整测试共 98 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流和分类层级解析测试。
+其中 3 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
+不连接 MySQL，`UmoWebBackendApplicationTests` 仍是一条空测试。
 
 ### 2.2 数据库迁移副本 + 全接口冒烟
 
@@ -138,6 +139,8 @@ cd "Server Side\UmoWebBackend"
 - 使用 MySQL 8.4 从空库执行 `schema.sql`、`seed-data.sql` 和兼容迁移脚本。
 - 兼容迁移连续执行两次并要求幂等；校验 `token_version`、3 个索引、5 个外键、
   种子行数和迁移后孤儿关系为 0。
+- 在真实库执行 `ContentCategoryFilterIntegrationTest`，覆盖根/子/孙内容、精确/后代模式、
+  管理端草稿、空结果、稳定排序和循环拒绝。
 - 使用 Java 17 构建并启动后端，使用独立临时存储和运行时测试凭据执行 `api-smoke.py`。
 - 冒烟断言覆盖公开筛选、详情分类/标签、前后文章、草稿隔离、密码失效、图片上传和 429。
 - 冒烟通过后校验图片记录与临时存储文件；job 退出时销毁后端进程、测试数据和临时文件。
@@ -154,15 +157,15 @@ npm run test:e2e
 2026-09-13 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
-- 前端 58 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、API 错误解析、日期格式、查询规范化和 Markdown 安全。
-- Playwright 39 个浏览器检查，其中 25 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入），14 个视觉断言覆盖核心页面的桌面与 390px 基线。
+- 前端 60 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、API 错误解析、日期格式、书库后代参数和 Markdown 安全。
+- Playwright 40 个浏览器检查，其中 26 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入与书库子分类筛选），14 个视觉断言覆盖核心页面的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
   MySQL 副本、`api-smoke.py`/`api-smoke.ps1` 和第 2.8 节的 CI 集成 job 验证。
 
 2026-09-13 已验证：
 
-- Windows 本机 Chrome 当前运行 39 个 Playwright 检查，原有 `win32` 视觉快照未变化。
-- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 39 个检查，
+- Windows 本机 Chrome 当前运行 40 个 Playwright 检查，原有 `win32` 视觉快照未变化。
+- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 40 个检查，
   通过独立的 `linux` 视觉快照验证。
 - `browser` job 失败时会保留 Playwright HTML 报告、trace 和失败截图 artifact。
 
@@ -294,8 +297,8 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
 - `repository`：检查变更范围空白错误，运行敏感信息扫描器、发布脚本、访问聚合/保留测试和
   Nginx 六字段日志容器测试，并扫描全部已跟踪文件。
 - `backend`：使用 Temurin Java 17 执行 `mvn -B test`。
-- `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，启动真实后端并执行
-  27/27 接口冒烟，同时校验上传文件和测试数据清理。
+- `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，运行分类层级
+  Mapper 集成测试，再启动真实后端执行 27/27 接口冒烟并校验上传文件和测试数据清理。
 - `frontend`：使用 Node 24.12.0 执行 `npm ci`、`npm test` 和 `npm run build`。
 - `browser`：使用 Node 24.12.0 安装锁定版本 Chromium，执行 `npm run test:e2e`；
   失败时上传 `playwright-report-<attempt>` artifact。
@@ -510,11 +513,13 @@ GET {{baseUrl}}/api/public/contents?page=1&size=10
 ```text
 type=NOTE
 categoryId=<分类 ID>
+categoryId=<父分类 ID>&includeDescendants=true
 tagId=<标签 ID>
 sort=created_at_desc
 ```
 
-注意：列表不返回草稿；`categoryId` 不包含子分类。
+注意：列表不返回草稿；`categoryId` 默认精确匹配，`includeDescendants=true` 时包含全部后代。
+单独传 `includeDescendants=true` 返回 400。
 
 ### 4.7 文章详情
 
@@ -800,9 +805,11 @@ PUT {{baseUrl}}/api/admin/options/site_title
 
 ```text
 categoryId=父分类 ID
+categoryId=父分类 ID&includeDescendants=true
 ```
 
-不会返回子分类内容。
+不传 `includeDescendants` 时不会返回子分类内容；传 `true` 后返回父分类和全部后代内容。
+命中范围内循环或超过 32 层返回 409。
 
 ### 8.4 搜索范围
 

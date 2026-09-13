@@ -20,10 +20,15 @@ export function resolveLibraryQuery(query = {}) {
   const type = PUBLIC_CONTENT_TYPES.includes(String(query.type))
     ? String(query.type)
     : ''
+  const categoryId = normalizePositiveInteger(query.category)
+  const includeDescendants = Boolean(
+    categoryId && String(query.includeDescendants) !== 'false',
+  )
 
   return {
     type,
-    categoryId: normalizePositiveInteger(query.category),
+    categoryId,
+    includeDescendants,
     tagId: normalizePositiveInteger(query.tag),
     page: normalizePositiveInteger(query.page, 1),
   }

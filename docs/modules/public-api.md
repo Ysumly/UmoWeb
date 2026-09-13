@@ -1,6 +1,6 @@
 # 公开端 API 实现
 
-> 基线日期: 2026-09-11
+> 基线日期: 2026-09-13
 > 前缀: `/api/public`
 > 接口数: 8
 
@@ -163,7 +163,8 @@ SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 | `page` | 1 | 1-1000000 |
 | `size` | 10 | 1-100 |
 | `type` | null | 枚举，非法值 400 |
-| `categoryId` | null | 精确匹配，不含子分类 |
+| `categoryId` | null | 默认精确匹配；配合 `includeDescendants=true` 时包含全部后代 |
+| `includeDescendants` | false | 必须与 `categoryId` 同时提供，单独传 `true` 返回 400 |
 | `tagId` | null | 精确匹配 |
 | `sort` | `published_at_desc` | 只有 `created_at_desc` 是特殊分支 |
 
@@ -209,10 +210,12 @@ SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 - Service 测试覆盖详情前后文章与边界 `null`。
 - 空分类和标签返回 `[]`。
 - `type` 过滤调用路径。
+- 分类子分类筛选语义由单元测试、真实 MySQL 环境门控测试和双冒烟脚本覆盖。
+
+分类后代由共享 `CategoryHierarchyResolver` 读取一次分类快照后展开，按访问路径检测循环，
+深度上限为 32；解析后的 ID 集合传给 Mapper。不存在的内容仍返回 200 空结果，内容按原有时间排序，
+相同时间使用 `id DESC` 保证稳定次序。
 
 尚未覆盖：
 
-- 真实 Mapper SQL。
-- 分类子分类筛选语义。
 - Markdown 文件读取或损坏场景。
-- 搜索限流拦截器和可信代理行为已由单元测试覆盖。

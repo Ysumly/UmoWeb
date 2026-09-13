@@ -9,6 +9,7 @@ import com.ysumly.umowebbackend.model.entity.Content;
 import com.ysumly.umowebbackend.model.vo.ContentDetailVO;
 import com.ysumly.umowebbackend.model.vo.ContentListVO;
 import com.ysumly.umowebbackend.model.vo.ContentNeighborVO;
+import com.ysumly.umowebbackend.service.CategoryHierarchyResolver;
 import com.ysumly.umowebbackend.service.ContentVOMapper;
 import com.ysumly.umowebbackend.service.open.ContentService;
 import org.springframework.stereotype.Service;
@@ -22,19 +23,23 @@ public class ContentServiceImpl implements ContentService {
     private final ContentMapper contentMapper;
     private final FileUtil fileUtil;
     private final ContentVOMapper voMapper;
+    private final CategoryHierarchyResolver categoryHierarchyResolver;
 
     public ContentServiceImpl(ContentMapper contentMapper,
                               FileUtil fileUtil,
-                              ContentVOMapper voMapper) {
+                              ContentVOMapper voMapper,
+                              CategoryHierarchyResolver categoryHierarchyResolver) {
         this.contentMapper = contentMapper;
         this.fileUtil = fileUtil;
         this.voMapper = voMapper;
+        this.categoryHierarchyResolver = categoryHierarchyResolver;
     }
 
     @Override
     public PageResult<ContentListVO> listPublished(ContentQuery query) {
-        List<Content> contents = contentMapper.findPublished(query);
-        long total = contentMapper.countPublished(query);
+        List<Long> categoryIds = categoryHierarchyResolver.resolve(query);
+        List<Content> contents = contentMapper.findPublished(query, categoryIds);
+        long total = contentMapper.countPublished(query, categoryIds);
         List<ContentListVO> items = assembleListVO(contents);
         return new PageResult<>(items, query.getPage(), query.getSize(), total);
     }

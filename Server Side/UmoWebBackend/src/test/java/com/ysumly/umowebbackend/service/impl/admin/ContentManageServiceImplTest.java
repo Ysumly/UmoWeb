@@ -8,10 +8,12 @@ import com.ysumly.umowebbackend.mapper.ContentMapper;
 import com.ysumly.umowebbackend.mapper.ContentTagMapper;
 import com.ysumly.umowebbackend.mapper.TagMapper;
 import com.ysumly.umowebbackend.model.dto.ContentSaveRequest;
+import com.ysumly.umowebbackend.model.dto.ContentQuery;
 import com.ysumly.umowebbackend.model.entity.Category;
 import com.ysumly.umowebbackend.model.entity.Content;
 import com.ysumly.umowebbackend.model.entity.Tag;
 import com.ysumly.umowebbackend.service.ContentVOMapper;
+import com.ysumly.umowebbackend.service.CategoryHierarchyResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,8 @@ class ContentManageServiceImplTest {
     private final ContentTagMapper contentTagMapper = mock(ContentTagMapper.class);
     private final CategoryMapper categoryMapper = mock(CategoryMapper.class);
     private final TagMapper tagMapper = mock(TagMapper.class);
+    private final CategoryHierarchyResolver categoryHierarchyResolver =
+            mock(CategoryHierarchyResolver.class);
 
     private FileUtil fileUtil;
     private ContentVOMapper voMapper;
@@ -63,7 +67,8 @@ class ContentManageServiceImplTest {
                 categoryMapper,
                 tagMapper,
                 fileUtil,
-                voMapper);
+                voMapper,
+                categoryHierarchyResolver);
         when(contentCategoryMapper.findLinksByContentIds(anyList())).thenReturn(List.of());
         when(contentTagMapper.findLinksByContentIds(anyList())).thenReturn(List.of());
     }
@@ -165,6 +170,21 @@ class ContentManageServiceImplTest {
     }
 
     @Test
+    void adminListUsesResolvedCategoryIds() {
+        ContentQuery query = new ContentQuery();
+        query.setCategoryId(1L);
+        query.setIncludeDescendants(true);
+        when(categoryHierarchyResolver.resolve(query)).thenReturn(List.of(1L, 2L));
+        when(contentMapper.findAll(query, List.of(1L, 2L))).thenReturn(List.of());
+        when(contentMapper.countAll(query, List.of(1L, 2L))).thenReturn(0L);
+
+        service.list(query);
+
+        verify(contentMapper).findAll(query, List.of(1L, 2L));
+        verify(contentMapper).countAll(query, List.of(1L, 2L));
+    }
+
+    @Test
     void updateDatabaseFailureKeepsOldFileAndOldDatabaseState() throws IOException {
         Content old = existingContent(1L, "article", "contents/NOTE/article.md", "old");
         when(contentMapper.findById(1L)).thenReturn(old);
@@ -234,7 +254,8 @@ class ContentManageServiceImplTest {
                 categoryMapper,
                 tagMapper,
                 failingFileUtil,
-                voMapper);
+                voMapper,
+                categoryHierarchyResolver);
 
         assertThatThrownBy(() -> failingService.update(1L, noteRequest("article", "new")))
                 .isInstanceOf(RuntimeException.class);

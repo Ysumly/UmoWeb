@@ -233,7 +233,7 @@ token 来源和存储位置都是 `localStorage`。
 以下页面读取现有公开接口，并提供加载、空数据、错误和重试状态：
 
 - 首页：站点介绍、主推文章、最新内容、类型入口和 About 预览。
-- 书库：类型、分类、标签服务端筛选和分页。
+- 书库：类型、分类、标签服务端筛选和分页；分类筛选默认包含全部后代。
 - 搜索：显式提交、URL 同步和 429 倒计时。
 - 文章详情：Markdown、代码高亮、分类标签和后端返回的前后文章。
 - About 与 Project：分别读取配置页 Markdown。
@@ -268,10 +268,11 @@ server: {
 }
 ```
 
-2026-09-13 执行 `npm test`、`npm run build` 和完整 Playwright 测试成功。当前 58 个 Node 测试覆盖路由、
+2026-09-13 执行 `npm test`、`npm run build` 和完整 Playwright 测试成功。当前 60 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
-Markdown front matter 导入、静态筛选、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；Playwright 另含 25 个 functional
-和 14 个视觉检查。
+Markdown front matter 导入、书库后代参数、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；
+Playwright 另含 26 个 functional 和 14 个视觉检查。书库选择分类时 URL 使用
+`category=<id>&includeDescendants=true`，显式 `false` 仍可请求精确匹配。
 
 ---
 

@@ -1,6 +1,7 @@
 package com.ysumly.umowebbackend.model.dto;
 
 import com.ysumly.umowebbackend.common.exception.BusinessException;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -24,6 +25,7 @@ public class ContentQuery {
     private String type;
 
     private Long categoryId;
+    private Boolean includeDescendants = false;
     private Long tagId;
 
     @Pattern(regexp = "DRAFT|PUBLISHED", message = "status 必须是 DRAFT 或 PUBLISHED")
@@ -43,5 +45,10 @@ public class ContentQuery {
             throw new BusinessException(400, "page 过大");
         }
         return (int) offset;
+    }
+
+    @AssertTrue(message = "includeDescendants 需要同时提供 categoryId")
+    public boolean isDescendantFilterValid() {
+        return !Boolean.TRUE.equals(includeDescendants) || categoryId != null;
     }
 }

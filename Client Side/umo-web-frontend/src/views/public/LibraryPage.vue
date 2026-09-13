@@ -35,6 +35,9 @@ function replaceQuery(nextFilters) {
     query: {
       ...(nextFilters.type ? { type: nextFilters.type } : {}),
       ...(nextFilters.categoryId ? { category: nextFilters.categoryId } : {}),
+      ...(nextFilters.categoryId
+        ? { includeDescendants: nextFilters.includeDescendants }
+        : {}),
       ...(nextFilters.tagId ? { tag: nextFilters.tagId } : {}),
       ...(nextFilters.page > 1 ? { page: nextFilters.page } : {}),
     },
@@ -59,6 +62,9 @@ function hasInvalidQuery() {
   return Boolean(
     (raw.type && String(raw.type) !== normalized.type)
     || (raw.category && !normalized.categoryId)
+    || (normalized.categoryId
+      && String(raw.includeDescendants ?? '') !== String(normalized.includeDescendants))
+    || (!normalized.categoryId && raw.includeDescendants)
     || (raw.tag && !normalized.tagId)
     || (raw.page && String(normalized.page) !== String(raw.page)),
   )
@@ -79,6 +85,9 @@ async function load() {
         size: PUBLIC_PAGE_SIZE,
         ...(currentFilters.type ? { type: currentFilters.type } : {}),
         ...(currentFilters.categoryId ? { categoryId: currentFilters.categoryId } : {}),
+        ...(currentFilters.categoryId
+          ? { includeDescendants: currentFilters.includeDescendants }
+          : {}),
         ...(currentFilters.tagId ? { tagId: currentFilters.tagId } : {}),
       }),
     ])
@@ -131,7 +140,7 @@ watch(
       <span class="editorial-eyebrow">Library / 公开书库</span>
       <h1>按主题，慢慢翻阅。</h1>
       <p>
-        当前收录 {{ pageInfo.total }} 篇公开内容。筛选只匹配当前分类或标签，不自动包含子分类。
+        当前收录 {{ pageInfo.total }} 篇公开内容。分类筛选包含当前分类及全部子分类，标签筛选精确匹配。
       </p>
     </header>
 
@@ -160,6 +169,7 @@ watch(
             :class="{ 'is-active': filters.categoryId === category.id }"
             @click="updateQuery({
               categoryId: filters.categoryId === category.id ? null : category.id,
+              includeDescendants: filters.categoryId !== category.id,
             })"
           >
             <span :style="{ paddingLeft: `${category.depth * 12}px` }">

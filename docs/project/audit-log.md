@@ -1,5 +1,40 @@
 # 审计日志
 
+## 审计 #29 - 2026-09-13 — 分类筛选包含子分类
+
+### 范围
+
+- 公开端和管理端文章列表新增 `includeDescendants`，保持默认精确匹配兼容。
+- 分类后代解析、循环检测、32 层上限、稳定排序和书库 URL 同步。
+- 不新增接口、Schema、前端依赖或 ECS 发布。
+
+### 实现
+
+- 新增 `CategoryHierarchyResolver`，读取一次分类快照后按树展开后代；默认返回单分类，
+  `includeDescendants=true` 时返回所有可达后代并在命中循环或超过 32 层时返回 409。
+- `ContentMapper` 接受解析后的 ID 集合，使用 `IN` + `EXISTS` 过滤；时间排序后追加 `id DESC`。
+- 公开端和管理端 Service 共用解析器；书库选择分类时同步
+  `category=<id>&includeDescendants=true`，显式 `false` 仍可请求精确匹配。
+- 扩展 MySQL 8.4 集成、Python/PowerShell 冒烟和 Playwright Mock，覆盖父/子分类分流内容。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 后端默认测试 | 98 tests / 0 failures / 0 errors / 3 MySQL 门控跳过 |
+| MySQL 8.4 Mapper 集成 | 3 tests / 0 failures，覆盖根/子/孙、精确模式、草稿状态、空结果、去重、稳定排序和循环 |
+| 真实接口冒烟 | `api-smoke.py` 27/27；`api-smoke.ps1` 27/27 |
+| 前端 Node 测试 | 60 tests / 0 failures |
+| Windows Playwright | 40 passed（26 functional + 14 visual） |
+| 前端生产构建 | Vite 8.1.0 通过 |
+| 仓库检查 | diff check、敏感信息扫描器自测/扫描、Bash/PowerShell 发布脚本自测通过 |
+
+### 剩余风险
+
+1. 分类快照按请求读取，分类量极大时仍可进一步缓存或改为递归 CTE；当前规模不构成瓶颈。
+2. 跨类型父子关系仍由既有分类管理规则决定，后代展开不会额外按类型裁剪。
+3. 循环检测只拒绝被当前筛选命中的循环，未在启动时全局审计历史分类数据。
+
 ## 审计 #28 - 2026-09-13 — 管理端 Markdown 导入
 
 ### 范围

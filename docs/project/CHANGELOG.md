@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-09-13 — 分类筛选包含子分类
+
+- 公开端和管理端文章列表新增 `includeDescendants`；默认 `false` 保持 `categoryId` 精确匹配，
+  启用后包含当前分类的全部后代。
+- 新增共享 `CategoryHierarchyResolver`，一次读取分类树、去重、检测循环并限制最多 32 层；
+  命中循环或超深层级返回 409，分类不存在仍返回 200 空结果。
+- Mapper 使用解析后的分类 ID 集合和 `EXISTS IN`，内容不重复；排序在时间字段后追加
+  `id DESC` 保证稳定次序。
+- 书库选择分类时 URL 和 API 默认携带 `includeDescendants=true`，显式 `false` 可保持精确匹配。
+- 新增后端解析/Service/Mapper 测试、真实 MySQL 集成测试、Python/PowerShell 冒烟断言和
+  Playwright 子分类内容用例。
+
 ## 2026-09-13 — 管理端 Markdown 导入
 
 - 新建文章页新增单文件 `.md`/`.markdown` 导入，解析 YAML front matter 并预填现有编辑器。

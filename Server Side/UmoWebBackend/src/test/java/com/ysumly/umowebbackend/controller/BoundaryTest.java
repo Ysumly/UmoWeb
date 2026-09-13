@@ -265,6 +265,16 @@ class BoundaryTest {
     }
 
     @Test
+    @DisplayName("26. 文章列表: includeDescendants 缺少 categoryId → 400")
+    void contentListDescendantsWithoutCategory() throws Exception {
+        mvc.perform(get("/api/public/contents?includeDescendants=true"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message")
+                        .value("descendantFilterValid: includeDescendants 需要同时提供 categoryId"));
+    }
+
+    @Test
     @DisplayName("23. 新建文章: 非法 metadata → 400")
     void contentCreateInvalidMetadata() throws Exception {
         mvc.perform(post("/api/admin/contents")

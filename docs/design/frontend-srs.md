@@ -98,7 +98,8 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 ### 3.1 当前公开端边界
 
 - 首页、书库、搜索、文章详情、About 和 Project 使用现有公开 API，不再使用运行时静态 fixtures。
-- 书库筛选和分页由后端执行，`categoryId` 和 `tagId` 均为精确匹配。
+- 书库筛选和分页由后端执行，`tagId` 精确匹配；`categoryId` 默认精确匹配，启用
+  `includeDescendants` 后包含全部后代。
 - 主题支持亮色与暗色，使用 `data-theme` 和 `localStorage` 持久化。
 - `marked` 页面渲染会转义原始 HTML；代码高亮只注册 Java、JavaScript、SQL 和 Bash。
 - 搜索采用显式提交，429 时按后端等待秒数倒计时。
@@ -167,6 +168,8 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 - 首页、书库、搜索、文章详情、About、Project 和 404 与真实 API 契约一致。
 - 亮暗主题可以切换并在刷新后保持。
 - 书库类型、分类、标签筛选和服务端分页可用。
+- 选择分类时书库 URL 同步 `includeDescendants=true`，结果包含仅关联子分类的内容；
+  显式 `includeDescendants=false` 保持精确匹配。
 - Markdown 标题、代码块、表格和引用可以按统一排版渲染。
 - 移动导航、390px 布局和公开端主路径无横向溢出。
 - `npm run build` 成功。
@@ -186,5 +189,5 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 - visual-desktop 和 visual-mobile 保存 14 张核心页面截图基线。
 - 浏览器套件使用 Mock API，本机 Chrome 和 Windows 基线；真实后端继续由 MySQL 冒烟脚本验证。
 
-当前已有 58 个 Node 内置测试；现代 Playwright 套件包含每个平台 39 个浏览器检查
-（25 functional + 14 visual）。尚无组件级单元测试框架。
+当前已有 60 个 Node 内置测试；现代 Playwright 套件包含每个平台 40 个浏览器检查
+（26 functional + 14 visual）。尚无组件级单元测试框架。

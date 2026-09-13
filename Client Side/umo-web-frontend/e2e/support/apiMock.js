@@ -101,6 +101,20 @@ function createContentState() {
       tagIds: [2],
       createdAt: '2026-09-10T08:00:00',
     },
+    {
+      id: 15,
+      title: '仅属于子分类的公开文章',
+      slug: 'child-category-only',
+      summary: '用于验证父分类筛选会包含后代分类。',
+      type: 'NOTE',
+      status: 'PUBLISHED',
+      body: '# 仅属于子分类',
+      metadata: {},
+      publishedAt: '2026-08-31T08:00:00',
+      categoryIds: [2],
+      tagIds: [],
+      createdAt: '2026-08-31T07:00:00',
+    },
   )
 
   return contents
@@ -172,12 +186,31 @@ function paginate(contents, searchParams) {
   }
 }
 
-function filterContents(contents, searchParams, publishedOnly) {
+function collectCategoryIds(categoryId, categories) {
+  const resolved = new Set([categoryId])
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const category of categories) {
+      if (category.parentId && resolved.has(category.parentId) && !resolved.has(category.id)) {
+        resolved.add(category.id)
+        changed = true
+      }
+    }
+  }
+  return resolved
+}
+
+function filterContents(contents, searchParams, publishedOnly, categories) {
   const type = searchParams.get('type')
   const status = searchParams.get('status')
   const categoryId = Number(searchParams.get('categoryId') || 0)
+  const includeDescendants = searchParams.get('includeDescendants') === 'true'
   const tagId = Number(searchParams.get('tagId') || 0)
   const query = String(searchParams.get('q') || '').trim().toLowerCase()
+  const categoryIds = categoryId
+    ? collectCategoryIds(categoryId, categories)
+    : null
 
   return contents.filter((content) => {
     if (publishedOnly && content.status !== 'PUBLISHED') {
@@ -189,8 +222,13 @@ function filterContents(contents, searchParams, publishedOnly) {
     if (type && content.type !== type) {
       return false
     }
-    if (categoryId && !content.categoryIds.includes(categoryId)) {
-      return false
+    if (categoryIds) {
+      const matchesCategory = includeDescendants
+        ? content.categoryIds.some((id) => categoryIds.has(id))
+        : content.categoryIds.includes(categoryId)
+      if (!matchesCategory) {
+        return false
+      }
     }
     if (tagId && !content.tagIds.includes(tagId)) {
       return false
@@ -264,7 +302,7 @@ async function handlePublicApi(route, state, pathname, searchParams) {
       state.searchRateLimitOnce = false
       return error(route, 429, 'Too many requests. Please wait 10 seconds.')
     }
-    const matches = filterContents(state.contents, searchParams, true)
+    const matches = filterContents(state.contents, searchParams, true, state.categories)
     const page = paginate(sortContents(matches, 'published_at_desc'), searchParams)
     return json(route, {
       ...page,
@@ -272,7 +310,7 @@ async function handlePublicApi(route, state, pathname, searchParams) {
     })
   }
   if (pathname === '/api/public/contents') {
-    const matches = filterContents(state.contents, searchParams, true)
+    const matches = filterContents(state.contents, searchParams, true, state.categories)
     const page = paginate(sortContents(matches, searchParams.get('sort')), searchParams)
     return json(route, {
       ...page,
@@ -412,7 +450,12 @@ async function handleAdminApi(route, state, pathname, searchParams) {
 
   if (pathname === '/api/admin/contents') {
     if (method === 'GET') {
-      const matches = filterContents(state.contents, searchParams, false)
+      const matches = filterContents(
+        state.contents,
+        searchParams,
+        false,
+        state.categories,
+      )
       const page = paginate(sortContents(matches, searchParams.get('sort')), searchParams)
       return json(route, {
         ...page,
