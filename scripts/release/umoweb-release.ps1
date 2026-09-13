@@ -521,17 +521,41 @@ function Invoke-Publish {
         return
     }
 
+    $partialDirectory = Join-Path $ArtifactRoot ".$Version.partial"
+    $resumePartial = $false
+    $archivePath = $null
+    $manifestPath = $null
+    $manifest = $null
+    if (Test-Path -LiteralPath $partialDirectory) {
+        try {
+            $partialRelease = Resolve-ReleaseArtifact -Path $partialDirectory
+            if ($partialRelease.Manifest.kind -eq "release" -and
+                $partialRelease.Manifest.version -eq $Version -and
+                $partialRelease.Manifest.gitCommit -eq $commit) {
+                $resumePartial = $true
+                $archivePath = $partialRelease.ArchivePath
+                $manifestPath = $partialRelease.ManifestPath
+                $manifest = $partialRelease.Manifest
+                Write-Host "Reusing verified partial release artifact for $Version"
+            } else {
+                Remove-Item -LiteralPath $partialDirectory -Recurse -Force
+            }
+        } catch {
+            Write-Warning "Discarding incomplete partial release artifact: $partialDirectory"
+            Remove-Item -LiteralPath $partialDirectory -Recurse -Force
+        }
+    }
+
     $adminPath = Get-RemoteAdminPath
     $adminPathHash = Get-Sha256String -Value $adminPath
     Write-Host "Using ECS frontend build configuration (admin path SHA-256: $adminPathHash)"
 
-    $partialDirectory = Join-Path $ArtifactRoot ".$Version.partial"
-    if (Test-Path -LiteralPath $partialDirectory) {
-        Remove-Item -LiteralPath $partialDirectory -Recurse -Force
-    }
-    New-Item -ItemType Directory -Path $partialDirectory -Force | Out-Null
-
-    try {
+    if ($resumePartial) {
+        if ($manifest.adminPathSha256 -ne $adminPathHash) {
+            throw "Partial release artifact was built with a different frontend admin path"
+        }
+    } else {
+        New-Item -ItemType Directory -Path $partialDirectory -Force | Out-Null
         $backendVersionTag = "umoweb-backend:$Version"
         $frontendVersionTag = "umoweb-frontend:$Version"
         $backendCommitTag = "umoweb-backend:sha-$shortCommit"
@@ -605,29 +629,25 @@ function Invoke-Publish {
             -AdminPath $adminPath
         $manifestPath = Join-Path $partialDirectory "manifest.json"
         Write-JsonFile -Value $manifest -Path $manifestPath
-
-        $remote = Upload-ReleaseArtifact `
-            -ReleaseId $Version `
-            -ArchivePath $archivePath `
-            -ManifestPath $manifestPath
-
-        Write-Host "Deploying $Version to ECS..."
-        Invoke-RemoteRelease `
-            -Arguments @("deploy", $remote.Archive, $remote.Manifest) `
-            -TimeoutSeconds 300 |
-            Write-Host
-
-        Move-Item -LiteralPath $partialDirectory -Destination $finalDirectory
-        Publish-ReleaseTag -Tag $Version -Commit $commit
-
-        Remove-OldReleaseArtifacts -ArtifactRoot $ArtifactRoot -RetentionCount $RetentionCount
-        Write-Host "Release completed: $Version"
-        Write-Host "Artifact: $finalDirectory"
-    } finally {
-        if (Test-Path -LiteralPath $partialDirectory) {
-            Remove-Item -LiteralPath $partialDirectory -Recurse -Force
-        }
     }
+
+    $remote = Upload-ReleaseArtifact `
+        -ReleaseId $Version `
+        -ArchivePath $archivePath `
+        -ManifestPath $manifestPath
+
+    Write-Host "Deploying $Version to ECS..."
+    Invoke-RemoteRelease `
+        -Arguments @("deploy", $remote.Archive, $remote.Manifest) `
+        -TimeoutSeconds 300 |
+        Write-Host
+
+    Move-Item -LiteralPath $partialDirectory -Destination $finalDirectory
+    Publish-ReleaseTag -Tag $Version -Commit $commit
+
+    Remove-OldReleaseArtifacts -ArtifactRoot $ArtifactRoot -RetentionCount $RetentionCount
+    Write-Host "Release completed: $Version"
+    Write-Host "Artifact: $finalDirectory"
 }
 
 function Invoke-Rollback {

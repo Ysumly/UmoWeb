@@ -250,6 +250,13 @@ read_env_value() {
     ' "$env_file"
 }
 
+read_env_value_or_default() {
+    local env_file="$1"
+    local key="$2"
+    local fallback="$3"
+    read_env_value "$env_file" "$key" 2>/dev/null || printf '%s\n' "$fallback"
+}
+
 http_status() {
     local url="$1"
     "$CURL_BIN" \
@@ -542,8 +549,8 @@ deploy_release() {
     local previous_frontend
     backend_tag="$(manifest_value "$manifest" "backendImage.tag")"
     frontend_tag="$(manifest_value "$manifest" "frontendImage.tag")"
-    previous_backend="$(read_env_value "$COMPOSE_ENV_FILE" "BACKEND_IMAGE")"
-    previous_frontend="$(read_env_value "$COMPOSE_ENV_FILE" "FRONTEND_IMAGE")"
+    previous_backend="$(read_env_value_or_default "$COMPOSE_ENV_FILE" "BACKEND_IMAGE" "umoweb-backend:latest")"
+    previous_frontend="$(read_env_value_or_default "$COMPOSE_ENV_FILE" "FRONTEND_IMAGE" "umoweb-frontend:latest")"
 
     update_env_file "$COMPOSE_ENV_FILE" "$backend_tag" "$frontend_tag"
     if ! compose_source up -d --no-build --wait backend frontend; then

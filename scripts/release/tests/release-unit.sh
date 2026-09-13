@@ -47,6 +47,11 @@ FRONTEND_IMAGE=umoweb-frontend:latest
 EOF
 COMPOSE_ENV_FILE="$env_file"
 
+assert_equal \
+    "$(read_env_value_or_default "$env_file" "MISSING_IMAGE" "umoweb-backend:latest")" \
+    "umoweb-backend:latest" \
+    "missing env value did not use its default"
+
 update_env_file "$env_file" "umoweb-backend:v1.0.0-rc.1" "umoweb-frontend:v1.0.0-rc.1"
 assert_equal "$(sed -n 's/^BACKEND_IMAGE=//p' "$env_file")" "umoweb-backend:v1.0.0-rc.1" "backend image was not updated"
 assert_equal "$(sed -n 's/^FRONTEND_IMAGE=//p' "$env_file")" "umoweb-frontend:v1.0.0-rc.1" "frontend image was not updated"
