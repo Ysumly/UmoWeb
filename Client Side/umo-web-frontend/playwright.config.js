@@ -1,6 +1,9 @@
 import { defineConfig } from '@playwright/test'
 
 const baseURL = 'http://127.0.0.1:4173'
+const configuredChannel = process.env.PLAYWRIGHT_CHANNEL?.trim()
+const browserChannel =
+  configuredChannel || (process.platform === 'win32' ? 'chrome' : undefined)
 
 export default defineConfig({
   testDir: './e2e',
@@ -22,7 +25,7 @@ export default defineConfig({
   ],
   use: {
     baseURL,
-    channel: 'chrome',
+    ...(browserChannel ? { channel: browserChannel } : {}),
     locale: 'zh-CN',
     timezoneId: 'Asia/Shanghai',
     reducedMotion: 'reduce',
