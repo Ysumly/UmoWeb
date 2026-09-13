@@ -44,6 +44,7 @@
 | 前端页面状态 | `frontend-srs.md`、`frontend-implementation-prompt.md`、`codebase-memory.md` |
 | 安全配置 | `security-config.md`、`audit-log.md` |
 | 测试命令或覆盖范围 | `testing-guide.md`、`codebase-memory.md` |
+| CI 工作流 | `testing-guide.md`、`codebase-memory.md`、`audit-log.md` |
 | 完成里程碑 | `CHANGELOG.md`、`.state-snapshot.md` |
 
 ---
@@ -70,6 +71,19 @@ npm run test:e2e
 
 页面功能或布局变更后，functional 与视觉 Playwright 套件都应保持通过；视觉范围变化时同步审查或更新基线。
 
+### CI
+
+`.github/workflows/ci.yml` 负责基础质量检查，不包含 Playwright 和真实 MySQL 集成。
+本地修改敏感信息扫描器时必须先运行：
+
+```bash
+bash scripts/ci/tests/scan-sensitive-info-test.sh
+bash scripts/ci/scan-sensitive-info.sh
+```
+
+当前私有仓库套餐不支持分支保护或规则集，CI 结果不会由 GitHub 自动阻止合并。
+发布流程必须显式要求 CI 成功，该要求由 Task 2.4 固化。
+
 ### 文档
 
 - 搜索旧版本号、错误的响应包装和“已实现”措辞。
@@ -83,7 +97,7 @@ npm run test:e2e
 
 - 不提交 `Downloads/`、真实数据库密码或生产 JWT secret。
 - 默认管理员密码只用于开发。
-- 提交前检查 `git status` 和 `git diff`。
+- 提交前检查 `git status`、`git diff` 和 `bash scripts/ci/scan-sensitive-info.sh`。
 - 文档变更也应有清晰 commit message。
 
 ---

@@ -252,6 +252,27 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
 读取管理员凭据，不输出密码值。2026-09-12 正式数据候选包、生产切换和最终备份恢复均通过
 `27/27`。
 
+### 2.8 GitHub Actions
+
+`.github/workflows/ci.yml` 在 `pull_request` 和 `master` push 时执行三个独立 job：
+
+- `repository`：检查变更范围空白错误，运行敏感信息扫描器自测并扫描全部已跟踪文件。
+- `backend`：使用 Temurin Java 17 执行 `mvn -B test`。
+- `frontend`：使用 Node 24.12.0 执行 `npm ci`、`npm test` 和 `npm run build`。
+
+本地运行敏感信息扫描：
+
+```bash
+bash scripts/ci/scan-sensitive-info.sh
+bash scripts/ci/tests/scan-sensitive-info-test.sh
+```
+
+扫描器允许 RFC1918、回环、链路本地、CGNAT、文档专用 IP 和已有明确占位值，
+拒绝公开 IPv4、ECS 实例 ID、AccessKey、Token、私钥头及误提交的 `.env*` 文件。
+
+当前仓库是私有仓库，GitHub 计划不支持分支保护和规则集，因此 CI 失败不能技术性地阻止合并。
+Task 2.4 必须在镜像发布流程中把 CI 成功作为前置条件。
+
 ---
 
 ## 3. Apifox 环境

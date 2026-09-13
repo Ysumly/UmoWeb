@@ -66,3 +66,7 @@ desktop.ini
 *.swp
 *.bak
 *~
+
+# === Python ===
+__pycache__/
+*.py[cod]

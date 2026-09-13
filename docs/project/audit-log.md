@@ -1,5 +1,42 @@
 # 审计日志
 
+## 审计 #22 - 2026-09-13 — CI 基础流水线与任务合并
+
+### 范围
+
+- Task 1.2 备份恢复和 Task 1.3 正式内容导入的独立合并提交。
+- GitHub Actions 基础质量检查、敏感信息扫描和失败门禁边界。
+
+### 实现
+
+- 在 `master` 上分别创建 Task 1.2、Task 1.3 的 `--no-ff` merge commit，并推送远端。
+- 新增 `.github/workflows/ci.yml`，PR 和 `master` push 时运行仓库检查、后端测试、前端测试和构建。
+- 新增无第三方依赖的 `scripts/ci/scan-sensitive-info.sh`，按模式批量扫描全部已跟踪文件。
+- 扫描覆盖公开 IPv4、阿里云 ECS 实例 ID、阿里云/AWS/GitHub Token、JWT 形态、私钥头和
+  误提交的 `.env*` 文件；允许私有、回环、CGNAT、文档专用地址和已有明确占位值。
+- 新增扫描器 Bash 自测，验证允许场景和各类拒绝场景，错误输出只包含规则与文件行号。
+- 将 Python `__pycache__` 和 `.pyc` 加入忽略规则，避免本地验证污染工作区。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 合并前后端 `mvn test` | 83 tests / 0 failures / 0 errors |
+| 合并前前端 `npm test` | 46 tests / 0 failures |
+| 合并前前端 `npm run build` | Vite 8.1.0 构建通过 |
+| 内容导入器 Python 测试 | 6 tests / 0 failures |
+| 备份 Bash 单元测试 | 通过 |
+| 敏感信息扫描器自测 | 通过 |
+| 敏感信息全仓扫描 | 通过 |
+| master 合并内容 | 与 Task 1.3 分支树差异为 0 |
+
+### 剩余风险
+
+1. 私有仓库当前 GitHub 计划不支持分支保护或规则集，CI 失败不能自动阻止合并。
+2. CI 尚未运行 Playwright Linux 基线和真实 MySQL 集成，分别由 Task 2.2、Task 2.3 承接。
+3. Task 1.4 仍未完成；当前无正式域名，ECS 对 Let’s Encrypt 生产及测试 ACME 端点连接超时。
+4. 敏感信息扫描器不是通用历史 secret scanner，只覆盖当前约定的高置信度模式和已跟踪文件。
+
 ## 审计 #21 - 2026-09-12 — 正式内容导入与凭据轮换
 
 ### 范围
