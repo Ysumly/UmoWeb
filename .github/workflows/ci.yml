@@ -72,6 +72,51 @@ jobs:
       - name: Run backend tests
         run: mvn -B test
 
+  mysql-integration:
+    name: MySQL integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-password
+          TZ: Asia/Shanghai
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root-password --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+          --health-start-period=20s
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: Server Side/UmoWebBackend/pom.xml
+
+      - name: Run MySQL integration
+        shell: bash
+        run: bash scripts/ci/mysql-integration.sh
+
+      - name: Upload MySQL integration diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mysql-integration-diagnostics-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/umoweb-backend.log
+          if-no-files-found: ignore
+          retention-days: 14
+
   frontend:
     name: Frontend tests and build
     runs-on: ubuntu-latest

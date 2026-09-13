@@ -132,6 +132,16 @@ cd "Server Side\UmoWebBackend"
 脚本运行前要求后端已启动并使用真实 MySQL。脚本会临时修改管理员密码和 `site_title`，
 最后恢复；由于当前没有图片删除接口，上传的测试图片会保留在测试库和存储目录中。
 
+2026-09-13 起，同一链路已由 GitHub Actions 的 `mysql-integration` job 和
+`scripts/ci/mysql-integration.sh` 自动化：
+
+- 使用 MySQL 8.4 从空库执行 `schema.sql`、`seed-data.sql` 和兼容迁移脚本。
+- 兼容迁移连续执行两次并要求幂等；校验 `token_version`、3 个索引、5 个外键、
+  种子行数和迁移后孤儿关系为 0。
+- 使用 Java 17 构建并启动后端，使用独立临时存储和运行时测试凭据执行 `api-smoke.py`。
+- 冒烟断言覆盖公开筛选、详情分类/标签、前后文章、草稿隔离、密码失效、图片上传和 429。
+- 冒烟通过后校验图片记录与临时存储文件；job 退出时销毁后端进程、测试数据和临时文件。
+
 ### 2.3 前端
 
 ```powershell
@@ -146,7 +156,8 @@ npm run test:e2e
 - Vite 8.1.0 前端生产构建成功。
 - 前端 46 个 Node 测试通过，覆盖路由、管理路径、主题、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、API 错误解析、日期格式、查询规范化和 Markdown 安全。
 - Playwright 34 个浏览器检查通过，其中 20 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖核心页面的桌面与 390px 基线。
-- 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口仍由第 2.2 节的 MySQL 副本与 `api-smoke.ps1` 验证。
+- 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
+  MySQL 副本、`api-smoke.py`/`api-smoke.ps1` 和第 2.8 节的 CI 集成 job 验证。
 
 2026-09-13 已验证：
 
@@ -274,13 +285,18 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
 
 ### 2.8 GitHub Actions
 
-`.github/workflows/ci.yml` 在 `pull_request` 和 `master` push 时执行四个独立 job：
+`.github/workflows/ci.yml` 在 `pull_request` 和 `master` push 时执行五个独立 job：
 
 - `repository`：检查变更范围空白错误，运行敏感信息扫描器自测并扫描全部已跟踪文件。
 - `backend`：使用 Temurin Java 17 执行 `mvn -B test`。
+- `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，启动真实后端并执行
+  27/27 接口冒烟，同时校验上传文件和测试数据清理。
 - `frontend`：使用 Node 24.12.0 执行 `npm ci`、`npm test` 和 `npm run build`。
 - `browser`：使用 Node 24.12.0 安装锁定版本 Chromium，执行 `npm run test:e2e`；
   失败时上传 `playwright-report-<attempt>` artifact。
+
+MySQL job 失败时上传后端日志 artifact；MySQL 服务容器、数据库和临时存储均由 runner 销毁，
+不使用仓库 Secret 或外部数据库。
 
 `.github/workflows/playwright-linux-baselines.yml` 仅提供 `workflow_dispatch` 手动入口，
 用于生成 Linux 基线 artifact，不参与常规验证，也不提交仓库。

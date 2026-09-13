@@ -133,6 +133,7 @@ $authHeaders = @{}
 $categoryId = $null
 $tagId = $null
 $contentId = $null
+$previousContentId = $null
 
 try {
     $site = Get-Json (Invoke-Checked -Method GET -Path "/api/public/site-info")
@@ -235,6 +236,34 @@ try {
     Assert-True ($tagUpdate.slug -eq $updatedTagSlug) "tag update must change slug"
     Step 15 "PUT /api/admin/tags/{id}"
 
+    $previousContentSlug = "smoke-previous-$runId"
+    $previousContent = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/contents" -Headers $authHeaders `
+            -Body @{
+                title = "Smoke Previous $runId"
+                slug = $previousContentSlug
+                body = "# Smoke Previous`n`nEarlier body"
+                summary = "Smoke previous $runId"
+                type = "NOTE"
+                status = "DRAFT"
+                categoryIds = @($categoryId)
+                tagIds = @($tagId)
+                metadata = '{"source":"api-smoke","order":"previous"}'
+            })
+    Assert-True ($previousContent.id -gt 0) "created previous content must have id"
+    $previousContentId = $previousContent.id
+    Invoke-Checked -Method PUT -Path "/api/admin/contents/$previousContentId" -Headers $authHeaders `
+        -Body @{
+            title = "Smoke Previous $runId"
+            slug = $previousContentSlug
+            body = "# Smoke Previous`n`nEarlier body"
+            summary = "Smoke previous $runId"
+            type = "NOTE"
+            status = "PUBLISHED"
+            categoryIds = @($categoryId)
+            tagIds = @($tagId)
+            metadata = '{"source":"api-smoke","order":"previous"}'
+        } | Out-Null
+
     $adminContents = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/contents?page=1&size=100" -Headers $authHeaders)
     Assert-True ($null -ne $adminContents.items) "admin content page must contain items"
     Step 16 "GET /api/admin/contents"
@@ -263,6 +292,7 @@ try {
     Assert-True ($contentDetail.body -eq "# Smoke`n`nInitial body") "admin content detail must load body"
     Assert-True ($contentDetail.status -eq "DRAFT") "admin content detail must expose DRAFT status"
     Assert-True ($contentDetail.categories[0].id -eq $categoryId) "content detail must include created category"
+    Assert-True ($contentDetail.tags[0].id -eq $tagId) "admin content detail must include created tag"
     Step 18 "GET /api/admin/contents/{id}"
 
     $contentUpdate = Get-Json (Invoke-Checked -Method PUT -Path "/api/admin/contents/$contentId" -Headers $authHeaders `
@@ -290,6 +320,18 @@ try {
     Assert-True ($publicDetail.body -eq "# Smoke`n`nUpdated body") "public detail must load Markdown body"
     Assert-True ($publicDetail.categories[0].id -eq $categoryId) "public detail must include the smoke category"
     Assert-True ($publicDetail.tags[0].id -eq $tagId) "public detail must include the smoke tag"
+    Assert-True ($publicDetail.previous.slug -eq $previousContentSlug) "public detail must include the previous smoke content"
+    Assert-True ($null -eq $publicDetail.next) "public detail must have no next content at the latest boundary"
+
+    $noteContents = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents?type=NOTE&page=1&size=100")
+    Assert-True (($noteContents.items | Where-Object type -ne "NOTE").Count -eq 0) "public type filter must only return NOTE content"
+    $categoryContents = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents?categoryId=$categoryId&page=1&size=100")
+    $expectedSlugs = @($contentSlug, $previousContentSlug)
+    Assert-True (($categoryContents.items | Where-Object { $_.slug -notin $expectedSlugs }).Count -eq 0) "public category filter must only return smoke content"
+    $tagContents = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents?tagId=$tagId&page=1&size=100")
+    Assert-True (($tagContents.items | Where-Object { $_.slug -notin $expectedSlugs }).Count -eq 0) "public tag filter must only return smoke content"
+    $previousDetail = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents/$previousContentSlug")
+    Assert-True ($previousDetail.next.slug -eq $contentSlug) "previous smoke content must return the current content as next"
     Step 20 "GET /api/public/contents/{slug}"
 
     $search = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents/search?q=$runId&page=1&size=10")
@@ -301,6 +343,9 @@ try {
     Invoke-Checked -Method DELETE -Path "/api/admin/contents/$contentId" -Headers $authHeaders -ExpectedStatus 204 | Out-Null
     Invoke-Checked -Method GET -Path "/api/admin/contents/$contentId" -Headers $authHeaders -ExpectedStatus 404 | Out-Null
     $contentId = $null
+    Invoke-Checked -Method DELETE -Path "/api/admin/contents/$previousContentId" -Headers $authHeaders -ExpectedStatus 204 | Out-Null
+    Invoke-Checked -Method GET -Path "/api/admin/contents/$previousContentId" -Headers $authHeaders -ExpectedStatus 404 | Out-Null
+    $previousContentId = $null
     Step 22 "DELETE /api/admin/contents/{id}"
 
     Invoke-Checked -Method DELETE -Path "/api/admin/tags/$tagId" -Headers $authHeaders -ExpectedStatus 204 | Out-Null
@@ -332,10 +377,11 @@ try {
     if ($script:StepCount -ne 27) {
         throw "Expected 27 endpoints but covered $script:StepCount"
     }
-    Write-Host "API smoke passed: 27/27 endpoints, authentication guard, draft isolation, password invalidation, and search rate limit."
+    Write-Host "API smoke passed: 27/27 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, password invalidation, image upload, and search rate limit."
 }
 finally {
     Remove-TestResource -Path "/api/admin/contents/$contentId" -Headers $authHeaders
+    Remove-TestResource -Path "/api/admin/contents/$previousContentId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/tags/$tagId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/categories/$categoryId" -Headers $authHeaders
     Remove-Item -LiteralPath $imagePath -Force -ErrorAction SilentlyContinue

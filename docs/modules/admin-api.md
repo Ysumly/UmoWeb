@@ -304,5 +304,6 @@ PUT /api/admin/options/{key}
 - 非法 page/size/type/metadata 返回 400。
 - 公开详情返回 categories/tags 数组。
 
-文件、路径、JWT、上传和 VO 组装测试使用真实临时文件或真实工具类；完整 SQL 仍需自动化 MySQL 集成测试。
-2026-09-11 已通过真实 MySQL 副本冒烟验证管理端全部接口，脚本见 `docs/project/testing-guide.md`。
+文件、路径、JWT、上传和 VO 组装测试使用真实临时文件或真实工具类。2026-09-13 起
+GitHub Actions 使用 MySQL 8.4 启动真实后端并执行管理端全部接口冒烟；此前
+2026-09-11 的 MySQL 5.7 副本记录继续保留。命令和覆盖范围见 `docs/project/testing-guide.md`。
