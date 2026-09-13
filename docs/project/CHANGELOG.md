@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-09-13 — Linux Playwright 与独立视觉基线
+
+- 将已通过检查的 Task 2.1 基础 CI 合入 `master`。
+- Playwright 按平台选择浏览器：Windows 默认本机 Chrome，Linux CI 使用锁定的 Chromium；
+  支持 `PLAYWRIGHT_CHANNEL` 显式覆盖。
+- GitHub Actions 新增 Ubuntu `browser` job，运行 20 个 functional 和 14 个视觉断言；
+  失败时上传 Playwright 报告、trace 和失败截图。
+- 新增 14 张 `linux` 视觉快照，与现有 14 张 `win32` 快照并存；同一提交连续两轮 Linux CI 通过。
+- 新增手动 `Playwright Linux Baselines` 工作流，生成 Linux 快照 artifact 供人工审查，
+  不自动提交仓库。
+- 保持浏览器测试使用 Mock API，真实 MySQL 集成仍由 Task 2.3 承接。
+
 ## 2026-09-13 — CI 基础流水线
 
 - 将 Task 1.2 备份恢复和 Task 1.3 正式内容导入按任务拆分合并到 `master`。

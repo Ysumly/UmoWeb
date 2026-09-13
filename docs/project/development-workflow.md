@@ -69,11 +69,13 @@ npm run build
 npm run test:e2e
 ```
 
-页面功能或布局变更后，functional 与视觉 Playwright 套件都应保持通过；视觉范围变化时同步审查或更新基线。
+页面功能或布局变更后，functional 与视觉 Playwright 套件都应保持通过；Windows 与 Linux
+视觉范围变化时分别审查或更新平台基线，不能用一个平台的快照覆盖另一个平台。
 
 ### CI
 
-`.github/workflows/ci.yml` 负责基础质量检查，不包含 Playwright 和真实 MySQL 集成。
+`.github/workflows/ci.yml` 负责基础质量检查和 Ubuntu Playwright，不包含真实 MySQL 集成。
+Linux 视觉基线通过手动 `Playwright Linux Baselines` 工作流生成 artifact，由开发者审查后提交。
 本地修改敏感信息扫描器时必须先运行：
 
 ```bash
