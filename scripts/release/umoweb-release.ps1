@@ -500,6 +500,10 @@ function Invoke-Publish {
 
     Sync-RemoteReleaseControl
     $finalDirectory = Join-Path $ArtifactRoot $Version
+    $reuseFinal = $false
+    $archivePath = $null
+    $manifestPath = $null
+    $manifest = $null
     if (Test-Path -LiteralPath $finalDirectory) {
         $existingRelease = Resolve-ReleaseArtifact -Path $finalDirectory
         if ($existingRelease.Manifest.kind -ne "release" -or
@@ -510,23 +514,24 @@ function Invoke-Publish {
 
         $stateJson = Invoke-RemoteRelease -Arguments @("verify-current") -TimeoutSeconds 120
         $state = $stateJson | ConvertFrom-Json
-        if ($state.releaseId -ne $Version -or $state.gitCommit -ne $commit) {
-            throw "Existing local artifact $Version does not match the release currently deployed on ECS"
+        if (Test-ReleaseStateMatchesManifest -State $state -Manifest $existingRelease.Manifest) {
+            Publish-ReleaseTag -Tag $Version -Commit $commit
+            Remove-OldReleaseArtifacts -ArtifactRoot $ArtifactRoot -RetentionCount $RetentionCount
+            Write-Host "Release already deployed and verified: $Version"
+            Write-Host "Artifact: $finalDirectory"
+            return
         }
 
-        Publish-ReleaseTag -Tag $Version -Commit $commit
-        Remove-OldReleaseArtifacts -ArtifactRoot $ArtifactRoot -RetentionCount $RetentionCount
-        Write-Host "Release already deployed and verified: $Version"
-        Write-Host "Artifact: $finalDirectory"
-        return
+        Write-Host "Reusing verified local release artifact to redeploy $Version"
+        $reuseFinal = $true
+        $archivePath = $existingRelease.ArchivePath
+        $manifestPath = $existingRelease.ManifestPath
+        $manifest = $existingRelease.Manifest
     }
 
     $partialDirectory = Join-Path $ArtifactRoot ".$Version.partial"
-    $resumePartial = $false
-    $archivePath = $null
-    $manifestPath = $null
-    $manifest = $null
-    if (Test-Path -LiteralPath $partialDirectory) {
+    $resumePartial = $reuseFinal
+    if (-not $reuseFinal -and (Test-Path -LiteralPath $partialDirectory)) {
         try {
             $partialRelease = Resolve-ReleaseArtifact -Path $partialDirectory
             if ($partialRelease.Manifest.kind -eq "release" -and
@@ -642,7 +647,9 @@ function Invoke-Publish {
         -TimeoutSeconds 300 |
         Write-Host
 
-    Move-Item -LiteralPath $partialDirectory -Destination $finalDirectory
+    if (-not $reuseFinal) {
+        Move-Item -LiteralPath $partialDirectory -Destination $finalDirectory
+    }
     Publish-ReleaseTag -Tag $Version -Commit $commit
 
     Remove-OldReleaseArtifacts -ArtifactRoot $ArtifactRoot -RetentionCount $RetentionCount

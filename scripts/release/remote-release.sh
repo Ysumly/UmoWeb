@@ -15,7 +15,7 @@ PYTHON_BIN="${PYTHON_BIN:-}"
 RELEASE_TEMP_FILES=()
 
 log() {
-    printf '[release] %s\n' "$*"
+    printf '[release] %s\n' "$*" >&2
 }
 
 warn() {
@@ -545,10 +545,12 @@ deploy_release() {
 
     local backend_tag
     local frontend_tag
+    local release_id
     local previous_backend
     local previous_frontend
     backend_tag="$(manifest_value "$manifest" "backendImage.tag")"
     frontend_tag="$(manifest_value "$manifest" "frontendImage.tag")"
+    release_id="$(manifest_value "$manifest" "releaseId")"
     previous_backend="$(read_env_value_or_default "$COMPOSE_ENV_FILE" "BACKEND_IMAGE" "umoweb-backend:latest")"
     previous_frontend="$(read_env_value_or_default "$COMPOSE_ENV_FILE" "FRONTEND_IMAGE" "umoweb-frontend:latest")"
 
@@ -573,7 +575,7 @@ deploy_release() {
     trap - EXIT INT TERM HUP
     cleanup_release_temp_files
     release_release_lock
-    log "$operation completed for $(manifest_value "$manifest" "releaseId")"
+    log "$operation completed for $release_id"
 }
 
 update_env_file() {

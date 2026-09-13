@@ -209,6 +209,15 @@ $(("e" * 40))`trefs/tags/v1.0.0-rc.1^{}
         -Expected ("e" * 40) `
         -Message "Remote tag parser did not select the peeled commit"
 
+    Assert-True `
+        -Condition (Test-ReleaseStateMatchesManifest -State $manifest -Manifest $manifest) `
+        -Message "Matching release state was rejected"
+    $differentState = $manifest | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $differentState.gitCommit = "ffffffffffffffffffffffffffffffffffffffff"
+    Assert-True `
+        -Condition (-not (Test-ReleaseStateMatchesManifest -State $differentState -Manifest $manifest)) `
+        -Message "Release state with a different commit was accepted"
+
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("umoweb-release-test-" + [guid]::NewGuid())
     New-Item -ItemType Directory -Path $tempRoot | Out-Null
     try {
