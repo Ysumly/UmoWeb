@@ -1,5 +1,49 @@
 # 审计日志
 
+## 审计 #26 - 2026-09-13 — 访问信息统计与安全日志实现
+
+### 范围
+
+- Nginx 六字段 JSON 访问日志、真实路径与查询参数隔离、可信上游代理边界。
+- 主机级日志轮转、压缩、7–30 天原始日志清理、默认 180 天匿名聚合和静态 HTML 报表。
+- 仅监听 `127.0.0.1` 的专用非 root 报表服务、公开隐私说明和发布 manifest 访问策略。
+
+### 实现
+
+- Nginx `$request_uri` 经 map 去除查询字符串后写入 `path`，避免 SPA fallback 把真实路由改为
+  `index.html`；日志严格限制为 IP、ISO 8601 时间、方法、路径、状态码和响应字节数。
+- Nginx real_ip 只信任 `/etc/umoweb/access.env` 中显式配置的 `ACCESS_TRUSTED_PROXIES`；
+  默认列表为空，非可信来源的 `X-Forwarded-For` 不进入日志。
+- `scripts/access/access_maintenance.py` 以零第三方依赖实现日志校验、每日独立 IP 聚合、
+  路径排行、保留期清理、HTML 转义和原子写入；长期聚合不包含任何原始 IP。
+- `report_server.py` 只提供 `/`、`/index.html` 和 `/healthz`，不提供目录列表或缓存，
+  启动时拒绝非回环监听地址。
+- systemd 安装脚本创建专用非 root 报表账户、`0750/0640` 权限、每日 `02:40` 后随机延迟执行，
+  并重启回环报表服务。
+- 公开 `/privacy` 从 `/privacy-config.json` 读取实际保留期；配置失败时不显示未经确认的天数。
+- 发布 manifest 增加可选 `accessPolicy`；旧 manifest 和 rc.1 回滚保持兼容。
+
+### 本地验证
+
+| 验证 | 结果 |
+|---|---|
+| 后端完整测试 | 83 tests / 0 failures / 0 errors |
+| 前端 Node 测试 | 49 tests / 0 failures |
+| 前端生产构建 | Vite 8.1.0 通过 |
+| Windows Playwright | 35 passed（21 functional + 14 visual） |
+| 访问 Python 测试 | 9 tests / 0 failures |
+| systemd 安装渲染测试 | 通过，无未替换占位符 |
+| Nginx 容器集成 | 通过，六字段、真实路径、查询值和凭据哨兵未泄露，伪造 XFF 未采用 |
+| 发布脚本自测 | PowerShell 与 Bash 均通过 |
+| 敏感信息扫描 | 扫描器自测和全仓扫描通过 |
+
+### 剩余风险
+
+1. Task 2.5 尚未完成 ECS 发布验收，当前生产仍运行 rc.1。
+2. 当前无域名和 HTTPS，`ACCESS_TRUSTED_PROXIES` 默认空；Task 1.4 接入最终代理后必须重新验收。
+3. 报表保留原始 IP，虽仅由管理员回环服务访问，但丢失主机访问控制后仍属于敏感运维数据。
+4. 访问日志、聚合和报表不进入业务备份，丢失后只影响安全审计连续性。
+
 ## 审计 #25 - 2026-09-13 — 本地镜像发布与回滚
 
 ### 范围

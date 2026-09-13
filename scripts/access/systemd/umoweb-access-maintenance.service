@@ -1,0 +1,13 @@
+[Unit]
+Description=UmoWeb access log aggregation and retention
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/umoweb/access.env
+ExecStart=/usr/bin/env bash @INSTALL_ROOT@/scripts/access/run-maintenance.sh
+TimeoutStartSec=600
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

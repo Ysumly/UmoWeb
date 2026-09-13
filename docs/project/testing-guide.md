@@ -154,15 +154,15 @@ npm run test:e2e
 2026-09-12 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
-- 前端 46 个 Node 测试通过，覆盖路由、管理路径、主题、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、API 错误解析、日期格式、查询规范化和 Markdown 安全。
-- Playwright 34 个浏览器检查通过，其中 20 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖核心页面的桌面与 390px 基线。
+- 前端 49 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、API 错误解析、日期格式、查询规范化和 Markdown 安全。
+- Playwright 35 个浏览器检查，其中 21 个 functional 用例覆盖公开端、隐私说明、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖核心页面的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
   MySQL 副本、`api-smoke.py`/`api-smoke.ps1` 和第 2.8 节的 CI 集成 job 验证。
 
 2026-09-13 已验证：
 
-- Windows 本机 Chrome 继续运行 34 个 Playwright 检查，原有 `win32` 视觉快照未变化。
-- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 34 个检查，
+- Windows 本机 Chrome 当前运行 35 个 Playwright 检查，原有 `win32` 视觉快照未变化。
+- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 35 个检查，
   同一提交连续两轮均为 34/34，通过独立的 `linux` 视觉快照验证。
 - `browser` job 失败时会保留 Playwright HTML 报告、trace 和失败截图 artifact。
 
@@ -287,7 +287,8 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
 
 `.github/workflows/ci.yml` 在 `pull_request` 和 `master` push 时执行五个独立 job：
 
-- `repository`：检查变更范围空白错误，运行敏感信息扫描器自测并扫描全部已跟踪文件。
+- `repository`：检查变更范围空白错误，运行敏感信息扫描器、发布脚本、访问聚合/保留测试和
+  Nginx 六字段日志容器测试，并扫描全部已跟踪文件。
 - `backend`：使用 Temurin Java 17 执行 `mvn -B test`。
 - `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，启动真实后端并执行
   27/27 接口冒烟，同时校验上传文件和测试数据清理。
@@ -349,6 +350,36 @@ Compose 健康解析、失败自动回滚、成功后状态记录和远端归档
 - 首次发布、ECS 本地检查和公网检查合计约 170 秒。
 - 回滚到 `baseline-20260913` 约 120 秒，image ID 恢复为发布前记录的原始前后端镜像。
 - 从开发机 rc.1 归档恢复生产约 122 秒；最终 `Verify` 返回 rc.1 及 manifest image ID。
+
+### 2.10 访问安全日志
+
+本机单元与安装渲染测试：
+
+```bash
+bash scripts/access/tests/access-unit.sh
+```
+
+Nginx 容器级六字段测试：
+
+```bash
+bash scripts/access/tests/nginx-access-log-test.sh
+```
+
+当前 9 个 Python 测试覆盖严格六字段解析、查询参数和敏感字段拒绝、IPv4/IPv6 每日独立 IP、
+7/30 天原始日志边界、聚合保留、隐私配置、可信代理生成、HTML 转义和回环报表服务。
+Nginx 测试发送带查询参数、Cookie、Authorization、Token、请求体和伪造 `X-Forwarded-For`
+的合成请求，断言日志只有六个字段、保留真实请求路径且不泄露任何哨兵值。
+
+ECS 部署后的完整验收：
+
+```bash
+/opt/umoweb/scripts/access/install-access-timer.sh
+/opt/umoweb/scripts/access/verify-access-deployment.sh http://127.0.0.1:8080
+```
+
+该验证交叉检查公开 `/privacy-config.json` 与 `/etc/umoweb/access.env`，检查
+`0750/0640` 权限、报表 `127.0.0.1` 监听边界、六字段日志和不可信转发头。发布 manifest 含
+`accessPolicy` 时，`remote-release.sh` 会在切换后自动执行同一验证；旧 manifest 不要求访问服务。
 
 ---
 

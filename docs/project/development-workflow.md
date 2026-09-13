@@ -43,6 +43,7 @@
 | 前端依赖或目录 | `frontend-architecture.md`、`Dependencies.md` |
 | 前端页面状态 | `frontend-srs.md`、`frontend-implementation-prompt.md`、`codebase-memory.md` |
 | 安全配置 | `security-config.md`、`audit-log.md` |
+| 访问日志、聚合和报表 | `docker-guide.md`、`security-config.md`、`testing-guide.md`、`codebase-memory.md` |
 | 测试命令或覆盖范围 | `testing-guide.md`、`codebase-memory.md` |
 | CI 工作流 | `testing-guide.md`、`codebase-memory.md`、`audit-log.md` |
 | 完成里程碑 | `CHANGELOG.md`、`.state-snapshot.md` |
@@ -77,6 +78,15 @@ npm run test:e2e
 `.github/workflows/ci.yml` 负责基础质量检查、MySQL 8.4 真实集成和 Ubuntu Playwright。
 MySQL job 从空库执行 Schema、种子和兼容迁移，启动后端并执行 27/27 接口冒烟。
 Linux 视觉基线通过手动 `Playwright Linux Baselines` 工作流生成 artifact，由开发者审查后提交。
+访问日志链路必须运行：
+
+```bash
+bash scripts/access/tests/access-unit.sh
+bash scripts/access/tests/nginx-access-log-test.sh
+```
+
+修改保留期、隐私说明或发布 manifest 的 `accessPolicy` 时，三处值必须保持一致，且不能把
+查询参数、请求体、Cookie 或 Authorization 加入访问日志。
 本地修改敏感信息扫描器时必须先运行：
 
 ```bash

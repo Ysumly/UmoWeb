@@ -52,6 +52,14 @@ jobs:
         shell: bash
         run: bash scripts/release/tests/release-unit.sh
 
+      - name: Test access aggregation and retention
+        shell: bash
+        run: bash scripts/access/tests/access-unit.sh
+
+      - name: Test Nginx six-field access logs
+        shell: bash
+        run: bash scripts/access/tests/nginx-access-log-test.sh
+
       - name: Test PowerShell release helpers
         shell: pwsh
         run: ./scripts/release/tests/release-unit.ps1

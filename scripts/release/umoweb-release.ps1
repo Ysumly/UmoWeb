@@ -23,7 +23,9 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "lib/release-common.ps1")
 
 $RemoteReleaseScript = "$RemoteRoot/scripts/release/remote-release.sh"
+$RemoteAccessRoot = "$RemoteRoot/scripts/access"
 $RemoteIncomingRoot = "$RemoteRoot/releases/incoming"
+$LocalAccessRoot = Join-Path (Split-Path $PSScriptRoot -Parent) "access"
 
 function Invoke-NativeCapture {
     param(
@@ -191,6 +193,31 @@ function Sync-RemoteReleaseControl {
         -RemotePath $RemoteReleaseScript
 }
 
+function Sync-RemoteAccessControl {
+    Invoke-WorkbenchCommand `
+        -Command "mkdir -p '$RemoteAccessRoot/systemd' && chmod 0755 '$RemoteAccessRoot' '$RemoteAccessRoot/systemd'" |
+        Out-Null
+
+    $files = @(
+        "access-lib.sh",
+        "access_maintenance.py",
+        "install-access-timer.sh",
+        "report_server.py",
+        "run-maintenance.sh",
+        "serve-access-report.sh",
+        "verify-access-deployment.sh",
+        "systemd/umoweb-access-maintenance.service",
+        "systemd/umoweb-access-maintenance.timer",
+        "systemd/umoweb-access-report.service"
+    )
+    foreach ($file in $files) {
+        $relativePath = $file -replace "/", [System.IO.Path]::DirectorySeparatorChar
+        Invoke-WorkbenchUpload `
+            -LocalPath (Join-Path $LocalAccessRoot $relativePath) `
+            -RemotePath "$RemoteAccessRoot/$file"
+    }
+}
+
 function Invoke-RemoteRelease {
     param(
         [Parameter(Mandatory)]
@@ -331,6 +358,20 @@ function Get-RemoteAdminPath {
         throw "Remote VITE_ADMIN_PATH is missing or invalid"
     }
     return $value
+}
+
+function Get-RemoteAccessPolicy {
+    $json = Invoke-WorkbenchCommand `
+        -Command "cat '$RemoteRoot/access/privacy-config.json'"
+    try {
+        $policy = $json | ConvertFrom-Json
+    } catch {
+        throw "Remote access privacy configuration is invalid: $json"
+    }
+    if ($null -eq $policy.rawRetentionDays -or $null -eq $policy.aggregateRetentionDays) {
+        throw "Remote access privacy configuration is incomplete"
+    }
+    return $policy
 }
 
 function Get-DockerImageId {
@@ -554,6 +595,13 @@ function Invoke-Publish {
     $adminPath = Get-RemoteAdminPath
     $adminPathHash = Get-Sha256String -Value $adminPath
     Write-Host "Using ECS frontend build configuration (admin path SHA-256: $adminPathHash)"
+    Sync-RemoteAccessControl
+    Invoke-WorkbenchCommand `
+        -Command "bash '$RemoteAccessRoot/install-access-timer.sh'" `
+        -TimeoutSeconds 120 |
+        Out-Null
+    $accessPolicy = Get-RemoteAccessPolicy
+    Write-Host "Using access policy: raw=$($accessPolicy.rawRetentionDays) days, aggregate=$($accessPolicy.aggregateRetentionDays) days"
 
     if ($resumePartial) {
         if ($manifest.adminPathSha256 -ne $adminPathHash) {
@@ -631,7 +679,9 @@ function Invoke-Publish {
             -ArchiveFileName $archiveName `
             -ArchiveSha256 $archiveHash `
             -ArchiveSize $archive.Length `
-            -AdminPath $adminPath
+            -AdminPath $adminPath `
+            -AccessRawRetentionDays ([int]$accessPolicy.rawRetentionDays) `
+            -AccessAggregateRetentionDays ([int]$accessPolicy.aggregateRetentionDays)
         $manifestPath = Join-Path $partialDirectory "manifest.json"
         Write-JsonFile -Value $manifest -Path $manifestPath
     }

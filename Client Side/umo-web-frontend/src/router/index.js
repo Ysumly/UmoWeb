@@ -16,7 +16,8 @@ const routes = [
       { path: 'about',      name: 'about',   component: () => import('@/views/public/AboutPage.vue'),      meta: { motion: 'focused', order: 2 } },
       { path: 'project',    name: 'project', component: () => import('@/views/public/ProjectPage.vue'),    meta: { motion: 'focused', order: 3 } },
       { path: 'editor',     name: 'editor',  component: () => import('@/views/public/EditorPage.vue'),     meta: { motion: 'focused', order: 4 } },
-      { path: ':pathMatch(.*)*', name: 'not-found', component: () => import('@/views/public/NotFoundPage.vue'), meta: { motion: 'focused', order: 5 } },
+      { path: 'privacy',    name: 'privacy', component: () => import('@/views/public/PrivacyPage.vue'),   meta: { motion: 'focused', order: 5 } },
+      { path: ':pathMatch(.*)*', name: 'not-found', component: () => import('@/views/public/NotFoundPage.vue'), meta: { motion: 'focused', order: 6 } },
     ],
   },
 

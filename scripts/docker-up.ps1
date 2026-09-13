@@ -56,6 +56,24 @@ if (-not (Test-Path -LiteralPath $envFile)) {
 }
 
 $resolvedEnvFile = (Resolve-Path -LiteralPath $envFile).Path
+$accessRoot = Join-Path $root "access"
+New-Item -ItemType Directory -Path (Join-Path $accessRoot "logs") -Force | Out-Null
+$privacyConfig = Join-Path $accessRoot "privacy-config.json"
+if (-not (Test-Path -LiteralPath $privacyConfig)) {
+    [IO.File]::WriteAllText(
+        $privacyConfig,
+        '{"rawRetentionDays":30,"aggregateRetentionDays":180}' + "`n",
+        [Text.UTF8Encoding]::new($false)
+    )
+}
+$trustedProxyConfig = Join-Path $accessRoot "trusted-proxies.conf"
+if (-not (Test-Path -LiteralPath $trustedProxyConfig)) {
+    [IO.File]::WriteAllText(
+        $trustedProxyConfig,
+        "# No trusted upstream proxy is configured for the direct Docker port topology.`n",
+        [Text.UTF8Encoding]::new($false)
+    )
+}
 
 Push-Location $root
 try {

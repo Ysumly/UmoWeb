@@ -1,6 +1,6 @@
 # 安全与配置实现
 
-> 基线日期: 2026-09-11
+> 基线日期: 2026-09-13
 > 路径: `config/`、`common/util/JwtUtil.java`
 
 ---
@@ -184,6 +184,10 @@ app:
 Docker Compose 将 Nginx 固定为 `172.30.0.10`，后端只信任 `172.30.0.10/32`。
 Nginx 使用 `$remote_addr` 覆盖客户端请求中的 `X-Forwarded-For`，避免外来转发头绕过限流。
 
+Nginx 另通过 `ACCESS_TRUSTED_PROXIES` 配置自己的上游可信代理。默认列表为空，不采用任何
+客户端提供的 `X-Forwarded-For`；只有直连来源匹配可信 IP/CIDR 时才启用 real_ip 解析。
+该项与后端 `TRUSTED_PROXIES` 是两层独立信任边界，最终代理拓扑变化时必须同时复核。
+
 管理端前端路径不再由后端 YAML 控制，前端通过 `VITE_ADMIN_PATH` 配置并默认 `/secret-admin`，
 示例见 `Client Side/umo-web-frontend/.env.example`。
 
@@ -218,7 +222,30 @@ Nginx 使用 `$remote_addr` 覆盖客户端请求中的 `X-Forwarded-For`，避�
 
 ---
 
-## 9. 安全缺口
+## 9. 访问安全日志
+
+Nginx 的 `umoweb_security` JSON 格式严格记录六个字段：
+
+```text
+time, ip, method, path, status, bytes
+```
+
+- `path` 来自 `$request_uri` 的问号前部分，保留 SPA 真实路由但不记录查询字符串。
+- `$time_iso8601` 提供带时区的 ISO 8601 时间，`$body_bytes_sent` 为响应字节数。
+- 不记录 `$request`、请求体、Cookie、Authorization、Referer 或 User-Agent。
+- 原始日志写入 `access/logs` 绑定目录，目录权限目标为 `0750`、文件为 `0640`。
+- `scripts/access/` 每日轮转和 gzip；原始日志默认 30 天，仅允许配置 7–30 天。
+- 长期聚合只保存请求数、每日独立 IP 数量、状态/方法分布、字节数、路径排行和解析错误数，
+  不保存任何原始 IP 或跨日标识。
+- 含原始 IP 的短期 HTML 报表由专用非 root 服务提供，只监听 `127.0.0.1`，不提供目录列表、
+  不缓存，也不启用持久化原始 IP 数据库。
+
+公开 `/privacy` 与运行时 `/privacy-config.json` 使用同一份保留期配置。配置不可读时页面明确
+显示策略不可用，而不是回退展示可能错误的天数。
+
+---
+
+## 10. 安全缺口
 
 | 风险 | 当前事实 |
 |---|---|
@@ -236,7 +263,7 @@ Nginx 使用 `$remote_addr` 覆盖客户端请求中的 `X-Forwarded-For`，避�
 
 ---
 
-## 10. 测试现状
+## 11. 测试现状
 
 边界测试覆盖了部分 401、400、409 和 429 的 Service 异常路径，但没有启动真实 Web 容器和拦截器链。
 
@@ -247,6 +274,8 @@ Nginx 使用 `$remote_addr` 覆盖客户端请求中的 `X-Forwarded-For`，避�
 - 可信代理精确 IP、IPv4/IPv6 CIDR、非法配置和多级转发链测试。
 - 路径穿越、临时文件、回滚和原子替换测试。
 - 伪造 MIME、空原始文件名和上传数据库失败清理测试。
+- 六字段日志解析、敏感字段拒绝、聚合去重、保留边界、可信代理生成和报表转义测试。
+- Nginx 容器级合成请求验证，覆盖查询参数、Cookie、Authorization、请求体和伪造转发头。
 
 仍缺少：
 

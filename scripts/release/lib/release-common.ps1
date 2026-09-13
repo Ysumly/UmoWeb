@@ -157,7 +157,9 @@ function New-ReleaseManifest {
         [Parameter(Mandatory)]
         [long]$ArchiveSize,
         [Parameter(Mandatory)]
-        [string]$AdminPath
+        [string]$AdminPath,
+        [Nullable[int]]$AccessRawRetentionDays,
+        [Nullable[int]]$AccessAggregateRetentionDays
     )
 
     if ($ReleaseId -notmatch '^[A-Za-z0-9][A-Za-z0-9_.-]*$') {
@@ -173,6 +175,22 @@ function New-ReleaseManifest {
     }
     if ($ArchiveSize -le 0) {
         throw "Archive size must be positive"
+    }
+    $accessPolicy = $null
+    if ($null -ne $AccessRawRetentionDays -or $null -ne $AccessAggregateRetentionDays) {
+        if ($null -eq $AccessRawRetentionDays -or $null -eq $AccessAggregateRetentionDays) {
+            throw "Both access retention values are required when access policy is recorded"
+        }
+        if ($AccessRawRetentionDays -lt 7 -or $AccessRawRetentionDays -gt 30) {
+            throw "Raw access retention must be between 7 and 30 days"
+        }
+        if ($AccessAggregateRetentionDays -lt 1 -or $AccessAggregateRetentionDays -gt 3650) {
+            throw "Aggregate access retention must be between 1 and 3650 days"
+        }
+        $accessPolicy = [ordered]@{
+            rawRetentionDays = [int]$AccessRawRetentionDays
+            aggregateRetentionDays = [int]$AccessAggregateRetentionDays
+        }
     }
 
     return [pscustomobject][ordered]@{
@@ -199,6 +217,7 @@ function New-ReleaseManifest {
             size     = $ArchiveSize
         }
         adminPathSha256 = Get-Sha256String -Value $AdminPath
+        accessPolicy    = $accessPolicy
     }
 }
 
@@ -255,6 +274,17 @@ function Assert-ReleaseManifest {
     }
     if ([string]$Manifest.adminPathSha256 -notmatch '^[A-Fa-f0-9]{64}$') {
         throw "Release manifest contains an invalid admin path SHA-256"
+    }
+    $accessPolicyProperty = $Manifest.PSObject.Properties["accessPolicy"]
+    if ($null -ne $accessPolicyProperty -and $null -ne $accessPolicyProperty.Value) {
+        $rawRetention = [int]$accessPolicyProperty.Value.rawRetentionDays
+        $aggregateRetention = [int]$accessPolicyProperty.Value.aggregateRetentionDays
+        if ($rawRetention -lt 7 -or $rawRetention -gt 30) {
+            throw "Release manifest contains an invalid raw access retention"
+        }
+        if ($aggregateRetention -lt 1 -or $aggregateRetention -gt 3650) {
+            throw "Release manifest contains an invalid aggregate access retention"
+        }
     }
 }
 
