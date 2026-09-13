@@ -35,6 +35,7 @@ class Smoke:
         self.category_id: int | None = None
         self.tag_id: int | None = None
         self.content_id: int | None = None
+        self.previous_content_id: int | None = None
 
     def run(self) -> None:
         run_id = str(uuid.uuid4())
@@ -199,6 +200,45 @@ class Smoke:
             )
             self.step(15, "PUT /api/admin/tags/{id}")
 
+            previous_content_slug = f"smoke-previous-{run_id}"
+            previous_content = self.expect_json(
+                "POST",
+                "/api/admin/contents",
+                {
+                    "title": f"Smoke Previous {run_id}",
+                    "slug": previous_content_slug,
+                    "body": "# Smoke Previous\n\nEarlier body",
+                    "summary": f"Smoke previous {run_id}",
+                    "type": "NOTE",
+                    "status": "DRAFT",
+                    "categoryIds": [self.category_id],
+                    "tagIds": [self.tag_id],
+                    "metadata": '{"source":"api-smoke","order":"previous"}',
+                },
+                token=self.token,
+            )
+            self.previous_content_id = previous_content.get("id")
+            self.require(
+                self.previous_content_id,
+                "created previous content must have id",
+            )
+            self.expect_json(
+                "PUT",
+                f"/api/admin/contents/{self.previous_content_id}",
+                {
+                    "title": f"Smoke Previous {run_id}",
+                    "slug": previous_content_slug,
+                    "body": "# Smoke Previous\n\nEarlier body",
+                    "summary": f"Smoke previous {run_id}",
+                    "type": "NOTE",
+                    "status": "PUBLISHED",
+                    "categoryIds": [self.category_id],
+                    "tagIds": [self.tag_id],
+                    "metadata": '{"source":"api-smoke","order":"previous"}',
+                },
+                token=self.token,
+            )
+
             admin_contents = self.expect_json(
                 "GET",
                 "/api/admin/contents?page=1&size=100",
@@ -250,6 +290,20 @@ class Smoke:
                 content_detail.get("status") == "DRAFT",
                 "admin detail must expose DRAFT",
             )
+            self.require(
+                any(
+                    category.get("id") == self.category_id
+                    for category in content_detail.get("categories", [])
+                ),
+                "admin detail must include the created category",
+            )
+            self.require(
+                any(
+                    tag.get("id") == self.tag_id
+                    for tag in content_detail.get("tags", [])
+                ),
+                "admin detail must include the created tag",
+            )
             self.step(18, "GET /api/admin/contents/{id}")
 
             content_update = self.expect_json(
@@ -290,6 +344,70 @@ class Smoke:
                 public_detail.get("body") == "# Smoke\n\nUpdated body",
                 "public detail must load body",
             )
+            self.require(
+                any(
+                    category.get("id") == self.category_id
+                    for category in public_detail.get("categories", [])
+                ),
+                "public detail must include the smoke category",
+            )
+            self.require(
+                any(
+                    tag.get("id") == self.tag_id
+                    for tag in public_detail.get("tags", [])
+                ),
+                "public detail must include the smoke tag",
+            )
+            self.require(
+                (public_detail.get("previous") or {}).get("slug")
+                == previous_content_slug,
+                "public detail must return the older smoke content as previous",
+            )
+            self.require(
+                public_detail.get("next") is None,
+                "public detail must have no next content at the latest boundary",
+            )
+
+            note_contents = self.expect_json(
+                "GET",
+                "/api/public/contents?type=NOTE&page=1&size=100",
+            )
+            self.require(
+                all(item.get("type") == "NOTE" for item in note_contents["items"]),
+                "public type filter must only return NOTE content",
+            )
+            category_contents = self.expect_json(
+                "GET",
+                f"/api/public/contents?categoryId={self.category_id}"
+                "&page=1&size=100",
+            )
+            expected_slugs = {content_slug, previous_content_slug}
+            self.require(
+                all(
+                    item.get("slug") in expected_slugs
+                    for item in category_contents["items"]
+                ),
+                "public category filter must only return smoke content",
+            )
+            tag_contents = self.expect_json(
+                "GET",
+                f"/api/public/contents?tagId={self.tag_id}&page=1&size=100",
+            )
+            self.require(
+                all(
+                    item.get("slug") in expected_slugs
+                    for item in tag_contents["items"]
+                ),
+                "public tag filter must only return smoke content",
+            )
+            previous_detail = self.expect_json(
+                "GET",
+                f"/api/public/contents/{previous_content_slug}",
+            )
+            self.require(
+                (previous_detail.get("next") or {}).get("slug") == content_slug,
+                "previous smoke content must return the current content as next",
+            )
             self.step(20, "GET /api/public/contents/{slug}")
 
             query = urllib.parse.quote(run_id)
@@ -322,6 +440,19 @@ class Smoke:
                 expected=404,
             )
             self.content_id = None
+            self.request(
+                "DELETE",
+                f"/api/admin/contents/{self.previous_content_id}",
+                token=self.token,
+                expected=204,
+            )
+            self.request(
+                "GET",
+                f"/api/admin/contents/{self.previous_content_id}",
+                token=self.token,
+                expected=404,
+            )
+            self.previous_content_id = None
             self.step(22, "DELETE /api/admin/contents/{id}")
 
             self.request(
@@ -383,7 +514,9 @@ class Smoke:
 
             print(
                 "API smoke passed: 27/27 endpoints, authentication guard, "
-                "draft isolation, password invalidation, and search rate limit."
+                "draft isolation, public filters, content associations, "
+                "previous/next navigation, password invalidation, image upload, "
+                "and search rate limit."
             )
         finally:
             self.cleanup()
@@ -393,6 +526,11 @@ class Smoke:
             return
         for path in (
             f"/api/admin/contents/{self.content_id}" if self.content_id else None,
+            (
+                f"/api/admin/contents/{self.previous_content_id}"
+                if self.previous_content_id
+                else None
+            ),
             f"/api/admin/tags/{self.tag_id}" if self.tag_id else None,
             f"/api/admin/categories/{self.category_id}" if self.category_id else None,
         ):

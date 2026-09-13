@@ -369,14 +369,13 @@ countContentsByTagId(tagId)
 
 ## 8. 测试现状
 
-单元测试覆盖路径、文件事务、JWT、限流、VO 批量组装和上传签名；Controller 边界测试仍 Mock Service，
-没有使用真实 Mapper 或 MySQL：
+单元测试覆盖路径、文件事务、JWT、限流、VO 批量组装和上传签名；Controller 边界测试仍 Mock Service。
+GitHub Actions 的 MySQL 8.4 job 另行启动真实后端并验证 Mapper SQL：
 
 - 没有 Entity 与 Schema 的自动一致性测试。
-- 没有 Mapper XML 集成测试。
-- 没有真实 MySQL 多对多关联事务测试。
 - 没有 SQL 注入和分页边界测试。
 
-2026-09-11 已在隔离 MySQL 5.7 副本上完成兼容迁移和真实 Mapper 冒烟，但该过程尚未固化为 CI 数据库测试。
+2026-09-13 起 CI 会从空库执行 Schema、种子数据、兼容迁移和 27/27 接口冒烟，
+覆盖 Mapper 查询、分类/标签关联与详情前后文章；2026-09-11 隔离 MySQL 5.7 副本记录继续保留。
 
 构建和测试命令见 [codebase-memory.md](../project/codebase-memory.md)。

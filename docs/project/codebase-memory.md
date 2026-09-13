@@ -82,7 +82,7 @@ UmoWeb/
 | 平台 | GitHub Actions，私有仓库 |
 | 触发 | `pull_request` 和 `master` push |
 | 运行环境 | Ubuntu、Temurin Java 17、Node 24.12.0 |
-| 检查 | 后端 Maven 测试、前端 Node 测试、前端构建、Linux Playwright、diff 检查和敏感信息扫描 |
+| 检查 | 后端 Maven 测试、MySQL 8.4 Schema/种子/迁移与接口冒烟、前端 Node 测试、前端构建、Linux Playwright、diff 检查和敏感信息扫描 |
 | 视觉基线 | 14 张 Windows Chrome 与 14 张 Linux Chromium 独立 PNG |
 | 权限 | `contents: read`，不配置仓库 Secret |
 | 合并门禁 | 当前私有仓库计划不支持分支保护或规则集，失败结果不能强制阻止合并 |
@@ -364,7 +364,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 当前存在公开端 `SiteHeader`、`SiteFooter`、`ContentCard`、`ContentState`、`MarkdownArticle` 和 `ThemeToggle`；管理端仍没有统一表单/表格组件。
 - 公开端页头和管理端侧栏共用 `public/umo-logo.png`，浏览器图标为 `public/favicon.png`。
 - 前端已建立 Playwright functional 与视觉回归；Windows 使用本机 Chrome，CI 使用 Linux Chromium，
-  浏览器测试不连接后端，真实接口仍由 MySQL 冒烟脚本负责。
+  浏览器测试不连接后端，真实接口由 CI MySQL 8.4 集成 job 和冒烟脚本负责。
 
 公开端主路径、在线编辑器和全部管理端核心业务页均已实现。
 
@@ -428,7 +428,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 新增 Mapper XML 别名解析、`ClientIpResolver` 容器装配和 Jackson 3 自动配置回归测试。
 - `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，覆盖非法配置、可信代理链和未授权转发头。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
-- 自动测试仍没有真实 MySQL 集成测试；2026-09-11 已在隔离 MySQL 5.7 副本完成迁移，2026-09-12 已通过 Docker MySQL 8.4 执行 27/27 接口冒烟。
+- 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成 27/27 接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
 - 内容导入器有 6 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、图片重写、内容去重、
   Linux 文件所有权和缺失素材阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 27 个接口。
 - 前端 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
@@ -439,8 +439,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
   `Playwright Linux Baselines` 工作流生成 artifact 后人工审查提交，不会自动写回仓库。
 - `scripts/ci/scan-sensitive-info.sh` 扫描全部已跟踪文件，覆盖公开 IPv4、ECS 实例 ID、AccessKey、
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。
-- GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、前端测试、生产构建和
-  Linux Playwright；真实 MySQL 集成仍属于 Task 2.3。
+- GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、MySQL 8.4 集成、
+  前端测试、生产构建和 Linux Playwright；MySQL job 同时验证 Schema、种子、迁移和 27/27 冒烟。
 
 ### 7.2 当前代码风险
 
