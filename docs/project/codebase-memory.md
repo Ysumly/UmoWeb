@@ -35,7 +35,7 @@ UmoWeb/
 └── .superpowers/
 ```
 
-后端主源码为 81 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
+后端主源码为 82 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
 主题与 Markdown 工具、页面源码和 Node 测试。`Downloads/`、
 `.superpowers/`、`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
@@ -58,7 +58,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；84 个测试 |
+| 测试 | Spring Boot Test、Mockito、MockMvc；98 个测试（3 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -253,8 +253,11 @@ HTTP 状态与返回：
 - `page` 默认 1 且限制为 1-1000000；`size` 默认 10 且限制为 1-100。
 - `sort` 仅当值严格等于 `created_at_desc` 时按创建时间倒序；其他值都按 `published_at DESC`。
 - 公开列表和详情只处理 `status=PUBLISHED`。
-- `categoryId` 使用 `EXISTS` 精确匹配关联分类，不包含子分类。
+- `categoryId` 默认使用 `EXISTS` 精确匹配关联分类；`includeDescendants=true` 时先解析全部后代 ID，
+  再使用 `IN` + `EXISTS` 过滤，内容不重复。
 - `tagId` 精确匹配标签。
+- 分类后代由 `CategoryHierarchyResolver` 展开；命中范围内循环或超过 32 层返回 409，
+  分类不存在仍返回空结果。排序在时间字段后使用 `id DESC` 稳定次序。
 - 搜索 SQL 为 `title LIKE` 或 `summary LIKE`，不检索 Markdown 正文。
 - `q` 为空或未传时，搜索等价于匹配全部已发布内容。
 - 搜索同 IP 10 秒内只允许一次；仅信任显式配置的代理，记录定期清理。
@@ -341,6 +344,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 管理端登录页。
 - 管理端响应式布局、主题切换和退出登录。
 - 管理端文章列表：类型、状态、分类、标签和排序筛选，分页、状态展示、编辑和删除。
+- 管理端文章列表与公开列表共享 `includeDescendants` 参数；书库选择分类时默认包含全部子分类，
+  URL 同步 `category=<id>&includeDescendants=true`。
 - 管理端文章编辑器：新建/编辑、分类标签单行选项与分页、metadata 校验、Markdown 分屏预览、
   可展开的 metadata 字段说明、图片选择/拖拽/粘贴和未保存离开保护。新建页支持单文件
   `.md`/`.markdown` 导入，解析 YAML front matter，并在缺失时从 H1、文件名和默认值回退。
@@ -362,6 +367,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 404 页面采用公开端视觉布局。
 - 公开端已有 8 个业务路由：首页、书库、搜索、文章详情、About、Project、在线编辑器、
   隐私说明；另有 404 回退。
+- 2026-09-13 已完成 Task 3.2：分类筛选默认保持精确匹配，显式 `includeDescendants=true`
+  展开全部后代；书库分类入口默认启用该行为，真实 MySQL 集成测试覆盖根/子/孙和循环拒绝。
 
 ### 6.2 其他前端事实
 
@@ -455,8 +462,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
 - 内容导入器有 6 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、图片重写、内容去重、
   Linux 文件所有权和缺失素材阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 27 个接口。
-- 前端 58 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、Markdown front matter 导入、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- Playwright 每个平台运行 39 个浏览器检查：25 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入），14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+- 前端 60 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、Markdown front matter 导入、日期格式、书库后代参数、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
+- Playwright 每个平台运行 40 个浏览器检查：26 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入与书库子分类筛选），14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
 - Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；

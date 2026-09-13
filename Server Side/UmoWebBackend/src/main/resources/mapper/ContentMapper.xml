@@ -12,52 +12,62 @@
 
     <sql id="wherePublished">
         WHERE c.status = 'PUBLISHED'
-        <if test="type != null and type != ''">
-            AND c.type = #{type}
+        <if test="query.type != null and query.type != ''">
+            AND c.type = #{query.type}
         </if>
-        <if test="categoryId != null">
+        <if test="categoryIds != null">
             AND EXISTS (
                 SELECT 1 FROM content_category cc
-                WHERE cc.content_id = c.id AND cc.category_id = #{categoryId}
+                WHERE cc.content_id = c.id
+                  AND cc.category_id IN
+                  <foreach collection="categoryIds" item="categoryId"
+                           open="(" separator="," close=")">
+                      #{categoryId}
+                  </foreach>
             )
         </if>
-        <if test="tagId != null">
+        <if test="query.tagId != null">
             AND EXISTS (
                 SELECT 1 FROM content_tag ct
-                WHERE ct.content_id = c.id AND ct.tag_id = #{tagId}
+                WHERE ct.content_id = c.id AND ct.tag_id = #{query.tagId}
             )
         </if>
     </sql>
 
     <sql id="whereAll">
         WHERE 1 = 1
-        <if test="type != null and type != ''">
-            AND c.type = #{type}
+        <if test="query.type != null and query.type != ''">
+            AND c.type = #{query.type}
         </if>
-        <if test="status != null and status != ''">
-            AND c.status = #{status}
+        <if test="query.status != null and query.status != ''">
+            AND c.status = #{query.status}
         </if>
-        <if test="categoryId != null">
+        <if test="categoryIds != null">
             AND EXISTS (
                 SELECT 1 FROM content_category cc
-                WHERE cc.content_id = c.id AND cc.category_id = #{categoryId}
+                WHERE cc.content_id = c.id
+                  AND cc.category_id IN
+                  <foreach collection="categoryIds" item="categoryId"
+                           open="(" separator="," close=")">
+                      #{categoryId}
+                  </foreach>
             )
         </if>
-        <if test="tagId != null">
+        <if test="query.tagId != null">
             AND EXISTS (
                 SELECT 1 FROM content_tag ct
-                WHERE ct.content_id = c.id AND ct.tag_id = #{tagId}
+                WHERE ct.content_id = c.id AND ct.tag_id = #{query.tagId}
             )
         </if>
     </sql>
 
     <sql id="orderBy">
         <choose>
-            <when test="sort == 'created_at_desc'">
-                ORDER BY c.created_at DESC
+            <when test="query.sort == 'created_at_desc'">
+                ORDER BY c.created_at DESC, c.id DESC
             </when>
             <otherwise>
-                ORDER BY c.published_at DESC
+                ORDER BY c.published_at DESC, c.id DESC
             </otherwise>
         </choose>
     </sql>
@@ -69,7 +79,7 @@
         FROM contents c
         <include refid="wherePublished"/>
         <include refid="orderBy"/>
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{query.size} OFFSET #{query.offset}
     </select>
 
     <select id="countPublished" resultType="long">
@@ -117,7 +127,7 @@
         FROM contents c
         <include refid="whereAll"/>
         <include refid="orderBy"/>
-        LIMIT #{size} OFFSET #{offset}
+        LIMIT #{query.size} OFFSET #{query.offset}
     </select>
 
     <select id="countAll" resultType="long">

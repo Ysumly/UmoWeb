@@ -41,6 +41,20 @@ test('drops invalid library filters and normalizes the page', () => {
       tag: '7',
       page: '3',
     }),
-    { type: '', categoryId: null, tagId: 7, page: 3 },
+    { type: '', categoryId: null, includeDescendants: false, tagId: 7, page: 3 },
+  )
+})
+
+test('includes descendants by default when a category is selected', () => {
+  assert.deepEqual(
+    resolveLibraryQuery({ category: '2' }),
+    { type: '', categoryId: 2, includeDescendants: true, tagId: null, page: 1 },
+  )
+})
+
+test('keeps exact category matching when descendants are explicitly disabled', () => {
+  assert.deepEqual(
+    resolveLibraryQuery({ category: '2', includeDescendants: 'false' }),
+    { type: '', categoryId: 2, includeDescendants: false, tagId: null, page: 1 },
   )
 })

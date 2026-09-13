@@ -11,8 +11,10 @@ import java.util.List;
 @Mapper
 public interface ContentMapper {
     // 公开端
-    List<Content> findPublished(ContentQuery query);
-    long countPublished(ContentQuery query);
+    List<Content> findPublished(@Param("query") ContentQuery query,
+                                @Param("categoryIds") List<Long> categoryIds);
+    long countPublished(@Param("query") ContentQuery query,
+                        @Param("categoryIds") List<Long> categoryIds);
     Content findBySlug(String slug);
     Content findPreviousPublished(@Param("publishedAt") LocalDateTime publishedAt,
                                   @Param("id") Long id);
@@ -20,8 +22,10 @@ public interface ContentMapper {
                               @Param("id") Long id);
 
     // 管理端
-    List<Content> findAll(ContentQuery query);
-    long countAll(ContentQuery query);
+    List<Content> findAll(@Param("query") ContentQuery query,
+                          @Param("categoryIds") List<Long> categoryIds);
+    long countAll(@Param("query") ContentQuery query,
+                  @Param("categoryIds") List<Long> categoryIds);
     Content findById(Long id);
     long countBySlug(@Param("slug") String slug, @Param("excludeId") Long excludeId);
     void insert(Content content);

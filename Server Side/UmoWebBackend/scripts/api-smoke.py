@@ -33,6 +33,7 @@ class Smoke:
         self.steps = 0
         self.token: str | None = None
         self.category_id: int | None = None
+        self.child_category_id: int | None = None
         self.tag_id: int | None = None
         self.content_id: int | None = None
         self.previous_content_id: int | None = None
@@ -172,6 +173,22 @@ class Smoke:
             )
             self.step(12, "PUT /api/admin/categories/{id}")
 
+            child_category_slug = f"smoke-child-category-{run_id}"
+            child_category = self.expect_json(
+                "POST",
+                "/api/admin/categories",
+                {
+                    "name": f"Smoke Child Category {run_id}",
+                    "slug": child_category_slug,
+                    "parentId": self.category_id,
+                    "type": "NOTE",
+                    "sortOrder": 101,
+                },
+                token=self.token,
+            )
+            self.child_category_id = child_category.get("id")
+            self.require(self.child_category_id, "created child category must have id")
+
             admin_tags = self.expect_json("GET", "/api/admin/tags", token=self.token)
             self.require(isinstance(admin_tags, list), "admin tags must be an array")
             self.step(13, "GET /api/admin/tags")
@@ -261,7 +278,7 @@ class Smoke:
                     "summary": f"Smoke search token {run_id}",
                     "type": "NOTE",
                     "status": "DRAFT",
-                    "categoryIds": [self.category_id],
+                    "categoryIds": [self.child_category_id],
                     "tagIds": [self.tag_id],
                     "metadata": '{"source":"api-smoke"}',
                 },
@@ -292,10 +309,10 @@ class Smoke:
             )
             self.require(
                 any(
-                    category.get("id") == self.category_id
+                    category.get("id") == self.child_category_id
                     for category in content_detail.get("categories", [])
                 ),
-                "admin detail must include the created category",
+                "admin detail must include the created child category",
             )
             self.require(
                 any(
@@ -316,7 +333,7 @@ class Smoke:
                     "summary": f"Smoke search token {run_id}",
                     "type": "NOTE",
                     "status": "PUBLISHED",
-                    "categoryIds": [self.category_id],
+                    "categoryIds": [self.child_category_id],
                     "tagIds": [self.tag_id],
                     "metadata": '{"source":"api-smoke","updated":true}',
                 },
@@ -346,10 +363,10 @@ class Smoke:
             )
             self.require(
                 any(
-                    category.get("id") == self.category_id
+                    category.get("id") == self.child_category_id
                     for category in public_detail.get("categories", [])
                 ),
-                "public detail must include the smoke category",
+                "public detail must include the smoke child category",
             )
             self.require(
                 any(
@@ -383,11 +400,36 @@ class Smoke:
             )
             expected_slugs = {content_slug, previous_content_slug}
             self.require(
-                all(
-                    item.get("slug") in expected_slugs
-                    for item in category_contents["items"]
-                ),
-                "public category filter must only return smoke content",
+                [item.get("slug") for item in category_contents["items"]]
+                == [previous_content_slug],
+                "exact parent category filter must return only parent content",
+            )
+            descendant_category_contents = self.expect_json(
+                "GET",
+                f"/api/public/contents?categoryId={self.category_id}"
+                "&includeDescendants=true&page=1&size=100",
+            )
+            self.require(
+                {
+                    item.get("slug")
+                    for item in descendant_category_contents["items"]
+                }
+                == expected_slugs,
+                "descendant category filter must return parent and child content",
+            )
+            admin_descendant_contents = self.expect_json(
+                "GET",
+                f"/api/admin/contents?categoryId={self.category_id}"
+                "&includeDescendants=true&page=1&size=100",
+                token=self.token,
+            )
+            self.require(
+                {
+                    item.get("slug")
+                    for item in admin_descendant_contents["items"]
+                }
+                == expected_slugs,
+                "admin descendant category filter must return parent and child content",
             )
             tag_contents = self.expect_json(
                 "GET",
@@ -466,6 +508,13 @@ class Smoke:
 
             self.request(
                 "DELETE",
+                f"/api/admin/categories/{self.child_category_id}",
+                token=self.token,
+                expected=204,
+            )
+            self.child_category_id = None
+            self.request(
+                "DELETE",
                 f"/api/admin/categories/{self.category_id}",
                 token=self.token,
                 expected=204,
@@ -532,6 +581,11 @@ class Smoke:
                 else None
             ),
             f"/api/admin/tags/{self.tag_id}" if self.tag_id else None,
+            (
+                f"/api/admin/categories/{self.child_category_id}"
+                if self.child_category_id
+                else None
+            ),
             f"/api/admin/categories/{self.category_id}" if self.category_id else None,
         ):
             if path:

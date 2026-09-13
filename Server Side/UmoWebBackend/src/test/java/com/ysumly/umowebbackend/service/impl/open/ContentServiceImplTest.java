@@ -11,6 +11,8 @@ import com.ysumly.umowebbackend.model.dto.ContentTagLink;
 import com.ysumly.umowebbackend.model.entity.Category;
 import com.ysumly.umowebbackend.model.entity.Content;
 import com.ysumly.umowebbackend.model.entity.Tag;
+import com.ysumly.umowebbackend.model.dto.ContentQuery;
+import com.ysumly.umowebbackend.service.CategoryHierarchyResolver;
 import com.ysumly.umowebbackend.service.ContentVOMapper;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
@@ -29,6 +31,8 @@ class ContentServiceImplTest {
     private final CategoryMapper categoryMapper = mock(CategoryMapper.class);
     private final TagMapper tagMapper = mock(TagMapper.class);
     private final FileUtil fileUtil = mock(FileUtil.class);
+    private final CategoryHierarchyResolver categoryHierarchyResolver =
+            mock(CategoryHierarchyResolver.class);
 
     @Test
     void publicDetailIncludesCategoriesAndTags() throws Exception {
@@ -72,7 +76,11 @@ class ContentServiceImplTest {
                 categoryMapper,
                 tagMapper,
                 new ObjectMapper());
-        ContentServiceImpl service = new ContentServiceImpl(contentMapper, fileUtil, voMapper);
+        ContentServiceImpl service = new ContentServiceImpl(
+                contentMapper,
+                fileUtil,
+                voMapper,
+                categoryHierarchyResolver);
 
         var detail = service.getBySlug("article");
 
@@ -134,6 +142,21 @@ class ContentServiceImplTest {
         assertThat(detail.getNext()).isNull();
     }
 
+    @Test
+    void publicListUsesResolvedCategoryIds() {
+        ContentQuery query = new ContentQuery();
+        query.setCategoryId(1L);
+        query.setIncludeDescendants(true);
+        when(categoryHierarchyResolver.resolve(query)).thenReturn(List.of(1L, 2L, 3L));
+        when(contentMapper.findPublished(query, List.of(1L, 2L, 3L))).thenReturn(List.of());
+        when(contentMapper.countPublished(query, List.of(1L, 2L, 3L))).thenReturn(0L);
+
+        service().listPublished(query);
+
+        verify(contentMapper).findPublished(query, List.of(1L, 2L, 3L));
+        verify(contentMapper).countPublished(query, List.of(1L, 2L, 3L));
+    }
+
     private ContentServiceImpl service() {
         ContentVOMapper voMapper = new ContentVOMapper(
                 contentCategoryMapper,
@@ -141,7 +164,11 @@ class ContentServiceImplTest {
                 categoryMapper,
                 tagMapper,
                 new ObjectMapper());
-        return new ContentServiceImpl(contentMapper, fileUtil, voMapper);
+        return new ContentServiceImpl(
+                contentMapper,
+                fileUtil,
+                voMapper,
+                categoryHierarchyResolver);
     }
 
     private Content content(Long id, String slug, LocalDateTime publishedAt) {

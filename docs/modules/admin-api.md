@@ -1,6 +1,6 @@
 # 管理端 API 实现
 
-> 基线日期: 2026-09-11
+> 基线日期: 2026-09-13
 > 前缀: `/api/admin`
 > 接口数: 19，其中登录无需 JWT
 
@@ -70,11 +70,13 @@ GET /api/admin/contents
 - `size`（1-100）
 - `type`（枚举）
 - `categoryId`
+- `includeDescendants`（默认 `false`，启用时包含分类全部后代）
 - `tagId`
 - `status`（枚举）
 - `sort`
 
-`status` 为空时包含草稿和已发布内容。
+`status` 为空时包含草稿和已发布内容。`includeDescendants=true` 必须同时提供 `categoryId`，
+分类层级循环或超过 32 层返回 409。
 
 列表和详情 `VO` 均返回当前 `status`，前端无需再通过 `publishedAt` 推断草稿是否曾发布。
 
@@ -287,7 +289,8 @@ PUT /api/admin/options/{key}
 ## 8. 测试现状
 
 `BoundaryTest` 仍使用 Mock Service 覆盖接口边界，另有 Service/Util 单元测试覆盖真实文件、
-路径、JWT、限流、可信代理 CIDR、容器装配和批量查询行为。当前完整后端测试共 84 个。
+路径、JWT、限流、可信代理 CIDR、容器装配和批量查询行为；MySQL 8.4 环境门控测试覆盖真实
+分类层级 SQL 和循环拒绝。当前后端测试共 98 个，默认本地运行跳过 3 个 MySQL 环境门控用例。
 
 `BoundaryTest` 覆盖：
 

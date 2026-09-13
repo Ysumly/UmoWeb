@@ -78,16 +78,18 @@ assert_value "orphan relations after migration" "0" \
 
 mkdir -p "$storage_dir"
 cd "$backend_dir"
-"$maven_bin" -B -DskipTests package
-
-export SPRING_PROFILES_ACTIVE=prod
 export SPRING_DATASOURCE_URL="jdbc:mysql://127.0.0.1:$mysql_port/umo_blog?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false"
 export DB_USER=root
 export DB_PASS="$mysql_password"
+export APP_STORAGE_PATH="$storage_dir"
+export MYSQL_INTEGRATION=true
+"$maven_bin" -B -Dtest=ContentCategoryFilterIntegrationTest test
+"$maven_bin" -B -DskipTests package
+
+export SPRING_PROFILES_ACTIVE=prod
 export JWT_SECRET="$(openssl rand -hex 32)"
 export INIT_ADMIN_USER="ci_admin_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-1}"
 export INIT_ADMIN_PASS="Ci$(openssl rand -hex 24)"
-export APP_STORAGE_PATH="$storage_dir"
 
 backend_pid=""
 cleanup_backend() {

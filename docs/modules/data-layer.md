@@ -1,6 +1,6 @@
 # Data 层实现
 
-> 基线日期: 2026-09-11
+> 基线日期: 2026-09-13
 > 路径: `model/`、`mapper/`、`resources/mapper/`
 
 ---
@@ -110,7 +110,7 @@ LocalDateTime updatedAt;
 | `LoginRequest` | `username`、`password` | 两者 `@NotBlank` |
 | `ChangePasswordRequest` | `oldPassword`、`newPassword` | 均必填，新密码至少 6 位 |
 | `ContentSaveRequest` | `title`、`slug`、`body`、`summary`、`type`、`status`、`categoryIds`、`tagIds`、`metadata` | 必填、长度、安全 slug、枚举和 JSON 对象校验 |
-| `ContentQuery` | `page`、`size`、`type`、`categoryId`、`tagId`、`status`、`sort`、`q` | page >= 1，size 1-100，type/status 枚举，q <= 200 |
+| `ContentQuery` | `page`、`size`、`type`、`categoryId`、`includeDescendants`、`tagId`、`status`、`sort`、`q` | page >= 1，size 1-100，type/status 枚举，q <= 200，后代筛选依赖 categoryId |
 | `CategorySaveRequest` | `name`、`slug`、`parentId`、`type`、`sortOrder` | 必填、长度、安全 slug、类型枚举 |
 | `TagSaveRequest` | `name`、`slug` | 必填、长度、安全 slug |
 | `OptionSaveRequest` | `value` | 必填 |
@@ -185,13 +185,13 @@ List<Tag> findByContentId(Long contentId);
 ### 5.4 ContentMapper
 
 ```java
-List<Content> findPublished(ContentQuery query);
-long countPublished(ContentQuery query);
+List<Content> findPublished(ContentQuery query, List<Long> categoryIds);
+long countPublished(ContentQuery query, List<Long> categoryIds);
 Content findBySlug(String slug);
 Content findPreviousPublished(LocalDateTime publishedAt, Long id);
 Content findNextPublished(LocalDateTime publishedAt, Long id);
-List<Content> findAll(ContentQuery query);
-long countAll(ContentQuery query);
+List<Content> findAll(ContentQuery query, List<Long> categoryIds);
+long countAll(ContentQuery query, List<Long> categoryIds);
 Content findById(Long id);
 long countBySlug(String slug, Long excludeId);
 void insert(Content content);
@@ -271,18 +271,20 @@ WHERE c.slug = #{slug} AND c.status = 'PUBLISHED'
 
 ### 6.3 分类和标签筛选
 
-使用精确 `EXISTS`：
+使用解析后 ID 集合的 `EXISTS`：
 
 ```sql
 EXISTS (
   SELECT 1
   FROM content_category cc
   WHERE cc.content_id = c.id
-    AND cc.category_id = #{categoryId}
+    AND cc.category_id IN (...)
 )
 ```
 
-不会自动展开子分类。
+`CategoryHierarchyResolver` 在默认情况下返回单元素集合，保持精确匹配；启用
+`includeDescendants` 后按分类树展开全部后代，使用 `Set` 语义和 `EXISTS` 避免重复内容。
+命中范围内循环或超过 32 层返回 409。排序在原有时间字段后追加 `id DESC`。
 
 ### 6.4 搜索
 

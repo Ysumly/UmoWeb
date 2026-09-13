@@ -1,6 +1,6 @@
 # UmoWeb API 接口参考
 
-> 基线日期: 2026-09-11
+> 基线日期: 2026-09-13
 > 事实来源: `controller/`、`model/dto/`、`model/vo/`、`GlobalExceptionHandler`、Mapper XML
 > 接口总数: 公开端 8 个，管理端 19 个，共 27 个
 > 实测状态: 2026-09-11 在隔离 MySQL 5.7 迁移副本上完成 27/27 接口冒烟，接口契约未变更
@@ -139,7 +139,7 @@ GET /api/public/tags
 ### 2.6 获取已发布文章列表
 
 ```http
-GET /api/public/contents?page=1&size=10&type=NOTE&categoryId=2&tagId=1&sort=published_at_desc
+GET /api/public/contents?page=1&size=10&type=NOTE&categoryId=2&includeDescendants=true&tagId=1&sort=published_at_desc
 ```
 
 | 参数 | 类型 | 默认值 | 实际行为 |
@@ -147,11 +147,16 @@ GET /api/public/contents?page=1&size=10&type=NOTE&categoryId=2&tagId=1&sort=publ
 | `page` | int | 1 | 1-1000000 |
 | `size` | int | 10 | 1 到 100 |
 | `type` | string | - | `NOTE`、`NOVEL`、`BOOK_REVIEW`，非法值返回 400 |
-| `categoryId` | long | - | 仅匹配该分类，不包含子分类 |
+| `categoryId` | long | - | 默认仅匹配该分类；与 `includeDescendants=true` 联用时包含全部后代 |
+| `includeDescendants` | boolean | `false` | 仅在传入 `categoryId` 时有效；缺少 `categoryId` 返回 400 |
 | `tagId` | long | - | 精确匹配标签 |
 | `sort` | string | `published_at_desc` | 仅严格等于 `created_at_desc` 时按创建时间倒序，其他值按发布时间倒序 |
 
-仅返回 `status=PUBLISHED`。
+仅返回 `status=PUBLISHED`。后代筛选使用解析后的分类 ID 集合和 `EXISTS`，内容不会因同时关联
+父级与子级而重复；相同排序时间按 `id DESC` 稳定排序。
+
+分类层级在请求命中范围内存在循环或超过 32 层时返回 409，错误消息分别为
+“分类层级包含循环”和“分类层级超过 32 层”。选择不存在的分类仍返回 200 和空结果。
 
 ```json
 {
@@ -337,7 +342,7 @@ Authorization: Bearer <token>
 ### 4.1 查询文章列表
 
 ```http
-GET /api/admin/contents?page=1&size=10&type=NOTE&status=DRAFT&categoryId=2&tagId=1&sort=created_at_desc
+GET /api/admin/contents?page=1&size=10&type=NOTE&status=DRAFT&categoryId=2&includeDescendants=true&tagId=1&sort=created_at_desc
 Authorization: Bearer <token>
 ```
 
@@ -347,7 +352,7 @@ Authorization: Bearer <token>
 |---|---|---|
 | `status` | string | `DRAFT` 或 `PUBLISHED`；不传返回全部 |
 
-返回含草稿的分页 `PageResult<ContentListVO>`。
+`includeDescendants` 同样适用于管理端列表。返回含草稿的分页 `PageResult<ContentListVO>`。
 
 `ContentListVO` 包含 `status` 字段：公开接口只会返回 `PUBLISHED`；管理端列表和详情会返回 `DRAFT` 或 `PUBLISHED`。
 

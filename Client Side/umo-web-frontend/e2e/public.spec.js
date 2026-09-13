@@ -14,7 +14,7 @@ test('首页展示接口返回的公开内容', async ({ page, apiMock }) => {
   await expect(page.getByRole('heading', { name: '本期刊首' })).toBeVisible()
   await expect(page.getByRole('heading', { name: '第一篇公开文章' })).toBeVisible()
   const stats = page.locator('.home-stats')
-  await expect(stats.getByText('12', { exact: true })).toBeVisible()
+  await expect(stats.getByText('13', { exact: true })).toBeVisible()
   await expect(stats.getByText('篇公开内容', { exact: true })).toBeVisible()
 })
 
@@ -29,13 +29,26 @@ test('书库筛选与分页同步 URL', async ({ page, apiMock }) => {
     .getByRole('button', { name: /技术笔记/ })
     .click()
   await expect(page).toHaveURL(/type=NOTE/)
-  await expect(page.locator('.content-card')).toHaveCount(4)
+  await expect(page.locator('.content-card')).toHaveCount(5)
 
   await page.getByRole('button', { name: '清除全部筛选' }).click()
   await expect(page).toHaveURL(/\/library$/)
   await page.getByRole('button', { name: '下一页' }).click()
   await expect(page).toHaveURL(/page=2/)
   await expect(page.locator('.content-card')).toHaveCount(6)
+})
+
+test('书库父分类筛选包含子分类内容', async ({ page, apiMock }) => {
+  void apiMock
+  await page.goto('/library')
+
+  await page.locator('.filter-group').nth(1)
+    .getByRole('button', { name: /技术笔记/ })
+    .click()
+
+  await expect(page).toHaveURL(/category=1&includeDescendants=true/)
+  await expect(page.locator('.content-card')).toHaveCount(5)
+  await expect(page.getByRole('heading', { name: '仅属于子分类的公开文章' })).toBeVisible()
 })
 
 test('搜索支持成功、空结果和 429 倒计时', async ({ page, apiMock }) => {
