@@ -17,6 +17,12 @@ FROM nginx:1.29-alpine
 RUN mkdir -p /etc/nginx/umoweb /var/log/umoweb
 
 COPY docker/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/frontend/entrypoint.sh /usr/local/bin/umoweb-entrypoint
 COPY --from=build /app/dist /usr/share/nginx/html
+
+RUN chmod 0755 /usr/local/bin/umoweb-entrypoint
+
+ENTRYPOINT ["umoweb-entrypoint"]
+CMD ["nginx", "-g", "daemon off;"]
 
 EXPOSE 80

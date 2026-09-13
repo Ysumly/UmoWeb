@@ -7,6 +7,7 @@ SYSTEMD_ROOT="${SYSTEMD_ROOT:-/etc/systemd/system}"
 ACCESS_CONFIG_PATH="${ACCESS_CONFIG_PATH:-/etc/umoweb/access.env}"
 REPORT_USER="${REPORT_USER:-umoweb-report}"
 REPORT_GROUP="${REPORT_GROUP:-umoweb-report}"
+NGINX_GROUP_ID="${NGINX_GROUP_ID:-101}"
 SKIP_SYSTEMD="${SKIP_SYSTEMD:-0}"
 DIRECTORY_OWNER="root"
 
@@ -39,6 +40,18 @@ access_install_script() {
     local destination="$2"
     if [[ "$source" != "$destination" ]]; then
         install -m 0755 "$source" "$destination"
+    else
+        chmod 0755 "$destination"
+    fi
+}
+
+access_prepare_active_log() {
+    local log_file="$INSTALL_ROOT/access/logs/access.log"
+    if [[ -e "$log_file" ]]; then
+        if [[ "$SKIP_SYSTEMD" != "1" ]]; then
+            chown "$NGINX_GROUP_ID":0 "$log_file"
+        fi
+        chmod 0640 "$log_file"
     fi
 }
 
@@ -76,18 +89,35 @@ fi
 
 access_make_directory 0755 "$INSTALL_ROOT/scripts/access"
 access_make_directory 0700 "$(dirname "$ACCESS_CONFIG_PATH")"
+if [[ "$SKIP_SYSTEMD" != "1" ]]; then
+    chown root:"$REPORT_GROUP" "$INSTALL_ROOT"
+    chmod 0750 "$INSTALL_ROOT"
+fi
+chmod 0755 "$INSTALL_ROOT/scripts" "$INSTALL_ROOT/scripts/access"
 if [[ "$SKIP_SYSTEMD" == "1" ]]; then
     access_make_directory 0750 \
         "$INSTALL_ROOT/access" \
-        "$INSTALL_ROOT/access/logs" \
         "$INSTALL_ROOT/access/aggregates" \
         "$INSTALL_ROOT/access/reports"
+    access_make_directory 0750 "$INSTALL_ROOT/access/logs"
 else
     install -d -o "$DIRECTORY_OWNER" -g "$REPORT_GROUP" -m 0750 \
         "$INSTALL_ROOT/access" \
-        "$INSTALL_ROOT/access/logs" \
         "$INSTALL_ROOT/access/aggregates" \
         "$INSTALL_ROOT/access/reports"
+    install -d -o "$DIRECTORY_OWNER" -g "$NGINX_GROUP_ID" -m 0750 \
+        "$INSTALL_ROOT/access/logs"
+fi
+access_prepare_active_log
+
+if [[ "$SKIP_SYSTEMD" != "1" ]] &&
+    command -v docker >/dev/null 2>&1 &&
+    [[ -f "$INSTALL_ROOT/compose.yaml" && -f "$INSTALL_ROOT/.env.docker" ]]; then
+    docker compose \
+        -p umoweb \
+        --env-file "$INSTALL_ROOT/.env.docker" \
+        -f "$INSTALL_ROOT/compose.yaml" \
+        exec -T frontend nginx -s reopen >/dev/null 2>&1 || true
 fi
 
 if [[ ! -f "$ACCESS_CONFIG_PATH" ]]; then

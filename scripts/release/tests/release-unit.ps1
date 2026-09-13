@@ -59,6 +59,9 @@ if (-not (Test-Path -LiteralPath $commonPath -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $entryPath -PathType Leaf)) {
     throw "Missing release entry point: $entryPath"
 }
+if ((Get-Content -Raw -LiteralPath $entryPath) -notmatch 'compose\.yaml') {
+    throw "Release entry point does not synchronize compose.yaml"
+}
 
 . $commonPath
 

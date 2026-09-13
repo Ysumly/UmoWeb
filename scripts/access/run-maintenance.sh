@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=access-lib.sh
 source "$SCRIPT_DIR/access-lib.sh"
 
-access_load_config
+ACCESS_REQUIRE_CONFIG=1 access_load_config
 access_require_command docker
 access_require_command gzip
 access_require_command python3
