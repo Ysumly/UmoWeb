@@ -58,7 +58,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；83 个测试 |
+| 测试 | Spring Boot Test、Mockito、MockMvc；84 个测试 |
 
 ### 2.2 前端
 
@@ -69,7 +69,7 @@ UmoWeb/
 | 路由 | Vue Router 5.1.x |
 | 状态 | Pinia 3.0.x |
 | HTTP | Axios 1.18.x |
-| Markdown | marked 18.0.x、highlight.js 11.11.x |
+| Markdown | marked 18.0.x、highlight.js 11.11.x、yaml 2.9.x |
 | 样式 | Tailwind CSS 4.3.x |
 | 编辑器 | 原生 textarea；未安装 CodeMirror/Monaco |
 | 浏览器测试 | Playwright Test 1.63；Windows Chrome channel、Linux Chromium，Mock API |
@@ -342,7 +342,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 管理端响应式布局、主题切换和退出登录。
 - 管理端文章列表：类型、状态、分类、标签和排序筛选，分页、状态展示、编辑和删除。
 - 管理端文章编辑器：新建/编辑、分类标签单行选项与分页、metadata 校验、Markdown 分屏预览、
-  可展开的 metadata 字段说明、图片选择/拖拽/粘贴和未保存离开保护。
+  可展开的 metadata 字段说明、图片选择/拖拽/粘贴和未保存离开保护。新建页支持单文件
+  `.md`/`.markdown` 导入，解析 YAML front matter，并在缺失时从 H1、文件名和默认值回退。
 - 管理端分类管理：按类型筛选树形结构，支持父级、排序值、增改删和关联/子分类 409 提示；
   分类名与 slug 统一左对齐，使用固定标记表达父子层级，编辑加载态保持文案和列宽稳定。
 - 管理端标签管理：列表增改删、字段校验和关联内容 409 提示。
@@ -445,6 +446,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 
 - `BoundaryTest` 使用独立 MockMvc 和 Mock Service，覆盖参数错误、404、401、409 和接口状态码。
 - 新增文件路径/事务、上传签名、JWT/tokenVersion、登录限流、可信代理、VO 批量组装和安全配置测试。
+- 新增文章创建成功时数据库记录、Markdown 文件、分类和标签关联同时写入的回归测试。
 - 新增 Mapper XML 别名解析、`ClientIpResolver` 容器装配和 Jackson 3 自动配置回归测试。
 - `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，覆盖非法配置、可信代理链和未授权转发头。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
@@ -453,8 +455,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
 - 内容导入器有 6 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、图片重写、内容去重、
   Linux 文件所有权和缺失素材阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 27 个接口。
-- 前端 49 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- Playwright 每个平台运行 35 个浏览器检查：21 个 functional 用例覆盖公开端、隐私说明、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+- 前端 58 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、Markdown front matter 导入、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
+- Playwright 每个平台运行 39 个浏览器检查：25 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入），14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
 - Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；

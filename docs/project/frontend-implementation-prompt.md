@@ -1,6 +1,6 @@
 # UmoWeb 前端续作提示
 
-> 基线日期: 2026-09-11
+> 基线日期: 2026-09-13
 > 目标: 在不误改现有基础设施的前提下维护已完成的公开端、在线编辑器和管理端业务页面
 > 事实来源: `Client Side/umo-web-frontend/src`
 
@@ -18,6 +18,7 @@
 | Tailwind CSS | 4.x |
 | marked | 18.x |
 | highlight.js | 11.x |
+| yaml | 2.9.x |
 
 不要引入 CodeMirror、Monaco 或新的状态/API 框架，除非需求明确改变。
 
@@ -51,12 +52,13 @@
 | `src/stores/auth.js` | token、login、logout |
 | `src/stores/site.js` | siteTitle、siteSubtitle、状态和缓存加载 |
 | `src/utils/adminContent.js` | 管理端查询、表单、metadata、分类顺序和图片插入规则 |
+| `src/utils/markdownImport.js` | Markdown 文件校验、YAML front matter 解析、字段回退和图片引用警告 |
 | `src/utils/adminManagement.js` | 分类父级、分类/标签/站点/改密校验和删除错误映射 |
 | `src/utils/editor.js` | 本地编辑器文件名、草稿序列化和 Markdown Blob |
 | `src/views/admin/LoginPage.vue` | 已实现 |
 | `src/components/admin/AdminLayout.vue` | 已实现响应式布局 |
 | `src/views/admin/ContentListPage.vue` | 已接入列表、筛选、分页和删除 |
-| `src/views/admin/ContentEditPage.vue` | 已接入新建/编辑、预览和图片上传 |
+| `src/views/admin/ContentEditPage.vue` | 已接入新建/编辑、Markdown 导入、预览和图片上传 |
 | `src/views/admin/CategoryManagePage.vue` | 已接入树形 CRUD |
 | `src/views/admin/TagManagePage.vue` | 已接入列表 CRUD |
 | `src/views/admin/OptionPage.vue` | 已接入站点配置读写和 Markdown 预览 |
@@ -84,7 +86,7 @@
 | 页面 | 当前状态 |
 |---|---|
 | `ContentListPage.vue` | 已接入文章表格、筛选、删除、分页 |
-| `ContentEditPage.vue` | 已接入新建/编辑、分类标签、Markdown 预览和图片上传 |
+| `ContentEditPage.vue` | 已接入新建/编辑、Markdown front matter 导入、分类标签、预览和图片上传 |
 | `CategoryManagePage.vue` | 已接入树形 CRUD、父级防循环和 409 提示 |
 | `TagManagePage.vue` | 已接入列表 CRUD 和 409 提示 |
 | `OptionPage.vue` | 已接入站点标题、副标题、About/Project 编辑与保存 |
@@ -117,6 +119,8 @@
 - 状态为 `DRAFT`、`PUBLISHED`。
 - 小说 `bookSlug` 当前取 `categoryIds[0]` 的 slug，前端应明确选择书级分类。
 - 修改 slug 会移动 Markdown 文件，应提示唯一性和影响。
+- 新建页可导入单个 `.md`/`.markdown` 文件；YAML front matter 缺失时从 H1、文件名和默认值回退。
+- 导入只预填表单，保存仍走现有创建接口；不覆盖已有文章，不批量导入，不自动上传相对图片。
 
 ### 5.4 加载与错误态
 
@@ -142,7 +146,7 @@
 1. 正式上线与数据安全。
 2. 工程交付、质量基线与安全统计：CI、Linux 视觉基线、真实 MySQL 集成和最小化访问日志
    已在 `v1.0.0-rc.3` 通过 ECS 发布验收。
-3. 功能设计，包括 Markdown 导入、子分类筛选、图片删除、全文搜索和四个训练游戏。
+3. 功能设计；Task 3.1 Markdown 导入已完成，后续继续子分类筛选、图片删除、全文搜索和四个训练游戏。
 4. 需求明确后评估 AI 能力，当前暂缓。
 
 完整顺序和出口条件见

@@ -24,7 +24,7 @@
 | 认证 | JJWT 0.12.6、BCrypt、`Authorization: Bearer <token>` |
 | AI | Spring AI BOM 2.0.0-M4、OpenAI Starter（尚未接入业务代码） |
 | 前端 | Vue 3.5、Vite 8、Vue Router 5、Pinia 3、Axios 1.18 |
-| Markdown | marked 18、highlight.js 11；不使用 CodeMirror |
+| Markdown | marked 18、highlight.js 11、yaml 2.9；不使用 CodeMirror |
 | 样式 | Tailwind CSS 4 |
 | 本地容器 | Docker Compose、MySQL 8.4、Nginx；Node 24.12 构建前端 |
 
@@ -39,7 +39,7 @@
 - `categoryId` 只精确匹配该分类，不自动包含子分类。
 - Markdown 正文保存在 `app.storage-path`，数据库只存 `body_path`；创建/更新使用临时文件和回滚恢复策略，图片限制 50MB。
 - 管理端前端路径由 `VITE_ADMIN_PATH` 控制，默认 `/secret-admin`。
-- 后端当前有 83 个单元/边界/容器装配测试；自动测试仍不连接真实 MySQL。
+- 后端当前有 84 个单元/边界/容器装配测试；自动测试仍不连接真实 MySQL。
 - 2026-09-11 已用隔离 MySQL 5.7 副本完成旧库迁移演练和 27/27 接口冒烟，脚本位于
   `Server Side/UmoWebBackend/scripts/api-smoke.ps1`。
 - 2026-09-12 已建立 Docker Compose 全栈，MySQL 8.4 首次启动导入演示数据，前端由 Nginx
@@ -55,6 +55,8 @@
   ECS 回滚和 rc.1 恢复演练，不需要长期镜像仓库；发布入口强制校验当前 commit 的成功 push CI。
 - 2026-09-13 已完成 Task 2.5：六字段访问日志、主机级聚合/报表、回环访问边界和公开隐私说明
   已在 `v1.0.0-rc.3` 发布并通过 ECS、27/27 接口及访问安全验收。
+- 2026-09-13 已完成 Task 3.1：管理端新建文章支持单文件 Markdown 导入，解析 YAML front matter
+  并使用 H1/文件名回退；图片相对引用只警告，最终仍通过现有文章创建接口落库。
 - 前端公开阅读主路径、公开在线 Markdown 编辑器、管理端文章/分类/标签/站点设置/修改密码均已实现；
   编辑器草稿只保存在当前浏览器的 `umo-editor-draft-v1`。
 

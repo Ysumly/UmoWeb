@@ -28,6 +28,10 @@ import {
   validateImageFile,
 } from '@/utils/adminContent'
 import { getApiErrorMessage } from '@/utils/apiError'
+import {
+  parseMarkdownImport,
+  validateMarkdownImportFile,
+} from '@/utils/markdownImport'
 import { flattenCategoryTree } from '@/utils/publicContent'
 
 const route = useRoute()
@@ -47,10 +51,14 @@ const tags = ref([])
 const errors = ref({})
 const textareaRef = ref(null)
 const fileInputRef = ref(null)
+const markdownFileInputRef = ref(null)
 const initialSnapshot = ref('')
 const pendingSelection = ref(null)
 const categoryPage = ref(1)
 const tagPage = ref(1)
+const importMessage = ref('')
+const importWarnings = ref([])
+const importErrors = ref({})
 
 const form = reactive({
   title: '',
@@ -90,6 +98,9 @@ const selectedNovelCategory = computed(() => {
     .map((id) => categoryMap.value.get(id))
     .find((category) => category?.type === 'NOVEL')
 })
+const importErrorMessages = computed(() => {
+  return [...new Set(Object.values(importErrors.value).filter(Boolean))]
+})
 const dirty = computed(() => {
   return !loading.value
     && initialSnapshot.value
@@ -111,11 +122,79 @@ function friendlySaveError(error) {
   return getApiErrorMessage(error, '文章保存失败')
 }
 
+function clearImportError(...fields) {
+  for (const field of fields) {
+    delete importErrors.value[field]
+    delete errors.value[field]
+  }
+  if (!importErrorMessages.value.length) {
+    const message = generalError.value
+    if (message.startsWith('Markdown 已读取') || message.startsWith('请先修正 Markdown 导入错误')) {
+      generalError.value = ''
+    }
+  }
+}
+
+function clearCategoryImportErrors() {
+  clearImportError('categoryIds', 'categorySlugs')
+}
+
+function openMarkdownPicker() {
+  if (dirty.value && !window.confirm('导入会覆盖当前表单内容，确定继续吗？')) {
+    return
+  }
+  importMessage.value = ''
+  importWarnings.value = []
+  markdownFileInputRef.value?.click()
+}
+
+async function handleMarkdownFileInput(event) {
+  const [file] = event.target.files || []
+  event.target.value = ''
+  if (!file) {
+    return
+  }
+
+  const validationMessage = validateMarkdownImportFile(file)
+  if (validationMessage) {
+    generalError.value = validationMessage
+    return
+  }
+
+  try {
+    const result = parseMarkdownImport({
+      filename: file.name,
+      source: await file.text(),
+      categories: allCategories.value,
+      tags: tags.value,
+    })
+    if (!result.form) {
+      generalError.value = result.errors.import || 'Markdown 导入失败'
+      return
+    }
+
+    Object.assign(form, result.form)
+    importErrors.value = { ...result.errors }
+    errors.value = { ...result.errors }
+    importWarnings.value = result.warnings
+    importMessage.value = `已读取 ${file.name}`
+    generalError.value = Object.keys(result.errors).length
+      ? 'Markdown 已读取，请检查表单中的错误项'
+      : ''
+    categoryPage.value = 1
+    tagPage.value = 1
+    mobilePane.value = 'editor'
+  } catch (error) {
+    generalError.value = error?.message || 'Markdown 读取失败'
+  }
+}
+
 function handleTypeChange() {
   const validIds = new Set(categoryOptions.value.map((category) => category.id))
   form.categoryIds = form.categoryIds.filter((id) => validIds.has(id))
   categoryPage.value = 1
-  delete errors.value.categoryIds
+  clearCategoryImportErrors()
+  clearImportError('type')
 }
 
 function changeCategoryPage(offset) {
@@ -151,10 +230,15 @@ async function load() {
 }
 
 async function handleSubmit() {
-  errors.value = validateContentForm(form, allCategories.value)
+  errors.value = {
+    ...validateContentForm(form, allCategories.value),
+    ...importErrors.value,
+  }
   generalError.value = ''
   if (Object.keys(errors.value).length) {
-    generalError.value = '请检查表单中的错误项'
+    generalError.value = importErrorMessages.value.length
+      ? '请先修正 Markdown 导入错误'
+      : '请检查表单中的错误项'
     return
   }
 
@@ -313,6 +397,23 @@ onBeforeUnmount(() => {
             返回列表
           </button>
           <button
+            v-if="!isEdit"
+            class="button button--outline"
+            type="button"
+            :disabled="saving || uploading"
+            @click="openMarkdownPicker"
+          >
+            导入 Markdown
+          </button>
+          <input
+            ref="markdownFileInputRef"
+            class="sr-only"
+            type="file"
+            accept=".md,.markdown,text/markdown,text/plain"
+            aria-label="选择 Markdown 文件"
+            @change="handleMarkdownFileInput"
+          />
+          <button
             class="button button--primary"
             type="button"
             :disabled="saving || uploading"
@@ -328,6 +429,27 @@ onBeforeUnmount(() => {
         <button type="button" @click="generalError = ''">关闭</button>
       </div>
 
+      <div
+        v-if="importMessage"
+        class="admin-notice admin-import-result"
+        role="status"
+        aria-label="Markdown 导入结果"
+      >
+        <div>
+          <strong>{{ importMessage }}</strong>
+          <ul v-if="importErrorMessages.length || importWarnings.length">
+            <li
+              v-for="message in importErrorMessages"
+              :key="`error-${message}`"
+              class="admin-import-result__error"
+            >
+              {{ message }}
+            </li>
+            <li v-for="warning in importWarnings" :key="warning">{{ warning }}</li>
+          </ul>
+        </div>
+      </div>
+
       <div class="admin-editor-layout">
         <form class="admin-editor-form" @submit.prevent="handleSubmit">
           <div class="admin-form-grid admin-form-grid--two">
@@ -338,6 +460,7 @@ onBeforeUnmount(() => {
                 type="text"
                 maxlength="500"
                 required
+                @input="clearImportError('title')"
               />
               <small v-if="errors.title">{{ errors.title }}</small>
             </label>
@@ -350,6 +473,7 @@ onBeforeUnmount(() => {
                 maxlength="200"
                 placeholder="article-slug"
                 required
+                @input="clearImportError('slug')"
               />
               <small v-if="errors.slug">{{ errors.slug }}</small>
             </label>
@@ -357,7 +481,12 @@ onBeforeUnmount(() => {
 
           <label class="admin-field">
             <span>摘要</span>
-            <textarea v-model="form.summary" rows="3" maxlength="2000" />
+            <textarea
+              v-model="form.summary"
+              rows="3"
+              maxlength="2000"
+              @input="clearImportError('summary')"
+            />
             <small>{{ form.summary.length }} / 2000</small>
           </label>
 
@@ -374,7 +503,7 @@ onBeforeUnmount(() => {
 
             <label class="admin-field">
               <span>状态 <b>*</b></span>
-              <select v-model="form.status">
+              <select v-model="form.status" @change="clearImportError('status')">
                 <option value="DRAFT">草稿</option>
                 <option value="PUBLISHED">已发布</option>
               </select>
@@ -394,7 +523,12 @@ onBeforeUnmount(() => {
                 :title="category.name"
                 :style="{ paddingLeft: `${category.depth * 16}px` }"
               >
-                <input v-model="form.categoryIds" type="checkbox" :value="category.id" />
+                <input
+                  v-model="form.categoryIds"
+                  type="checkbox"
+                  :value="category.id"
+                  @change="clearCategoryImportErrors"
+                />
                 <span>{{ category.name }}</span>
               </label>
             </div>
@@ -429,7 +563,12 @@ onBeforeUnmount(() => {
             <p v-if="!tags.length" class="admin-field__empty">暂无标签。</p>
             <div v-else class="admin-choice-list admin-choice-list--tags">
               <label v-for="tag in pagedTags" :key="tag.id" :title="tag.name">
-                <input v-model="form.tagIds" type="checkbox" :value="tag.id" />
+                <input
+                  v-model="form.tagIds"
+                  type="checkbox"
+                  :value="tag.id"
+                  @change="clearImportError('tagIds', 'tagSlugs')"
+                />
                 <span>{{ tag.name }}</span>
               </label>
             </div>
@@ -451,6 +590,7 @@ onBeforeUnmount(() => {
               rows="5"
               placeholder="{&#10;  &quot;readingTime&quot;: 10,&#10;  &quot;difficulty&quot;: &quot;beginner&quot;,&#10;  &quot;author&quot;: &quot;Umo&quot;,&#10;  &quot;source&quot;: &quot;https://example.com&quot;&#10;}"
               spellcheck="false"
+              @input="clearImportError('metadata')"
             />
             <small v-if="errors.metadata">{{ errors.metadata }}</small>
             <small v-else>填写非空内容时，必须是合法 JSON 对象。</small>

@@ -115,6 +115,7 @@ Spring Boot 4 自动配置并注入的是 `tools.jackson.databind.ObjectMapper`�
 | `axios` | `^1.18.1` | HTTP 请求 |
 | `marked` | `^18.0.5` | Markdown 渲染 |
 | `highlight.js` | `^11.11.1` | 代码高亮 |
+| `yaml` | `^2.9.0` | 管理端 Markdown front matter 解析 |
 | `vite` | `^8.1.0` | 构建工具 |
 | `@vitejs/plugin-vue` | `^6.0.7` | Vite Vue 插件 |
 | `tailwindcss` | `^4.3.1` | 样式框架 |
@@ -229,4 +230,4 @@ mvn org.owasp:dependency-check-maven:check
 
 ---
 
-*最后更新: 2026-09-10 · 对应当前 pom.xml 和 package.json*
+*最后更新: 2026-09-13 · 对应当前 pom.xml 和 package.json*

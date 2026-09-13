@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-09-13 — 管理端 Markdown 导入
+
+- 新建文章页新增单文件 `.md`/`.markdown` 导入，解析 YAML front matter 并预填现有编辑器。
+- 缺少 front matter 字段时从首个 H1、文件名和默认值回退；类型默认 `NOTE`，状态默认 `DRAFT`。
+- 支持 `title`、`slug`、`summary`、`type`、`status`、`categorySlugs`、`tagSlugs` 和 `metadata`，
+  同时接受 `categories`、`tags` 别名。
+- Markdown 图片只允许 HTTP(S) 和 `/images/...`；相对路径及其他协议显示非阻断警告。
+- 导入继续使用现有文章创建接口和文件事务，不新增 API、Schema 或 Docker 配置；重复 slug 不覆盖。
+- 导入错误会阻止提交，修正对应字段后解除；分类 slug 必须与内容类型一致，H1 检测忽略代码块，表格图片同样检查。
+- 新增 `yaml` 2.9 前端依赖、Node 解析测试、Playwright 导入流程和后端成功创建回归测试。
+- 验证：后端 84/84、前端 Node 58/58、Windows Playwright 39/39、生产构建通过。
+
 ## 2026-09-13 — 访问信息统计与安全日志
 
 - Nginx 新增六字段 JSON 访问日志，只记录 IP、ISO 8601 时间、方法、无查询字符串的真实路径、
