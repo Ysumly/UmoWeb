@@ -156,6 +156,13 @@
         FROM contents
     </select>
 
+    <select id="findAllPublishedForIndex" resultType="Content">
+        SELECT <include refid="baseColumns"/>
+        FROM contents c
+        WHERE c.status = 'PUBLISHED'
+        ORDER BY c.id ASC
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO contents (title, slug, body_path, summary, type, status,
                               metadata, published_at)
@@ -183,21 +190,54 @@
     <!-- =========================== 搜索 =========================== -->
 
     <select id="search" resultType="Content">
-        SELECT <include refid="baseColumns"/>
+        SELECT <include refid="baseColumns"/>,
+               <choose>
+                   <when test="q != null and q != ''">
+                       cs.body_text AS search_body
+                   </when>
+                   <otherwise>
+                       NULL AS search_body
+                   </otherwise>
+               </choose>
         FROM contents c
+        <if test="q != null and q != ''">
+            LEFT JOIN content_search cs ON cs.content_id = c.id
+        </if>
         WHERE c.status = 'PUBLISHED'
-          AND (c.title LIKE CONCAT('%', #{q}, '%')
-               OR c.summary LIKE CONCAT('%', #{q}, '%'))
-        ORDER BY c.published_at DESC
+        <if test="q != null and q != ''">
+          AND (
+              MATCH(cs.body_text) AGAINST(#{q} IN NATURAL LANGUAGE MODE)
+              OR c.title LIKE CONCAT('%', #{q}, '%')
+              OR c.summary LIKE CONCAT('%', #{q}, '%')
+          )
+        </if>
+        ORDER BY
+        <if test="q != null and q != ''">
+            CASE
+                WHEN c.title LIKE CONCAT('%', #{q}, '%') THEN 2
+                WHEN c.summary LIKE CONCAT('%', #{q}, '%') THEN 1
+                ELSE 0
+            END DESC,
+            MATCH(cs.body_text) AGAINST(#{q} IN NATURAL LANGUAGE MODE) DESC,
+        </if>
+        c.published_at DESC, c.id DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
 
     <select id="countSearch" resultType="long">
         SELECT COUNT(*)
         FROM contents c
+        <if test="q != null and q != ''">
+            LEFT JOIN content_search cs ON cs.content_id = c.id
+        </if>
         WHERE c.status = 'PUBLISHED'
-          AND (c.title LIKE CONCAT('%', #{q}, '%')
-               OR c.summary LIKE CONCAT('%', #{q}, '%'))
+        <if test="q != null and q != ''">
+          AND (
+              MATCH(cs.body_text) AGAINST(#{q} IN NATURAL LANGUAGE MODE)
+              OR c.title LIKE CONCAT('%', #{q}, '%')
+              OR c.summary LIKE CONCAT('%', #{q}, '%')
+          )
+        </if>
     </select>
 
 </mapper>

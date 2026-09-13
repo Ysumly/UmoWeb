@@ -139,7 +139,20 @@ CREATE TABLE image_cleanup_queue (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------
--- 9. site_options — 站点配置 KV
+-- 9. content_search — Markdown 正文全文索引
+-- -----------------------------------------------------------
+CREATE TABLE content_search (
+    content_id BIGINT   NOT NULL PRIMARY KEY,
+    body_text  LONGTEXT NOT NULL,
+    updated_at DATETIME NOT NULL DEFAULT NOW() ON UPDATE NOW(),
+    FULLTEXT KEY ft_content_search_body (body_text) WITH PARSER ngram,
+    CONSTRAINT fk_content_search_content
+        FOREIGN KEY (content_id) REFERENCES contents(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------
+-- 10. site_options — 站点配置 KV
 -- -----------------------------------------------------------
 CREATE TABLE site_options (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,

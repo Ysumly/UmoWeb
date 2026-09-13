@@ -134,7 +134,8 @@ ContentMapper.search(q, offset, size)
 ContentMapper.countSearch(q)
 ```
 
-SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
+正文通过 `content_search` 的 MySQL `ngram` 全文索引匹配；标题和摘要继续使用子串匹配。
+正文命中时 Service 生成可选 `excerpt`，空查询不生成摘要。
 
 搜索限流由 `RateLimitInterceptor` 在进入 Controller 前执行。默认只信任 `remoteAddr`；
 仅当直连地址匹配 `app.security.trusted-proxies` 中的精确 IP 或 CIDR 时才读取
@@ -174,7 +175,7 @@ SQL 只匹配 `title` 和 `summary`，不检索 Markdown 正文。
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
-| `q` | null -> `""` | title/summary 模糊匹配 |
+| `q` | null -> `""` | 正文全文匹配或 title/summary 子串匹配 |
 | `page` | 1 | 1-1000000 |
 | `size` | 10 | 1-100 |
 

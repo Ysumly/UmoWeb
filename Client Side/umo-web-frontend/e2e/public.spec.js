@@ -60,6 +60,11 @@ test('搜索支持成功、空结果和 429 倒计时', async ({ page, apiMock }
   await expect(page).toHaveURL(/q=%E5%85%AC%E5%BC%80/)
   await expect(page.locator('.content-card')).toHaveCount(6)
 
+  await input.fill('E2E')
+  await page.getByRole('button', { name: '搜索', exact: true }).click()
+  await expect(page.locator('.content-card')).toHaveCount(1)
+  await expect(page.locator('.content-card__summary')).toContainText('这是一篇 E2E 正文')
+
   await input.fill('不存在')
   await page.getByRole('button', { name: '搜索', exact: true }).click()
   await expect(page.getByRole('heading', { name: '没有找到匹配内容' })).toBeVisible()
@@ -158,6 +163,10 @@ test.describe('390px 公开端布局', () => {
 
     await page.goto('/privacy')
     await expect(page.getByRole('heading', { name: /只保留维护安全/ })).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+
+    await page.goto('/search?q=E2E')
+    await expect(page.locator('.content-card')).toHaveCount(1)
     await expectNoHorizontalOverflow(page)
   })
 })

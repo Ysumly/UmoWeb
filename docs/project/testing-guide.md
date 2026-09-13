@@ -93,9 +93,10 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 114 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
-Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析和图片清理测试。
-其中 4 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
+当前完整测试共 128 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析、
+正文索引、摘要提取和图片清理测试。
+其中 7 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
 不连接 MySQL，`UmoWebBackendApplicationTests` 仍是一条空测试。
 
 ### 2.2 数据库迁移副本 + 全接口冒烟
@@ -139,10 +140,14 @@ cd "Server Side\UmoWebBackend"
 `scripts/ci/mysql-integration.sh` 自动化：
 
 - 使用 MySQL 8.4 从空库执行 `schema.sql`、`seed-data.sql` 和全部兼容迁移脚本。
-- 兼容迁移连续执行两次并要求幂等；校验 `token_version`、图片清理队列表、3 个索引、5 个外键、
+- 兼容迁移连续执行两次并要求幂等；校验 `token_version`、图片清理队列表、正文索引表、
+  3 个既有索引、6 个外键、
   种子行数和迁移后孤儿关系为 0。
-- 在真实库执行分类层级和图片管理集成测试，覆盖根/子/孙内容、精确/后代模式、管理端草稿、
-  空结果、稳定排序、循环拒绝、图片排序和清理队列失败记录。
+- 在真实库执行 7 个分类、正文搜索和图片管理集成测试，覆盖根/子/孙内容、精确/后代模式、
+  管理端草稿、空结果、稳定排序、循环拒绝、中文 ngram 查询、索引幂等、
+  图片排序和清理队列失败记录。
+- 复制演示 Markdown 后连续执行两次正文回填脚本，校验索引行数等于已发布内容数，
+  并验证正文全文和标题/摘要搜索。
 - 使用 Java 17 构建并启动后端，使用独立临时存储和运行时测试凭据执行 `api-smoke.py`。
 - 冒烟断言覆盖公开筛选、详情分类/标签、前后文章、草稿隔离、密码失效、图片完整生命周期和 429。
 - 冒烟通过后校验图片记录、清理队列与临时存储文件；job 退出时销毁后端进程、测试数据和临时文件。
@@ -554,12 +559,13 @@ GET {{baseUrl}}/api/public/contents/search?q=java&page=1&size=10
 
 预期 200，结构与文章列表相同。
 
-搜索只匹配：
+搜索匹配：
 
 - `title`
 - `summary`
+- Markdown 正文
 
-不匹配 Markdown 正文。
+正文使用 MySQL 8.4 ngram 全文索引；正文命中时响应项包含可直接展示的 `excerpt`。
 
 限流回归：
 
@@ -815,7 +821,8 @@ categoryId=父分类 ID&includeDescendants=true
 
 ### 8.4 搜索范围
 
-修改 Markdown 正文但保持 title/summary 不变时，搜索结果不会变化。
+修改 Markdown 正文但保持 title/summary 不变时，正文关键词搜索结果和 `excerpt` 应同步变化。
+直接替换磁盘正文文件后需要执行回填脚本，应用写入路径则会在同一事务内同步索引。
 
 ### 8.5 分页边界
 

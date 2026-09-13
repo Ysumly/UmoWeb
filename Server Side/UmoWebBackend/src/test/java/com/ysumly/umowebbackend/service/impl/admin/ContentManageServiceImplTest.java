@@ -12,6 +12,7 @@ import com.ysumly.umowebbackend.model.dto.ContentQuery;
 import com.ysumly.umowebbackend.model.entity.Category;
 import com.ysumly.umowebbackend.model.entity.Content;
 import com.ysumly.umowebbackend.model.entity.Tag;
+import com.ysumly.umowebbackend.service.ContentSearchIndexService;
 import com.ysumly.umowebbackend.service.ContentVOMapper;
 import com.ysumly.umowebbackend.service.CategoryHierarchyResolver;
 import org.junit.jupiter.api.AfterEach;
@@ -46,6 +47,8 @@ class ContentManageServiceImplTest {
     private final TagMapper tagMapper = mock(TagMapper.class);
     private final CategoryHierarchyResolver categoryHierarchyResolver =
             mock(CategoryHierarchyResolver.class);
+    private final ContentSearchIndexService searchIndexService =
+            mock(ContentSearchIndexService.class);
 
     private FileUtil fileUtil;
     private ContentVOMapper voMapper;
@@ -68,7 +71,8 @@ class ContentManageServiceImplTest {
                 tagMapper,
                 fileUtil,
                 voMapper,
-                categoryHierarchyResolver);
+                categoryHierarchyResolver,
+                searchIndexService);
         when(contentCategoryMapper.findLinksByContentIds(anyList())).thenReturn(List.of());
         when(contentTagMapper.findLinksByContentIds(anyList())).thenReturn(List.of());
     }
@@ -255,7 +259,8 @@ class ContentManageServiceImplTest {
                 tagMapper,
                 failingFileUtil,
                 voMapper,
-                categoryHierarchyResolver);
+                categoryHierarchyResolver,
+                searchIndexService);
 
         assertThatThrownBy(() -> failingService.update(1L, noteRequest("article", "new")))
                 .isInstanceOf(RuntimeException.class);
@@ -270,6 +275,41 @@ class ContentManageServiceImplTest {
         request.setType("NOTE");
         request.setStatus("DRAFT");
         return request;
+    }
+
+    @Test
+    void createPublishedContentSynchronizesSearchIndexWithSubmittedBody() {
+        when(contentMapper.countBySlug("published-note", null)).thenReturn(0L);
+        doAnswer(invocation -> {
+            Content content = invocation.getArgument(0);
+            content.setId(9L);
+            return null;
+        }).when(contentMapper).insert(any(Content.class));
+        ContentSaveRequest request = noteRequest("published-note", "# 可搜索正文");
+        request.setStatus("PUBLISHED");
+
+        service.create(request);
+
+        verify(searchIndexService).sync(
+                argThat(content -> content.getId().equals(9L)
+                        && content.getStatus().equals("PUBLISHED")),
+                eq("# 可搜索正文"));
+    }
+
+    @Test
+    void updateWithdrawnContentSynchronizesDraftStatus() throws IOException {
+        Content old = existingContent(3L, "withdraw", "contents/NOTE/withdraw.md", "old");
+        old.setStatus("PUBLISHED");
+        when(contentMapper.findById(3L)).thenReturn(old);
+        when(contentMapper.countBySlug("withdraw", 3L)).thenReturn(0L);
+        ContentSaveRequest request = noteRequest("withdraw", "new");
+
+        service.update(3L, request);
+
+        verify(searchIndexService).sync(
+                argThat(content -> content.getId().equals(3L)
+                        && content.getStatus().equals("DRAFT")),
+                eq("new"));
     }
 
     private Content existingContent(Long id, String slug, String bodyPath, String body) throws IOException {

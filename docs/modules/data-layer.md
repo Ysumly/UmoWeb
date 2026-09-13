@@ -71,9 +71,11 @@ String metadata;
 LocalDateTime createdAt;
 LocalDateTime updatedAt;
 LocalDateTime publishedAt;
+String searchBody;
 ```
 
-`type` 和 `status` 在 Entity 中仍是字符串。
+`type` 和 `status` 在 Entity 中仍是字符串；`searchBody` 只承接搜索查询的索引正文，
+不是 `contents` 表字段。
 
 ### 2.5 Image
 
@@ -149,7 +151,7 @@ Controller 的 `@Valid` 会在进入 Service 前拒绝非法 page/size。
 
 | VO | 字段 |
 |---|---|
-| `ContentListVO` | `id`、`title`、`slug`、`summary`、`type`、`status`、`categories`、`tags`、`metadata`、`publishedAt` |
+| `ContentListVO` | `id`、`title`、`slug`、`summary`、`excerpt`、`type`、`status`、`categories`、`tags`、`metadata`、`publishedAt` |
 | `ContentDetailVO` | 继承列表 VO，增加 `body`、`previous`、`next` |
 | `ContentNeighborVO` | `id`、`title`、`slug`、`publishedAt` |
 | `CategoryTreeVO` | `id`、`name`、`slug`、`type`、`children` |
@@ -216,6 +218,7 @@ void update(Content content);
 void delete(Long id);
 List<Content> search(String q, int offset, int size);
 long countSearch(String q);
+List<Content> findAllPublishedForIndex();
 ```
 
 ### 5.5 ContentCategoryMapper
@@ -262,6 +265,15 @@ void recordFailure(Long id, String error);
 List<SiteOption> findAll();
 SiteOption findByKey(String optionKey);
 void upsert(String key, String value);
+```
+
+### 5.10 ContentSearchMapper
+
+```java
+void upsert(Long contentId, String bodyText);
+void deleteByContentId(Long contentId);
+void deleteNotPublished();
+long count();
 ```
 
 ---
@@ -319,12 +331,16 @@ EXISTS (
 ```sql
 WHERE c.status = 'PUBLISHED'
   AND (
-    c.title LIKE CONCAT('%', #{q}, '%')
+    MATCH(cs.body_text) AGAINST(#{q} IN NATURAL LANGUAGE MODE)
+    OR c.title LIKE CONCAT('%', #{q}, '%')
     OR c.summary LIKE CONCAT('%', #{q}, '%')
   )
+ORDER BY 标题命中 DESC, 摘要命中 DESC, 正文相关度 DESC,
+         c.published_at DESC, c.id DESC
 ```
 
-不查询文件系统，也不查询 Markdown 正文。
+`content_search.body_text` 保存已发布 Markdown 正文，使用 ngram FULLTEXT 索引。
+文章写入、撤回和删除会同步索引；旧内容由可重复的回填入口建立索引。
 
 ### 6.5 详情前后文章
 

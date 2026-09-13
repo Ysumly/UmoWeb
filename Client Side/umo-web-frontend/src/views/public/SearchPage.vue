@@ -160,7 +160,7 @@ onBeforeUnmount(clearCountdown)
 <template>
   <div class="search-page">
     <header class="page-intro search-intro">
-      <span class="editorial-eyebrow">Search / 标题与摘要</span>
+      <span class="editorial-eyebrow">Search / 标题、摘要与正文</span>
       <h1>从留下的文字里，<br>寻找一条线索。</h1>
       <form class="search-form" role="search" @submit.prevent="submitSearch">
         <label class="sr-only" for="search-query">搜索关键词</label>
@@ -171,7 +171,7 @@ onBeforeUnmount(clearCountdown)
           type="search"
           maxlength="200"
           autocomplete="off"
-          placeholder="输入标题或摘要关键词"
+          placeholder="输入标题、摘要或正文关键词"
         >
         <button
           class="button button--primary"
@@ -190,7 +190,7 @@ onBeforeUnmount(clearCountdown)
       v-if="status === 'idle'"
       state="empty"
       title="输入关键词开始搜索"
-      message="搜索范围仅包含文章标题和摘要，不检索 Markdown 正文。"
+      message="搜索范围包含文章标题、摘要和 Markdown 正文。"
     />
 
     <ContentState
@@ -224,7 +224,7 @@ onBeforeUnmount(clearCountdown)
         v-else
         state="empty"
         title="没有找到匹配内容"
-        message="尝试缩短关键词，或者换一个标题和摘要中可能出现的词。"
+        message="尝试缩短关键词，或者换一个标题、摘要和正文中可能出现的词。"
       />
 
       <nav v-if="totalPages > 1 && status === 'success'" class="pagination" aria-label="搜索分页">

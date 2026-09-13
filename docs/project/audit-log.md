@@ -1,5 +1,43 @@
 # 审计日志
 
+## 审计 #31 - 2026-09-13 — Markdown 正文全文搜索
+
+### 范围
+
+- `content_search` Schema、MySQL 8.4 ngram 全文索引和可重复回填入口。
+- 文章创建、更新、发布、撤回和删除时的索引同步。
+- 公开搜索标题、摘要、正文，正文命中摘要和草稿隔离。
+- MySQL 8.4、Node、Playwright、仓库检查和文档同步。
+
+### 实现
+
+- 新增独立正文索引表，以外键关联 `contents` 并级联删除；建表脚本和兼容迁移均使用
+  `FULLTEXT ... WITH PARSER ngram`。
+- 内容事务在创建或更新后同步正文索引；转草稿删除索引，直接删除依赖外键级联。
+- 回填入口读取全部 `PUBLISHED` 内容，可连续执行；Markdown 缺失时写入空正文并记录单行警告。
+- `GET /api/public/contents/search` 非空 `q` 使用正文全文匹配或标题/摘要子串匹配，
+  排序优先标题、摘要、正文相关度、发布时间和 ID；空查询保持原有已发布列表语义。
+- `ContentListVO` 增加可选 `excerpt`，由正文命中上下文生成并清理 Markdown 标记。
+- 搜索页文案和内容卡片接入正文摘要；Playwright 覆盖正文命中、空结果、429 和移动端布局。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 后端默认测试 | 128 tests / 0 failures / 0 errors / 7 MySQL 门控跳过 |
+| MySQL 8.4 集成 | 7 tests / 0 failures，覆盖分类、正文索引和图片管理 |
+| 索引回填 | 连续两次执行成功，索引行数为 5，中文 ngram 正文命中 |
+| 真实接口冒烟 | `api-smoke.py` 29/29；PowerShell 脚本覆盖相同契约 |
+| 前端 Node 测试 | 62 tests / 0 failures |
+| Windows Playwright | 42 passed（28 functional + 14 visual） |
+| 前端生产构建 | Vite 8.1.0 通过 |
+
+### 剩余风险
+
+1. 直接替换磁盘 Markdown 文件不会自动更新索引，必须执行回填脚本。
+2. 正文全文搜索依赖 MySQL 8.4 ngram；单字正文受最小 token 限制，标题和摘要仍可匹配。
+3. 当前单实例规模不需要独立搜索服务；内容量或查询复杂度显著增长后再评估。
+
 ## 审计 #30 - 2026-09-13 — 图片删除与引用保护
 
 ### 范围

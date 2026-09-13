@@ -11,6 +11,7 @@ public class ContentListVO {
     private String title;
     private String slug;
     private String summary;
+    private String excerpt;
     private String type;
     private String status;
     private List<CategoryTreeVO> categories;

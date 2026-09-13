@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ysumly.umowebbackend.mapper.ContentSearchMapper">
+
+    <insert id="upsert">
+        INSERT INTO content_search (content_id, body_text)
+        VALUES (#{contentId}, #{bodyText})
+        ON DUPLICATE KEY UPDATE
+            body_text = VALUES(body_text),
+            updated_at = NOW()
+    </insert>
+
+    <delete id="deleteByContentId">
+        DELETE FROM content_search WHERE content_id = #{contentId}
+    </delete>
+
+    <delete id="deleteNotPublished">
+        DELETE search_index
+        FROM content_search search_index
+        LEFT JOIN contents c ON c.id = search_index.content_id
+        WHERE c.id IS NULL OR c.status != 'PUBLISHED'
+    </delete>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM content_search
+    </select>
+
+</mapper>

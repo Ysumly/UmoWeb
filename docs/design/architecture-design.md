@@ -209,11 +209,11 @@ API 分两组：
 ```text
 GET /api/public/contents/search
   -> RateLimitInterceptor（同 IP 10 秒）
-  -> SELECT ... WHERE status='PUBLISHED'
-       AND (title LIKE OR summary LIKE)
+  -> content_search FULLTEXT(ngram) / title LIKE / summary LIKE
+  -> 筛选 status='PUBLISHED'，按相关度和发布时间稳定排序
 ```
 
-当前不检索 Markdown 正文。
+Markdown 创建、更新、发布、撤回时同步 `content_search`；旧内容通过可重复回填脚本建立索引。
 
 ---
 
