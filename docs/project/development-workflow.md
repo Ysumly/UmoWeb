@@ -85,7 +85,8 @@ bash scripts/ci/scan-sensitive-info.sh
 ```
 
 当前私有仓库套餐不支持分支保护或规则集，CI 结果不会由 GitHub 自动阻止合并。
-发布流程必须显式要求 CI 成功，该要求由 Task 2.4 固化。
+发布流程通过 `scripts/release/umoweb-release.ps1` 显式要求当前 commit 存在成功的 push CI；
+发布和回滚命令见 [docker-guide.md](docker-guide.md) 第 9 节。
 
 ### 文档
 

@@ -392,6 +392,9 @@ Spring Multipart 限制单文件和请求均为 50MB。
   凭据均已轮换；生产与最终备份恢复环境均通过 27/27 冒烟。
 - 该 ECS 访问 Docker Hub、npm 官方仓库和 Maven Central 受限；实际部署采用开发机构建镜像、
   校验归档后传输并在 ECS `docker load`，再执行 `compose up -d --no-build --wait`。
+- 2026-09-13 已实现 `scripts/release/` 本地版本化发布/回滚入口和 ECS 控制脚本：
+  发布要求当前 commit 存在成功 push CI，开发机保留最近两个镜像归档，ECS 只保留当前运行镜像、
+  `current.json` 和发布期间上传目录；真实发布/回滚演练尚未执行。
 - 安全组与 UFW 均放行 TCP 80；MySQL 3306 和后端 8080 没有暴露到公网。
 - 2026-09-12 已验证首页、公开 API、管理员登录和公网访问；三个容器均为 healthy，
   Docker 服务已设置开机自启。
@@ -429,6 +432,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，覆盖非法配置、可信代理链和未授权转发头。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
 - 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成 27/27 接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
+- PowerShell 与 Bash 发布脚本自测已纳入 `repository` CI job，覆盖 CI 选择、manifest、归档校验、
+  发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
 - 内容导入器有 6 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、图片重写、内容去重、
   Linux 文件所有权和缺失素材阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 27 个接口。
 - 前端 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
@@ -456,7 +461,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | 已修复 | 管理路径 | 前端 `VITE_ADMIN_PATH`，后端移除未使用配置。 |
 | 已修复 | 上下文启动 | MyBatis 同时扫描 entity/dto 别名；`ClientIpResolver` 显式构造注入；业务 JSON 统一使用 Jackson 3。 |
 | 已修复 | 内容导入 | 候选归档显式使用 `umo:umo` 文件所有权；恢复项目名限制为小写；管理员初始化完成后才轮换密码。 |
-| 已知限制 | CI 合并门禁 | 私有仓库当前计划不支持分支保护或规则集，CI 失败只能报告；Task 2.4 需把 CI 成功作为镜像发布前置条件。 |
+| 已知限制 | CI 合并门禁 | 私有仓库当前计划不支持分支保护或规则集，CI 失败只能报告；本地发布入口已强制要求当前 commit 的成功 push CI，但 ECS 发布/回滚尚未完成实际演练。 |
 | 低 | 爬虫控制 | `index.html` 有 `noindex`，但没有 `public/robots.txt`。 |
 
 ---

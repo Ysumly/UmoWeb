@@ -281,3 +281,82 @@ python scripts/content-import/build_content_backup.py `
 
 提升脚本会先创建生产备份，替换正式数据库与 `app_data`，轮换 MySQL/JWT/管理员凭据，最后再次
 执行 27/27。归档和 `.env.docker` 始终不进入仓库。
+
+## 9. 本地版本化镜像发布与回滚
+
+当前正式环境没有长期镜像仓库。开发机负责构建、校验和保留版本归档，ECS 只保存当前运行镜像、
+`/opt/umoweb/releases/current.json` 和发布期间的上传目录。
+
+### 9.1 发布前准备
+
+- 开发机可运行 Docker、PowerShell 7、GitHub CLI 和 Workbench CLI。
+- `gh auth status` 正常，当前 commit 存在成功的 `CI` push 运行。
+- Workbench 凭据和目标 ECS 实例已配置；实例标识、管理路径和凭据只通过参数或服务器侧配置传入。
+- 当前分支为 `master`，工作区干净，目标版本标签在本地和远端均不存在。
+
+首次接入新流程时，先保存 ECS 当前运行镜像作为回滚基线：
+
+```powershell
+pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
+  -Action CaptureBaseline `
+  -Name baseline-20260913 `
+  -InstanceId "<instance-id>"
+```
+
+该命令只给当前前后端镜像增加基线标签并导出归档，不修改 `.env.docker` 或重建容器。
+
+### 9.2 发布版本
+
+```powershell
+pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
+  -Action Publish `
+  -Version v1.0.0-rc.1 `
+  -InstanceId "<instance-id>" `
+  -PublicBaseUrl "<https://public-host-or-http-ip>"
+```
+
+发布流程固定执行以下步骤：
+
+1. 校验 `master`、干净工作区、版本格式及当前 commit 的成功 push CI。
+2. 从 ECS 私密读取 `VITE_ADMIN_PATH` 构建前端；日志只显示该值的 SHA-256。
+3. 构建前后端镜像，同时写入版本标签和 `sha-<12位commit>` 标签。
+4. 保存镜像 tar、SHA-256 和 `manifest.json`，上传后再次校验 image ID。
+5. 原子更新 ECS `.env.docker` 中的 `BACKEND_IMAGE`、`FRONTEND_IMAGE` 并重建后端与前端。
+6. 验证 MySQL/backend healthy、frontend running、首页、公开站点信息和管理员登录。
+7. 成功后写入 `current.json`、删除 ECS 上传归档、创建并推送版本 Git 标签。
+
+验证当前 ECS 版本：
+
+```powershell
+pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
+  -Action Verify `
+  -InstanceId "<instance-id>" `
+  -PublicBaseUrl "<https://public-host-or-http-ip>"
+```
+
+### 9.3 回滚版本
+
+回滚不重新构建，直接使用开发机保存的版本目录或 tar：
+
+```powershell
+pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
+  -Action Rollback `
+  -Artifact .\Downloads\releases\baseline-20260913 `
+  -InstanceId "<instance-id>" `
+  -PublicBaseUrl "<https://public-host-or-http-ip>"
+```
+
+远端脚本会重新校验归档、载入旧镜像、按 manifest 中的 image ID 校验、切换配置并执行同样的
+运行健康检查。发布验证失败时，`remote-release.sh` 也会自动恢复执行前的镜像标签和容器。
+
+### 9.4 本地归档与边界
+
+- 开发机归档目录为 `Downloads/releases/<release-id>/`，默认只保留最近两个成功版本。
+- `manifest.json` 记录 release ID、Git commit、CI run、镜像标签、image ID、归档 SHA-256 和
+  管理路径哈希，不记录管理路径原值。
+- ECS 不长期保存旧镜像归档；回滚必须使用开发机保留的归档。
+- 发布、验证和回滚必须传入 `-PublicBaseUrl` 或设置 `UMOWEB_PUBLIC_BASE_URL`，远端会从 ECS
+  和该公网入口各验证一次首页与公开 API。
+- `.env.docker` 中的 `INIT_ADMIN_PASS` 必须与当前管理员密码一致；远端会在切换镜像前先验证
+  管理员登录，凭据失效时在发布前终止。
+- Workbench 单文件上传上限为 1 GiB；发布脚本在归档超过 1,000,000,000 字节时停止上传。
