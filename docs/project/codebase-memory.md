@@ -72,7 +72,7 @@ UmoWeb/
 | Markdown | marked 18.0.x、highlight.js 11.11.x |
 | 样式 | Tailwind CSS 4.3.x |
 | 编辑器 | 原生 textarea；未安装 CodeMirror/Monaco |
-| 浏览器测试 | Playwright Test 1.63，本机 Chrome channel，Mock API |
+| 浏览器测试 | Playwright Test 1.63；Windows Chrome channel、Linux Chromium，Mock API |
 | 容器构建 | Node 24.12 Alpine、Maven 3.9.11/JDK 17、JRE 17、Nginx 1.29 |
 
 ### 2.3 持续集成
@@ -82,7 +82,8 @@ UmoWeb/
 | 平台 | GitHub Actions，私有仓库 |
 | 触发 | `pull_request` 和 `master` push |
 | 运行环境 | Ubuntu、Temurin Java 17、Node 24.12.0 |
-| 检查 | 后端 Maven 测试、前端 Node 测试、前端构建、diff 检查和敏感信息扫描 |
+| 检查 | 后端 Maven 测试、前端 Node 测试、前端构建、Linux Playwright、diff 检查和敏感信息扫描 |
+| 视觉基线 | 14 张 Windows Chrome 与 14 张 Linux Chromium 独立 PNG |
 | 权限 | `contents: read`，不配置仓库 Secret |
 | 合并门禁 | 当前私有仓库计划不支持分支保护或规则集，失败结果不能强制阻止合并 |
 
@@ -362,7 +363,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 管理端路径由统一 `VITE_ADMIN_PATH` 工具控制，默认 `/secret-admin`，不再依赖后端 `app.admin-path`。
 - 当前存在公开端 `SiteHeader`、`SiteFooter`、`ContentCard`、`ContentState`、`MarkdownArticle` 和 `ThemeToggle`；管理端仍没有统一表单/表格组件。
 - 公开端页头和管理端侧栏共用 `public/umo-logo.png`，浏览器图标为 `public/favicon.png`。
-- 前端已建立 Playwright functional 与视觉回归；浏览器测试不连接后端，真实接口仍由 MySQL 冒烟脚本负责。
+- 前端已建立 Playwright functional 与视觉回归；Windows 使用本机 Chrome，CI 使用 Linux Chromium，
+  浏览器测试不连接后端，真实接口仍由 MySQL 冒烟脚本负责。
 
 公开端主路径、在线编辑器和全部管理端核心业务页均已实现。
 
@@ -394,7 +396,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 2026-09-12 已验证首页、公开 API、管理员登录和公网访问；三个容器均为 healthy，
   Docker 服务已设置开机自启。
 - 当前是公网测试部署，使用正式内容，没有域名或 HTTPS；自动备份和正式数据恢复演练已完成，
-  CI/CD 尚未接入。
+  基础 CI 与 Linux Playwright 已接入，镜像发布和自动回滚尚未接入。
 - 实例标识、公网地址、随机管理路径、数据库密码、JWT secret 和管理员密码只保存在服务器侧，
   不进入版本库。
 - 开发机已安装阿里云 Workbench CLI v1.0.1，绝对路径为
@@ -430,12 +432,15 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 内容导入器有 6 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、图片重写、内容去重、
   Linux 文件所有权和缺失素材阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 27 个接口。
 - 前端 46 个 Node 测试覆盖路由、管理路径、主题解析、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、日期格式、查询规范、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- Playwright 共 34 个浏览器检查：20 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
-- Playwright 使用 `/api/**` Mock 路由、本机 Chrome channel 和 `e2e/runPlaywright.js` 静态服务器；不依赖 MySQL。视觉基线只保证当前 Windows Chrome 环境。
+- Playwright 每个平台运行 34 个浏览器检查：20 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+- Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；
+  Windows 默认 Chrome channel，Linux CI 使用锁定 Playwright 版本的 Chromium。
+- 仓库分别保存 14 张 `win32` 和 14 张 `linux` 视觉快照；Linux 快照通过手动
+  `Playwright Linux Baselines` 工作流生成 artifact 后人工审查提交，不会自动写回仓库。
 - `scripts/ci/scan-sensitive-info.sh` 扫描全部已跟踪文件，覆盖公开 IPv4、ECS 实例 ID、AccessKey、
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。
-- GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、前端测试和生产构建；
-  浏览器测试与真实 MySQL 集成分别属于 Task 2.2、Task 2.3。
+- GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、前端测试、生产构建和
+  Linux Playwright；真实 MySQL 集成仍属于 Task 2.3。
 
 ### 7.2 当前代码风险
 

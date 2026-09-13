@@ -1,6 +1,6 @@
 # UmoWeb 接口与构建测试指南
 
-> 基线日期: 2026-09-11
+> 基线日期: 2026-09-13
 > 接口数: 公开 8 个，管理 19 个，共 27 个
 > 关键约定: 正常响应没有 `{ code, data }` 包装层
 
@@ -148,6 +148,13 @@ npm run test:e2e
 - Playwright 34 个浏览器检查通过，其中 20 个 functional 用例覆盖公开端、在线编辑器和全部管理端核心流程，14 个视觉断言覆盖核心页面的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口仍由第 2.2 节的 MySQL 副本与 `api-smoke.ps1` 验证。
 
+2026-09-13 已验证：
+
+- Windows 本机 Chrome 继续运行 34 个 Playwright 检查，原有 `win32` 视觉快照未变化。
+- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 34 个检查，
+  同一提交连续两轮均为 34/34，通过独立的 `linux` 视觉快照验证。
+- `browser` job 失败时会保留 Playwright HTML 报告、trace 和失败截图 artifact。
+
 ### 2.4 Playwright 浏览器回归
 
 ```powershell
@@ -159,16 +166,28 @@ npm run test:e2e
 
 1. 先运行 `npm run build` 生成生产构建。
 2. `e2e/runPlaywright.js` 在 `http://127.0.0.1:4173` 启动轻量 Node 静态服务器并运行 Playwright；测试结束后关闭服务器，避免 Windows 上 Vite preview 残留进程。
-3. 使用本机稳定版 Chrome channel，不下载独立 Playwright Chromium。
+3. Windows 默认使用本机稳定版 Chrome channel，Linux CI 使用锁定 Playwright 版本的
+   Chromium；可通过 `PLAYWRIGHT_CHANNEL` 显式覆盖。
 4. 浏览器级路由拦截 `/api/**`，每个测试使用独立的状态化 Mock API。
 5. functional 项目覆盖公开阅读、在线编辑器、管理端认证与 CRUD，以及 390px 布局。
 6. visual-desktop 和 visual-mobile 项目比较 14 张页面截图。
 
-更新视觉基线：
+更新 Windows 视觉基线：
 
 ```powershell
 npm run test:e2e:update
 ```
+
+更新 Linux 视觉基线：
+
+1. 在 GitHub Actions 手动运行 `Playwright Linux Baselines` 工作流。
+2. 工作流执行 `npm run test:e2e:update`，只上传 `playwright-linux-visual-baselines` artifact。
+3. 使用 `gh run download <run-id> --name playwright-linux-visual-baselines --dir <临时目录>`
+   下载 artifact，人工审查 14 张 `*-linux.png`，确认页面布局差异符合预期。
+4. 将快照提交到 `e2e/visual.spec.js-snapshots/`，随后运行常规 CI 连续验证两次。
+
+Linux 工作流不会自动提交或推送文件。浏览器或 Playwright 升级后必须走同一流程，
+不得通过放宽 `maxDiffPixelRatio` 或将失败视觉断言改为 skipped 来让 CI 通过。
 
 运行前端全部验证：
 
@@ -176,7 +195,8 @@ npm run test:e2e:update
 npm run test:all
 ```
 
-视觉基线位于 `e2e/visual.spec.js-snapshots/`。当前基线只在 Windows 与本机稳定 Chrome 下生成；切换到 Linux 或其他浏览器后应重新生成并审查。
+视觉基线位于 `e2e/visual.spec.js-snapshots/`，当前包含 14 张 `win32` 和 14 张 `linux`
+文件。平台后缀由 Playwright 自动选择，不互相覆盖。
 
 ### 2.5 Docker 全栈
 
@@ -254,11 +274,16 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
 
 ### 2.8 GitHub Actions
 
-`.github/workflows/ci.yml` 在 `pull_request` 和 `master` push 时执行三个独立 job：
+`.github/workflows/ci.yml` 在 `pull_request` 和 `master` push 时执行四个独立 job：
 
 - `repository`：检查变更范围空白错误，运行敏感信息扫描器自测并扫描全部已跟踪文件。
 - `backend`：使用 Temurin Java 17 执行 `mvn -B test`。
 - `frontend`：使用 Node 24.12.0 执行 `npm ci`、`npm test` 和 `npm run build`。
+- `browser`：使用 Node 24.12.0 安装锁定版本 Chromium，执行 `npm run test:e2e`；
+  失败时上传 `playwright-report-<attempt>` artifact。
+
+`.github/workflows/playwright-linux-baselines.yml` 仅提供 `workflow_dispatch` 手动入口，
+用于生成 Linux 基线 artifact，不参与常规验证，也不提交仓库。
 
 本地运行敏感信息扫描：
 

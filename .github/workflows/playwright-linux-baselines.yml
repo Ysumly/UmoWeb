@@ -1,0 +1,49 @@
+name: Playwright Linux Baselines
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playwright-linux-baselines-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Generate Linux visual baselines
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: Client Side/umo-web-frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.12.0
+          cache: npm
+          cache-dependency-path: Client Side/umo-web-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Update Linux visual baselines
+        run: npm run test:e2e:update
+
+      - name: Upload Linux snapshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-linux-visual-baselines
+          path: Client Side/umo-web-frontend/e2e/visual.spec.js-snapshots/*-linux.png
+          if-no-files-found: error
+          retention-days: 14

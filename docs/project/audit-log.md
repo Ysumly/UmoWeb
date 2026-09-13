@@ -1,5 +1,48 @@
 # 审计日志
 
+## 审计 #23 - 2026-09-13 — Linux Playwright 与独立视觉基线
+
+### 范围
+
+- 将已通过检查的 Task 2.1 CI 以 merge commit 合入 `master`。
+- 在 Ubuntu GitHub Actions 中运行与 Windows 相同的 Playwright functional 和视觉断言。
+- 新增不覆盖 `win32` 文件的 Linux 视觉基线及人工审查更新流程。
+
+### 实现
+
+- PR #1 的三项检查全部通过后，以 merge commit 合入 `master`，合并提交为 `8781c44`。
+- Playwright 增加 `PLAYWRIGHT_CHANNEL` 覆盖；Windows 默认 Chrome channel，Linux 使用
+  `npm ci` 锁定的 Playwright 1.63.0 Chromium。
+- `.github/workflows/ci.yml` 新增独立 `browser` job，安装 Linux Chromium 后执行
+  `npm run test:e2e`，失败时上传报告、trace 和失败截图。
+- 新增手动 `.github/workflows/playwright-linux-baselines.yml`，通过
+  `workflow_dispatch` 执行 `npm run test:e2e:update`，只上传 `*-linux.png` artifact；
+  工作流没有仓库写权限，不会自动提交快照。
+- 首次生成时使用同分支 PR 临时 job 产出 artifact；下载后人工核对并提交 14 张 Linux 快照，
+  随后移除临时 job，避免仓库未具备基线时主 CI 必然失败。
+- 同步更新测试指南、开发工作流、代码基线、状态快照、变更记录和四阶段路线图。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| Windows `npm test` | 46 tests / 0 failures |
+| Windows `npm run test:e2e` | 34 passed，原有 14 张 `win32` 快照无变化 |
+| Linux 基线生成 | `34733989235` 通过，artifact 包含 14 张非空 `*-linux.png` |
+| PR #2 第一轮 CI | `34734144015` 四个 job 全部通过，Browser 1m26s |
+| PR #2 第二轮 CI | 同一 run attempt 2 四个 job 全部通过，Browser 1m17s |
+| Linux 浏览器检查 | 两轮均为 20 functional + 14 visual，34/34 |
+| 快照隔离 | 仓库包含 14 张 `win32` 和 14 张 `linux`，平台后缀未互相覆盖 |
+| 应用契约 | API、Schema、请求响应和前端业务行为均未修改 |
+
+### 剩余风险
+
+1. 视觉基线仍绑定操作系统、Chromium 版本和字体环境；Playwright 或 runner 镜像升级后必须重新生成并审查 Linux 快照。
+2. 当前私有仓库套餐仍不支持分支保护或规则集，CI 失败不能自动阻止合并；Task 2.4 必须在发布流程中显式检查 CI 结果。
+3. 手动 Linux 基线工作流需要先存在于默认分支后才能在 GitHub Actions 中直接发现；合并后使用无此限制。
+4. 真实 MySQL 集成仍由 Task 2.3 承接，Playwright 继续只使用状态化 Mock API。
+5. Task 1.4 的域名与 HTTPS 仍未完成。
+
 ## 审计 #22 - 2026-09-13 — CI 基础流水线与任务合并
 
 ### 范围

@@ -121,7 +121,8 @@ Spring Boot 4 自动配置并注入的是 `tools.jackson.databind.ObjectMapper`�
 | `@tailwindcss/vite` | `^4.3.1` | Tailwind Vite 插件 |
 | `@playwright/test` | `^1.63.0` | 浏览器 functional 与视觉回归 |
 
-前端没有安装 CodeMirror、Monaco 或组件测试框架；浏览器回归使用 Playwright 1.63 和本机 Chrome channel。
+前端没有安装 CodeMirror、Monaco 或组件测试框架；浏览器回归使用 Playwright 1.63，
+Windows 默认本机 Chrome channel，Linux CI 使用锁定 Playwright 版本的 Chromium。
 
 ---
 
