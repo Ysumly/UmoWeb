@@ -135,6 +135,7 @@ compose_source exec -T mysql sh -c '
         UNION ALL SELECT '\''content_category'\'', COUNT(*) FROM content_category
         UNION ALL SELECT '\''content_tag'\'', COUNT(*) FROM content_tag
         UNION ALL SELECT '\''images'\'', COUNT(*) FROM images
+        UNION ALL SELECT '\''image_cleanup_queue'\'', COUNT(*) FROM image_cleanup_queue
         UNION ALL SELECT '\''site_options'\'', COUNT(*) FROM site_options
         UNION ALL SELECT '\''contents_published'\'', COUNT(*) FROM contents WHERE status = '\''PUBLISHED'\''
         UNION ALL SELECT '\''contents_draft'\'', COUNT(*) FROM contents WHERE status = '\''DRAFT'\'';

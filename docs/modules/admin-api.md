@@ -2,7 +2,7 @@
 
 > 基线日期: 2026-09-13
 > 前缀: `/api/admin`
-> 接口数: 19，其中登录无需 JWT
+> 接口数: 21，其中登录无需 JWT
 
 ---
 
@@ -15,7 +15,7 @@
 | `CategoryManageController` | 分类树、详情、新建、编辑、删除 |
 | `OptionController` | 配置查询、配置更新 |
 | `TagManageController` | 标签列表、新建、编辑、删除 |
-| `ImageController` | 图片上传 |
+| `ImageController` | 图片上传、列表、删除 |
 
 除 `/api/admin/login` 外，所有接口都由 `AdminInterceptor` 检查 JWT。
 
@@ -230,7 +230,9 @@ contentTagMapper.countContentsByTagId(id)
 
 ---
 
-## 6. 图片上传
+## 6. 图片生命周期
+
+### 6.1 上传图片
 
 ```http
 POST /api/admin/images/upload
@@ -255,6 +257,30 @@ image/webp
 ```
 
 最大 50MB，由 Spring Multipart 配置限制。
+
+---
+
+### 6.2 查询图片
+
+```http
+GET /api/admin/images?page=1&size=24&usage=ORPHANED
+```
+
+- `page` 默认 1，`size` 默认 24，允许 1-100。
+- `usage` 可省略或使用 `REFERENCED`、`ORPHANED`。
+- 返回 `PageResult<ImageManageVO>`，包含 `referenced` 引用状态。
+- `ImageReferenceService` 扫描全部文章正文和 About/Project，只在命中规范 `/images/...`
+  路径时判定为已引用。
+
+### 6.3 删除图片
+
+```http
+DELETE /api/admin/images/{id}
+```
+
+删除前重新扫描引用；已引用返回 409，不存在返回 404，成功返回 204。删除事务写入
+`image_cleanup_queue`，提交后清理文件。文件删除失败会更新 `attempts`、`last_error`，
+由启动 runner 或后续图片操作重试，不阻断删除结果。
 
 ---
 
@@ -290,7 +316,7 @@ PUT /api/admin/options/{key}
 
 `BoundaryTest` 仍使用 Mock Service 覆盖接口边界，另有 Service/Util 单元测试覆盖真实文件、
 路径、JWT、限流、可信代理 CIDR、容器装配和批量查询行为；MySQL 8.4 环境门控测试覆盖真实
-分类层级 SQL 和循环拒绝。当前后端测试共 98 个，默认本地运行跳过 3 个 MySQL 环境门控用例。
+分类层级 SQL 和图片清理队列。当前后端测试共 114 个，默认本地运行跳过 4 个 MySQL 环境门控用例。
 
 `BoundaryTest` 覆盖：
 

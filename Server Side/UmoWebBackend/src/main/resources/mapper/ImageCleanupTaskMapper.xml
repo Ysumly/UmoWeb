@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ysumly.umowebbackend.mapper.ImageCleanupTaskMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO image_cleanup_queue (image_id, path)
+        VALUES (#{imageId}, #{path})
+    </insert>
+
+    <select id="findAll" resultType="ImageCleanupTask">
+        SELECT id, image_id, path, attempts, last_error, created_at, updated_at
+        FROM image_cleanup_queue
+        ORDER BY created_at ASC, id ASC
+    </select>
+
+    <delete id="delete">
+        DELETE FROM image_cleanup_queue WHERE id = #{id}
+    </delete>
+
+    <update id="recordFailure">
+        UPDATE image_cleanup_queue
+        SET attempts = attempts + 1,
+            last_error = #{error}
+        WHERE id = #{id}
+    </update>
+
+</mapper>

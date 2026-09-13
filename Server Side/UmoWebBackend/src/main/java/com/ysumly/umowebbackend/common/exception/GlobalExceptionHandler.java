@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Map;
 
@@ -55,6 +56,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleBusiness(BusinessException e) {
         return ResponseEntity.status(e.getCode())
                 .body(Map.of("code", e.getCode(), "message", e.getMessage()));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleMissingResource(NoResourceFoundException e) {
+        return ResponseEntity.status(404)
+                .body(Map.of(
+                        "code", 404,
+                        "message", "Resource not found: " + e.getResourcePath()));
     }
 
     @ExceptionHandler(Exception.class)

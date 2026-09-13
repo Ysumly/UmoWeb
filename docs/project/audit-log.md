@@ -1,5 +1,47 @@
 # 审计日志
 
+## 审计 #30 - 2026-09-13 — 图片删除与引用保护
+
+### 范围
+
+- 管理端图片列表与删除接口、全部文章状态和 About/Project 引用扫描。
+- `image_cleanup_queue` Schema、幂等迁移、提交后文件清理和失败重试。
+- 管理端图片管理页、引用筛选、删除确认、409 提示和响应式布局。
+- Python/PowerShell 冒烟、MySQL 集成、Node 与 Playwright 回归。
+
+### 实现
+
+- 新增 `GET /api/admin/images`，支持 `page`、`size`、`usage=REFERENCED|ORPHANED`，
+  返回图片元信息、创建时间和 `referenced` 状态，按创建时间和 ID 倒序。
+- 新增 `DELETE /api/admin/images/{id}`，扫描全部文章 Markdown 与 About/Project；
+  已引用返回 409，不存在返回 404，成功返回 204。
+- 删除事务同时移除 `images` 记录并写入 `image_cleanup_queue`；提交后删除文件，
+  失败保留 `attempts`、`last_error`，由启动 runner 或后续图片操作重试。
+- 管理端新增图片管理页和导航入口，提供缩略图、引用状态、全部/使用中/未引用筛选、
+  分页、删除确认和引用保护提示。
+- 修复已删除静态图片触发 `NoResourceFoundException` 时被转换成 500 的问题，
+  缺失 `/images/**` 资源现在返回 404。
+- 同步备份、恢复和内容导入元数据：新队列纳入表行数校验，恢复旧备份后先补跑兼容迁移，
+  避免新后端读取缺少队列表的旧数据卷。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 后端默认测试 | 114 tests / 0 failures / 0 errors / 4 MySQL 门控跳过 |
+| MySQL 8.4 集成 | 4 tests / 0 failures，覆盖分类层级、图片排序和清理队列失败记录 |
+| 真实接口冒烟 | `api-smoke.py` 29/29；PowerShell 脚本同步覆盖相同契约 |
+| 清理结果 | 冒烟后图片记录、清理队列和临时 PNG 文件均为 0 |
+| 前端 Node 测试 | 62 tests / 0 failures |
+| Windows Playwright | 42 passed（28 functional + 14 visual） |
+| 前端生产构建 | Vite 8.1.0 通过 |
+
+### 剩余风险
+
+1. 引用判断按请求扫描全部正文和固定页，当前内容规模可接受；内容量显著增长后应改为显式引用表。
+2. 扫描与删除之间存在并发新增引用的理论竞态；当前单管理员部署不作为阻断。
+3. 清理队列没有定时后台任务，只在启动和图片操作时重试；若服务长期无图片操作，失败任务会等待下次重启或操作。
+
 ## 审计 #29 - 2026-09-13 — 分类筛选包含子分类
 
 ### 范围

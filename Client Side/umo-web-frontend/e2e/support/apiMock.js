@@ -140,6 +140,26 @@ function createState() {
       about_page: '## 关于测试站\n\n用于浏览器回归。',
       project_page: '## 测试项目\n\n这里是项目页面。',
     },
+    images: [
+      {
+        id: 1,
+        url: '/images/2026/09/used-image.png',
+        originalName: 'used-image.png',
+        size: 1024,
+        contentType: 'image/png',
+        createdAt: '2026-09-12T09:00:00',
+        referenced: true,
+      },
+      {
+        id: 2,
+        url: '/images/2026/09/orphan-image.png',
+        originalName: 'orphan-image.png',
+        size: 2048,
+        contentType: 'image/png',
+        createdAt: '2026-09-13T09:00:00',
+        referenced: false,
+      },
+    ],
     password: 'admin123',
     validToken: true,
     searchRateLimitOnce: false,
@@ -386,6 +406,25 @@ async function handleAdminApi(route, state, pathname, searchParams) {
       originalName: 'test-image.png',
       size: 68,
     })
+  }
+  if (pathname === '/api/admin/images' && method === 'GET') {
+    const usage = searchParams.get('usage')
+    const images = usage
+      ? state.images.filter((image) => image.referenced === (usage === 'REFERENCED'))
+      : state.images
+    return json(route, paginate(images, searchParams))
+  }
+  if (pathname.match(/^\/api\/admin\/images\/\d+$/) && method === 'DELETE') {
+    const id = Number(pathname.split('/').at(-1))
+    const index = state.images.findIndex((image) => image.id === id)
+    if (index < 0) {
+      return error(route, 404, 'Image not found')
+    }
+    if (state.images[index].referenced) {
+      return error(route, 409, '图片仍被内容引用，无法删除')
+    }
+    state.images.splice(index, 1)
+    return empty(route)
   }
 
   if (pathname === '/api/admin/categories') {

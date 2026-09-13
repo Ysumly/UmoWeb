@@ -3021,6 +3021,107 @@ fieldset.admin-field {
   color: var(--gold);
 }
 
+.admin-image-filter {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.admin-image-filter button {
+  min-width: 72px;
+  border: 0;
+  padding: 9px 13px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.admin-image-filter button + button {
+  border-left: 1px solid var(--line);
+}
+
+.admin-image-filter button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.admin-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.admin-image-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: 5px 6px 0 color-mix(in srgb, var(--gold) 20%, transparent);
+}
+
+.admin-image-card__preview {
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-deep);
+}
+
+.admin-image-card__preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-image-card__body {
+  display: flex;
+  min-height: 126px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px;
+}
+
+.admin-image-card__heading {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-image-card__heading strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.admin-image-card__body > small {
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.admin-image-card__delete {
+  margin-top: auto;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.admin-image-card__delete:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
 .admin-taxonomy {
   display: flex;
   max-width: 300px;
@@ -3427,6 +3528,15 @@ fieldset.admin-field {
 
   .admin-page__header .button {
     align-self: flex-start;
+  }
+
+  .admin-image-filter {
+    align-self: flex-start;
+  }
+
+  .admin-image-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
   }
 
   .admin-editor-header__actions {

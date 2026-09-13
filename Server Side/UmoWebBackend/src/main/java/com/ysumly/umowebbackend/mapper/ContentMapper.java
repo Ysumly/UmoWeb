@@ -28,6 +28,7 @@ public interface ContentMapper {
                   @Param("categoryIds") List<Long> categoryIds);
     Content findById(Long id);
     long countBySlug(@Param("slug") String slug, @Param("excludeId") Long excludeId);
+    List<String> findAllBodyPaths();
     void insert(Content content);
     void update(Content content);
     void delete(Long id);

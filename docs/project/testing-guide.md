@@ -1,7 +1,7 @@
 # UmoWeb 接口与构建测试指南
 
 > 基线日期: 2026-09-13
-> 接口数: 公开 8 个，管理 19 个，共 27 个
+> 接口数: 公开 8 个，管理 21 个，共 29 个
 > 关键约定: 正常响应没有 `{ code, data }` 包装层
 
 ---
@@ -93,9 +93,9 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 98 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
-Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流和分类层级解析测试。
-其中 3 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
+当前完整测试共 114 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析和图片清理测试。
+其中 4 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
 不连接 MySQL，`UmoWebBackendApplicationTests` 仍是一条空测试。
 
 ### 2.2 数据库迁移副本 + 全接口冒烟
@@ -120,30 +120,32 @@ cd "Server Side\UmoWebBackend"
   -Password "<current-password>"
 ```
 
-脚本覆盖公开端 8 个和管理端 19 个接口，结果为 `27/27` 通过；同时验证：
+脚本覆盖公开端 8 个和管理端 21 个接口，结果为 `29/29` 通过；同时验证：
 
 - 无有效 JWT 的管理端请求返回 401。
 - 修改密码返回 204，旧 token 立即失效。
 - 搜索首次返回 200，10 秒内重复请求返回 429。
 - 详情 `previous` 为更早文章、`next` 为更新文章，首尾边界为 `null`。
 - PNG 上传同时通过 MIME 和文件签名校验。
+- 图片列表能识别未引用状态；被草稿引用时删除返回 409，解除引用后删除返回 204，
+  文件不可再通过 `/images/**` 访问。
 - 公开列表只返回 `PUBLISHED`；管理列表和详情同时暴露 `DRAFT` 与 `PUBLISHED` 状态。
-- 测试创建的分类、标签、草稿文章全部删除，密码和 `site_title` 恢复原值。
+- 测试创建的分类、标签、草稿文章和临时图片全部删除，密码和 `site_title` 恢复原值。
 
 脚本运行前要求后端已启动并使用真实 MySQL。脚本会临时修改管理员密码和 `site_title`，
-最后恢复；由于当前没有图片删除接口，上传的测试图片会保留在测试库和存储目录中。
+最后恢复；图片上传、引用保护、删除和磁盘清理均由脚本回收。
 
 2026-09-13 起，同一链路已由 GitHub Actions 的 `mysql-integration` job 和
 `scripts/ci/mysql-integration.sh` 自动化：
 
-- 使用 MySQL 8.4 从空库执行 `schema.sql`、`seed-data.sql` 和兼容迁移脚本。
-- 兼容迁移连续执行两次并要求幂等；校验 `token_version`、3 个索引、5 个外键、
+- 使用 MySQL 8.4 从空库执行 `schema.sql`、`seed-data.sql` 和全部兼容迁移脚本。
+- 兼容迁移连续执行两次并要求幂等；校验 `token_version`、图片清理队列表、3 个索引、5 个外键、
   种子行数和迁移后孤儿关系为 0。
-- 在真实库执行 `ContentCategoryFilterIntegrationTest`，覆盖根/子/孙内容、精确/后代模式、
-  管理端草稿、空结果、稳定排序和循环拒绝。
+- 在真实库执行分类层级和图片管理集成测试，覆盖根/子/孙内容、精确/后代模式、管理端草稿、
+  空结果、稳定排序、循环拒绝、图片排序和清理队列失败记录。
 - 使用 Java 17 构建并启动后端，使用独立临时存储和运行时测试凭据执行 `api-smoke.py`。
-- 冒烟断言覆盖公开筛选、详情分类/标签、前后文章、草稿隔离、密码失效、图片上传和 429。
-- 冒烟通过后校验图片记录与临时存储文件；job 退出时销毁后端进程、测试数据和临时文件。
+- 冒烟断言覆盖公开筛选、详情分类/标签、前后文章、草稿隔离、密码失效、图片完整生命周期和 429。
+- 冒烟通过后校验图片记录、清理队列与临时存储文件；job 退出时销毁后端进程、测试数据和临时文件。
 
 ### 2.3 前端
 
@@ -157,15 +159,15 @@ npm run test:e2e
 2026-09-13 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
-- 前端 60 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、API 错误解析、日期格式、书库后代参数和 Markdown 安全。
-- Playwright 40 个浏览器检查，其中 26 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入与书库子分类筛选），14 个视觉断言覆盖核心页面的桌面与 390px 基线。
+- 前端 62 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、管理端文章/分类/标签/图片/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、API 错误解析、日期格式、书库后代参数和 Markdown 安全。
+- Playwright 42 个浏览器检查，其中 28 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入、图片删除保护、移动端图片布局与书库子分类筛选），14 个视觉断言覆盖核心页面的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
   MySQL 副本、`api-smoke.py`/`api-smoke.ps1` 和第 2.8 节的 CI 集成 job 验证。
 
 2026-09-13 已验证：
 
-- Windows 本机 Chrome 当前运行 40 个 Playwright 检查，原有 `win32` 视觉快照未变化。
-- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 40 个检查，
+- Windows 本机 Chrome 当前运行 42 个 Playwright 检查，原有 `win32` 视觉快照未变化。
+- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 42 个检查，
   通过独立的 `linux` 视觉快照验证。
 - `browser` job 失败时会保留 Playwright HTML 报告、trace 和失败截图 artifact。
 
@@ -253,7 +255,7 @@ bash scripts/backup/tests/backup-unit.sh
 /opt/umoweb/scripts/backup/restore-backup.sh /opt/umoweb/backups/umoweb-backup-<时间>.tar.gz
 ```
 
-执行恢复栈的 `api-smoke.ps1`，要求 27/27 通过，然后：
+执行恢复栈的 `api-smoke.ps1`，要求 29/29 通过，然后：
 
 ```bash
 /opt/umoweb/scripts/backup/cleanup-restore.sh umoweb-restore-<时间>
@@ -286,7 +288,7 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
   --env-file ".env.docker"
 ```
 
-该脚本与 PowerShell 版本均覆盖 27 个接口；会从 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASS`
+该脚本与 PowerShell 版本均覆盖 29 个接口；会从 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASS`
 读取管理员凭据，不输出密码值。2026-09-12 正式数据候选包、生产切换和最终备份恢复均通过
 `27/27`。
 
@@ -297,8 +299,8 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
 - `repository`：检查变更范围空白错误，运行敏感信息扫描器、发布脚本、访问聚合/保留测试和
   Nginx 六字段日志容器测试，并扫描全部已跟踪文件。
 - `backend`：使用 Temurin Java 17 执行 `mvn -B test`。
-- `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，运行分类层级
-  Mapper 集成测试，再启动真实后端执行 27/27 接口冒烟并校验上传文件和测试数据清理。
+- `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，运行分类层级与
+  图片管理 Mapper 集成测试，再启动真实后端执行 29/29 接口冒烟并校验图片记录、清理队列和文件回收。
 - `frontend`：使用 Node 24.12.0 执行 `npm ci`、`npm test` 和 `npm run build`。
 - `browser`：使用 Node 24.12.0 安装锁定版本 Chromium，执行 `npm run test:e2e`；
   失败时上传 `playwright-report-<attempt>` artifact。

@@ -2,11 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  buildImageListParams,
   buildCategoryParentOptions,
   categoryDetailToForm,
   diffSiteOptions,
   formatOptionSaveFailure,
   getCategoryDeleteError,
+  getImageDeleteError,
   getTagDeleteError,
   validateCategoryForm,
   validatePasswordForm,
@@ -215,5 +217,37 @@ test('maps protected category and tag deletion errors', () => {
       },
     }),
     '无法删除：该标签仍有关联文章',
+  )
+})
+
+test('builds normalized image list parameters', () => {
+  assert.deepEqual(
+    buildImageListParams({ page: '3', size: '12', usage: 'ORPHANED' }),
+    { page: 3, size: 12, usage: 'ORPHANED' },
+  )
+  assert.deepEqual(
+    buildImageListParams({ page: 0, size: 999, usage: 'INVALID' }),
+    { page: 1, size: 100, usage: undefined },
+  )
+})
+
+test('maps protected image deletion errors', () => {
+  assert.equal(
+    getImageDeleteError({
+      response: {
+        status: 409,
+        data: { message: '图片仍被内容引用，无法删除' },
+      },
+    }),
+    '无法删除：图片仍被内容引用',
+  )
+  assert.equal(
+    getImageDeleteError({
+      response: {
+        status: 500,
+        data: { message: 'Internal Server Error' },
+      },
+    }),
+    '图片删除失败',
   )
 })

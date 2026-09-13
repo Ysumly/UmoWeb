@@ -14,6 +14,7 @@ const navigation = computed(() => [
   { to: adminPath('contents'), label: '文章管理' },
   { to: adminPath('categories'), label: '分类管理' },
   { to: adminPath('tags'), label: '标签管理' },
+  { to: adminPath('images'), label: '图片管理' },
   { to: adminPath('options'), label: '站点设置' },
   { to: adminPath('password'), label: '修改密码' },
 ])

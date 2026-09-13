@@ -133,6 +133,17 @@ compose_restore exec -T mysql sh -c '
     exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"
 ' < "$work_dir/database.sql"
 
+log "applying compatibility migrations"
+migration_dir="$(cd "$SCRIPT_DIR/../../docs/design/migrations" && pwd)"
+for migration in \
+    "$migration_dir/20260911_integrity_security.sql" \
+    "$migration_dir/20260913_image_cleanup_queue.sql"; do
+    require_file "$migration"
+    compose_restore exec -T mysql sh -c '
+        exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"
+    ' < "$migration"
+done
+
 log "restoring app_data into an isolated volume"
 compose_restore create --no-build backend >/dev/null
 work_mount="$(docker_host_path "$work_dir")"
@@ -155,7 +166,7 @@ table_count() {
     " | tr -d '\r'
 }
 
-for table in users categories tags contents content_category content_tag images site_options; do
+for table in users categories tags contents content_category content_tag images image_cleanup_queue site_options; do
     expected="$(metadata_value "TABLE_COUNT_$table")"
     actual="$(table_count "$table")"
     [[ "$expected" == "$actual" ]] ||
@@ -198,6 +209,6 @@ From the development machine, create an SSH tunnel to this port and run:
   .\\Server Side\\UmoWebBackend\\scripts\\api-smoke.ps1 ^
     -BaseUrl http://127.0.0.1:$RESTORE_PORT -Username <admin> -Password <current-password>
 
-After 27/27 passes, remove only this restore environment:
+After 29/29 passes, remove only this restore environment:
   $SCRIPT_DIR/cleanup-restore.sh $project
 EOF

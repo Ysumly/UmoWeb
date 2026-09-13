@@ -191,3 +191,29 @@ export function getTagDeleteError(error) {
   }
   return getApiErrorMessage(error, '标签删除失败')
 }
+
+export function buildImageListParams({ page = 1, size = 24, usage = '' } = {}) {
+  const normalizedPage = Number.parseInt(page, 10)
+  const normalizedSize = Number.parseInt(size, 10)
+  const normalizedUsage = ['REFERENCED', 'ORPHANED'].includes(usage) ? usage : undefined
+  return {
+    page: Number.isInteger(normalizedPage) && normalizedPage > 0
+      ? Math.min(normalizedPage, 1_000_000)
+      : 1,
+    size: Number.isInteger(normalizedSize) && normalizedSize > 0
+      ? Math.min(normalizedSize, 100)
+      : 24,
+    usage: normalizedUsage,
+  }
+}
+
+export function getImageDeleteError(error) {
+  const message = getApiErrorMessage(error, '')
+  if (error?.response?.status === 409 && /引用/.test(message)) {
+    return '无法删除：图片仍被内容引用'
+  }
+  if (error?.response?.status === 404) {
+    return '图片不存在或已被删除'
+  }
+  return '图片删除失败'
+}

@@ -1,18 +1,28 @@
 package com.ysumly.umowebbackend.service.impl.admin;
 
 import com.ysumly.umowebbackend.common.exception.BusinessException;
+import com.ysumly.umowebbackend.common.exception.NotFoundException;
 import com.ysumly.umowebbackend.common.util.FileUtil;
+import com.ysumly.umowebbackend.mapper.ImageCleanupTaskMapper;
 import com.ysumly.umowebbackend.mapper.ImageMapper;
+import com.ysumly.umowebbackend.model.dto.ImageQuery;
+import com.ysumly.umowebbackend.model.dto.PageResult;
 import com.ysumly.umowebbackend.model.entity.Image;
+import com.ysumly.umowebbackend.model.entity.ImageCleanupTask;
+import com.ysumly.umowebbackend.model.vo.ImageManageVO;
 import com.ysumly.umowebbackend.model.vo.ImageVO;
 import com.ysumly.umowebbackend.service.admin.ImageService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -31,14 +41,25 @@ public class ImageServiceImpl implements ImageService {
 
     private final ImageMapper imageMapper;
     private final FileUtil fileUtil;
+    private final ImageReferenceService referenceService;
+    private final ImageCleanupTaskMapper cleanupTaskMapper;
+    private final ImageCleanupService cleanupService;
 
-    public ImageServiceImpl(ImageMapper imageMapper, FileUtil fileUtil) {
+    public ImageServiceImpl(ImageMapper imageMapper,
+                            FileUtil fileUtil,
+                            ImageReferenceService referenceService,
+                            ImageCleanupTaskMapper cleanupTaskMapper,
+                            ImageCleanupService cleanupService) {
         this.imageMapper = imageMapper;
         this.fileUtil = fileUtil;
+        this.referenceService = referenceService;
+        this.cleanupTaskMapper = cleanupTaskMapper;
+        this.cleanupService = cleanupService;
     }
 
     @Override
     public ImageVO upload(MultipartFile file) {
+        cleanupService.retryPending();
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
             throw new BusinessException(400,
@@ -89,6 +110,76 @@ public class ImageServiceImpl implements ImageService {
         vo.setOriginalName(image.getOriginalName());
         vo.setSize(image.getSize());
         return vo;
+    }
+
+    @Override
+    public PageResult<ImageManageVO> list(ImageQuery query) {
+        cleanupService.retryPending();
+        Set<String> references = referenceService.findReferencedImageUrls();
+        List<ImageManageVO> filtered = imageMapper.findAll().stream()
+                .map(image -> toManageVO(image, references))
+                .filter(image -> matchesUsage(image, query.getUsage()))
+                .toList();
+
+        long offset = ((long) query.getPage() - 1) * query.getSize();
+        if (offset >= filtered.size()) {
+            return new PageResult<>(List.of(), query.getPage(), query.getSize(), filtered.size());
+        }
+        int from = (int) offset;
+        int to = Math.min(filtered.size(), from + query.getSize());
+        return new PageResult<>(
+                List.copyOf(filtered.subList(from, to)),
+                query.getPage(),
+                query.getSize(),
+                filtered.size());
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        Image image = imageMapper.findById(id);
+        if (image == null) {
+            throw new NotFoundException("Image not found: id=" + id);
+        }
+        if (referenceService.findReferencedImageUrls().contains("/" + image.getPath())) {
+            throw new BusinessException(409, "图片仍被内容引用，无法删除");
+        }
+
+        imageMapper.delete(id);
+        ImageCleanupTask task = new ImageCleanupTask();
+        task.setImageId(id);
+        task.setPath(image.getPath());
+        cleanupTaskMapper.insert(task);
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    cleanupService.retryPending();
+                }
+            });
+        } else {
+            cleanupService.retryPending();
+        }
+    }
+
+    private ImageManageVO toManageVO(Image image, Set<String> references) {
+        ImageManageVO vo = new ImageManageVO();
+        vo.setId(image.getId());
+        vo.setUrl("/" + image.getPath());
+        vo.setOriginalName(image.getOriginalName());
+        vo.setSize(image.getSize());
+        vo.setContentType(image.getContentType());
+        vo.setCreatedAt(image.getCreatedAt());
+        vo.setReferenced(references.contains("/" + image.getPath()));
+        return vo;
+    }
+
+    private boolean matchesUsage(ImageManageVO image, String usage) {
+        if (usage == null || usage.isBlank()) {
+            return true;
+        }
+        return "REFERENCED".equals(usage) == image.isReferenced();
     }
 
     private boolean matchesSignature(MultipartFile file, String contentType) throws IOException {

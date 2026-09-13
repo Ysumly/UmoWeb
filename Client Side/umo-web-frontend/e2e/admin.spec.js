@@ -342,6 +342,31 @@ test('修改密码成功后清理 token 并要求重新登录', async ({ page, a
   expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull()
 })
 
+test('图片管理支持引用筛选、删除和 409 保护', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/images')
+
+  await expect(page.getByRole('heading', { name: '图片管理' })).toBeVisible()
+  await expect(page.getByText('used-image.png')).toBeVisible()
+  await expect(page.getByText('orphan-image.png')).toBeVisible()
+
+  await page.getByRole('button', { name: '未引用' }).click()
+  await expect(page.getByText('used-image.png')).toHaveCount(0)
+  await expect(page.getByText('orphan-image.png')).toBeVisible()
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '删除 orphan-image.png' }).click()
+  await expect(page.getByText('图片已删除')).toBeVisible()
+  await expect(page.getByText('orphan-image.png')).toHaveCount(0)
+  expect(apiMock.state.images).toHaveLength(1)
+
+  await page.getByRole('button', { name: '使用中' }).click()
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '删除 used-image.png' }).click()
+  await expect(page.getByRole('alert')).toContainText('无法删除：图片仍被内容引用')
+  expect(apiMock.state.images).toHaveLength(1)
+})
+
 test.describe('390px 管理端布局', () => {
   test.use({
     viewport: { width: 390, height: 844 },
@@ -364,5 +389,22 @@ test.describe('390px 管理端布局', () => {
 
     expect(dimensions.pageOverflow).toBeLessThanOrEqual(1)
     expect(dimensions.tableOverflow).toBeGreaterThan(0)
+  })
+
+  test('图片网格在移动端保持单列且页面没有溢出', async ({ page, apiMock }) => {
+    await apiMock.authenticate()
+    await page.goto('/secret-admin/images')
+
+    await expect(page.getByRole('heading', { name: '图片管理' })).toBeVisible()
+    const dimensions = await page.evaluate(() => {
+      const grid = document.querySelector('.admin-image-grid')
+      return {
+        pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        columns: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+      }
+    })
+
+    expect(dimensions.pageOverflow).toBeLessThanOrEqual(1)
+    expect(dimensions.columns).toBe(1)
   })
 })

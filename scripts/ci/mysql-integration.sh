@@ -50,6 +50,8 @@ mysql_client < "$repo_root/docs/design/schema.sql"
 mysql_client < "$repo_root/docs/design/seed-data.sql"
 mysql_client < "$repo_root/docs/design/migrations/20260911_integrity_security.sql"
 mysql_client < "$repo_root/docs/design/migrations/20260911_integrity_security.sql"
+mysql_client < "$repo_root/docs/design/migrations/20260913_image_cleanup_queue.sql"
+mysql_client < "$repo_root/docs/design/migrations/20260913_image_cleanup_queue.sql"
 
 assert_value "database character set" "utf8mb4" \
   "SELECT DEFAULT_CHARACTER_SET_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'umo_blog'"
@@ -73,6 +75,8 @@ assert_value "seed tag links" "12" \
   "SELECT COUNT(*) FROM umo_blog.content_tag"
 assert_value "seed site options" "4" \
   "SELECT COUNT(*) FROM umo_blog.site_options"
+assert_value "image cleanup queue table" "1" \
+  "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'umo_blog' AND TABLE_NAME = 'image_cleanup_queue'"
 assert_value "orphan relations after migration" "0" \
   "SELECT (SELECT COUNT(*) FROM umo_blog.content_category cc LEFT JOIN umo_blog.contents c ON c.id = cc.content_id LEFT JOIN umo_blog.categories category ON category.id = cc.category_id WHERE c.id IS NULL OR category.id IS NULL) + (SELECT COUNT(*) FROM umo_blog.content_tag ct LEFT JOIN umo_blog.contents c ON c.id = ct.content_id LEFT JOIN umo_blog.tags tag ON tag.id = ct.tag_id WHERE c.id IS NULL OR tag.id IS NULL) + (SELECT COUNT(*) FROM umo_blog.categories child LEFT JOIN umo_blog.categories parent ON parent.id = child.parent_id WHERE child.parent_id IS NOT NULL AND parent.id IS NULL)"
 
@@ -83,7 +87,7 @@ export DB_USER=root
 export DB_PASS="$mysql_password"
 export APP_STORAGE_PATH="$storage_dir"
 export MYSQL_INTEGRATION=true
-"$maven_bin" -B -Dtest=ContentCategoryFilterIntegrationTest test
+"$maven_bin" -B -Dtest=ContentCategoryFilterIntegrationTest,ImageManagementIntegrationTest test
 "$maven_bin" -B -DskipTests package
 
 export SPRING_PROFILES_ACTIVE=prod
@@ -132,15 +136,17 @@ if ! "$python_bin" scripts/api-smoke.py \
   exit 1
 fi
 
-assert_value "image rows after smoke" "1" \
+assert_value "image rows after smoke" "0" \
   "SELECT COUNT(*) FROM umo_blog.images"
+assert_value "image cleanup queue after smoke" "0" \
+  "SELECT COUNT(*) FROM umo_blog.image_cleanup_queue"
 assert_value "contents after smoke cleanup" "6" \
   "SELECT COUNT(*) FROM umo_blog.contents"
 
 image_files="$(find "$storage_dir/images" -type f -name '*.png' | wc -l)"
-if [[ "$image_files" -lt 1 ]]; then
-  echo "Expected at least one uploaded PNG in $storage_dir/images." >&2
+if [[ "$image_files" -ne 0 ]]; then
+  echo "Expected no uploaded PNG after smoke cleanup in $storage_dir/images." >&2
   exit 1
 fi
 
-echo "MySQL integration passed with schema, seed, migration, and 27/27 API smoke."
+echo "MySQL integration passed with schema, seed, migrations, and 29/29 API smoke."

@@ -192,6 +192,7 @@ class BuildContentBackupTests(unittest.TestCase):
             self.assertEqual(len([line for line in body.splitlines() if "![" in line]), 2)
             self.assertEqual(len(set(re.findall(r"\]\((/images/[^)]+)\)", body))), 1)
             self.assertIn("TABLE_COUNT_images=1", metadata)
+            self.assertIn("TABLE_COUNT_image_cleanup_queue=0", metadata)
             self.assertEqual(database_sql.count("INSERT INTO images"), 1)
 
     def test_builds_restorable_backup_with_rewritten_content_and_images(self):
@@ -337,6 +338,7 @@ class BuildContentBackupTests(unittest.TestCase):
             self.assertIn("TABLE_COUNT_users=1", metadata)
             self.assertIn("TABLE_COUNT_contents=2", metadata)
             self.assertIn("TABLE_COUNT_images=1", metadata)
+            self.assertIn("TABLE_COUNT_image_cleanup_queue=0", metadata)
             self.assertNotIn("\r", metadata)
             self.assertIn("INSERT INTO contents", database_sql)
             self.assertIn("common-algorithms", database_sql)

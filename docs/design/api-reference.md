@@ -2,8 +2,8 @@
 
 > 基线日期: 2026-09-13
 > 事实来源: `controller/`、`model/dto/`、`model/vo/`、`GlobalExceptionHandler`、Mapper XML
-> 接口总数: 公开端 8 个，管理端 19 个，共 27 个
-> 实测状态: 2026-09-11 在隔离 MySQL 5.7 迁移副本上完成 27/27 接口冒烟，接口契约未变更
+> 接口总数: 公开端 8 个，管理端 21 个，共 29 个
+> 实测状态: 2026-09-13 完成图片生命周期真实接口冒烟，公开与管理接口共 29/29
 
 ---
 
@@ -598,7 +598,51 @@ Content-Type: multipart/form-data
 实际限制由 Spring Multipart 配置提供：单文件 50MB，单请求 50MB。扩展名只由 MIME 映射生成，
 不采用客户端原始扩展名；`originalFilename` 为 null/空或包含路径时会被安全化，仅作为展示元信息保存。
 
-### 7.2 获取全部站点配置
+### 7.2 查询图片
+
+```http
+GET /api/admin/images?page=1&size=24&usage=ORPHANED
+Authorization: Bearer <token>
+```
+
+`usage` 可省略或使用 `REFERENCED`、`ORPHANED`。响应按创建时间和 ID 倒序：
+
+```json
+{
+  "items": [
+    {
+      "id": 1,
+      "url": "/images/2026/09/uuid.png",
+      "originalName": "screenshot.png",
+      "size": 204800,
+      "contentType": "image/png",
+      "createdAt": "2026-09-13T10:00:00",
+      "referenced": false
+    }
+  ],
+  "page": 1,
+  "size": 24,
+  "total": 1
+}
+```
+
+引用状态扫描全部 `DRAFT`、`PUBLISHED` 文章 Markdown，以及 `about_page`、`project_page`；
+只识别规范 `/images/...` 路径。Markdown 文件缺失只记录警告，不影响列表。
+
+### 7.3 删除图片
+
+```http
+DELETE /api/admin/images/{id}
+Authorization: Bearer <token>
+```
+
+图片仍被文章或固定页引用时返回 409，不存在返回 404。未引用图片删除成功返回
+`204 No Content`。
+
+删除事务同时移除 `images` 记录并写入 `image_cleanup_queue`。事务提交后删除文件；
+文件删除失败时保留队列、记录次数和错误，并在下次应用启动或图片操作前重试。
+
+### 7.4 获取全部站点配置
 
 ```http
 GET /api/admin/options
@@ -614,7 +658,7 @@ Authorization: Bearer <token>
 }
 ```
 
-### 7.3 更新站点配置
+### 7.5 更新站点配置
 
 ```http
 PUT /api/admin/options/{key}
