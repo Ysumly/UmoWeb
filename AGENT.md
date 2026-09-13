@@ -47,6 +47,8 @@
 - 2026-09-12 已在单台阿里云 ECS 完成无域名公网测试部署（Ubuntu 24.04、Docker Compose、
   安全组放行 TCP 80）。部署目录为 `/opt/umoweb`，当前仍使用演示数据且未启用 HTTPS；
   实例标识、公网地址、管理路径和凭据均保留在服务器侧，不进入仓库。
+- 2026-09-12 已建立 MySQL 与 `app_data` 的每周自动备份、SHA-256 校验、人工导出和隔离恢复；
+  ECS timer 已启用，归档跨主机恢复后 27/27 接口冒烟通过。
 - 前端公开阅读主路径、公开在线 Markdown 编辑器、管理端文章/分类/标签/站点设置/修改密码均已实现；
   编辑器草稿只保存在当前浏览器的 `umo-editor-draft-v1`。
 
@@ -65,6 +67,9 @@ npm run test:e2e
 # 仓库根目录：Docker 全栈
 .\scripts\docker-up.ps1
 docker compose --env-file .env.docker ps
+
+# 阿里云 ECS 远程运维；PATH 未包含该目录，必须使用完整路径
+& 'C:\Program Files\workbench\workbench.exe' version
 ```
 
 若机器级 Maven `settings.xml` 的仓库路径不可写，应使用一份隔离的临时 global/user settings 执行 Maven；不要修改系统级 Maven 安装目录。

@@ -33,6 +33,7 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
+    image: ${BACKEND_IMAGE:-umoweb-backend:latest}
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -70,6 +71,7 @@ services:
       dockerfile: docker/frontend/Dockerfile
       args:
         VITE_ADMIN_PATH: ${VITE_ADMIN_PATH:-/secret-admin}
+    image: ${FRONTEND_IMAGE:-umoweb-frontend:latest}
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:80"

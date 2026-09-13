@@ -1,0 +1,14 @@
+[Unit]
+Description=UmoWeb consistent MySQL and app_data backup
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=@INSTALL_ROOT@
+EnvironmentFile=-/etc/umoweb/backup.env
+ExecStart=/usr/bin/env bash @INSTALL_ROOT@/scripts/backup/create-backup.sh
+TimeoutStartSec=1200
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

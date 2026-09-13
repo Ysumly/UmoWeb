@@ -368,14 +368,31 @@ Spring Multipart 限制单文件和请求均为 50MB。
   `/opt/umoweb`，入口为 Nginx 宿主 TCP 80。
 - 2026-09-12 已冻结 v1 正式发布范围，明确当前 ECS 原地升级路径、发布职责、阻断条件、
   回滚触发条件和第一阶段排除项；清单见 `docs/project/release-checklist-v1.md`。
+- 2026-09-12 已建立 MySQL 与 `app_data` 一致性备份、校验、导出和隔离恢复链路；ECS 每周日
+  03:30 自动执行，保留最多 6 份且不超过 8GiB，恢复环境 27/27 冒烟通过。
 - 该 ECS 访问 Docker Hub、npm 官方仓库和 Maven Central 受限；实际部署采用开发机构建镜像、
   校验归档后传输并在 ECS `docker load`，再执行 `compose up -d --no-build --wait`。
 - 安全组与 UFW 均放行 TCP 80；MySQL 3306 和后端 8080 没有暴露到公网。
 - 2026-09-12 已验证首页、公开 API、管理员登录和公网访问；三个容器均为 healthy，
   Docker 服务已设置开机自启。
-- 当前是公网测试部署，仍使用演示数据，没有域名、HTTPS、自动备份、恢复演练或 CI/CD。
+- 当前是公网测试部署，仍使用演示数据，没有域名或 HTTPS；自动备份和隔离恢复演练已完成，
+  CI/CD 尚未接入。
 - 实例标识、公网地址、随机管理路径、数据库密码、JWT secret 和管理员密码只保存在服务器侧，
   不进入版本库。
+- 开发机已安装阿里云 Workbench CLI v1.0.1，绝对路径为
+  `C:\Program Files\workbench\workbench.exe`；当前 `PATH` 不包含该目录，远程 ECS 操作必须使用
+  完整路径。凭据配置位于用户目录的 `.workbench/config.json`，内容不进入版本库。
+
+### 6.5 备份与恢复
+
+- `scripts/backup/` 提供 Bash 备份、校验、导出、隔离恢复、清理和 systemd 安装入口。
+- 备份时短暂停止 `frontend` 和 `backend`，通过 trap 恢复服务；MySQL 使用逻辑 dump，
+  `app_data` 保存为压缩包并附带逐文件 SHA-256 清单。
+- Compose 后端和前端显式使用 `BACKEND_IMAGE`、`FRONTEND_IMAGE`，隔离项目无需重新构建镜像。
+- 恢复项目只允许 `umoweb-restore-*`，使用独立卷、网络和回环端口，不覆盖生产 `umoweb`。
+- ECS systemd timer 每周日 03:30 执行，允许 10 分钟随机延迟并支持补跑；本地文件和目录权限为
+  `0600/0700`。
+- 当前归档不做加密和自动异地复制，只提供导出入口；正式数据导入后必须重新执行恢复演练。
 
 ---
 
