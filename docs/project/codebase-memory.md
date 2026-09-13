@@ -394,12 +394,15 @@ Spring Multipart 限制单文件和请求均为 50MB。
   校验归档后传输并在 ECS `docker load`，再执行 `compose up -d --no-build --wait`。
 - 2026-09-13 已实现 `scripts/release/` 本地版本化发布/回滚入口和 ECS 控制脚本：
   发布要求当前 commit 存在成功 push CI，开发机保留最近两个镜像归档，ECS 只保留当前运行镜像、
-  `current.json` 和发布期间上传目录；真实发布/回滚演练尚未执行。
+  `current.json` 和发布期间上传目录。
+- 2026-09-13 已完成真实发布/回滚演练：候选 `v1.0.0-rc.1` 由提交
+  `f6f5ce170b3c` 构建，发布 CI run `34739475146`；随后回滚 `baseline-20260913`，
+  再从开发机归档恢复 rc.1。生产最终运行 rc.1，前后端 image ID 与 manifest 一致。
 - 安全组与 UFW 均放行 TCP 80；MySQL 3306 和后端 8080 没有暴露到公网。
 - 2026-09-12 已验证首页、公开 API、管理员登录和公网访问；三个容器均为 healthy，
   Docker 服务已设置开机自启。
 - 当前是公网测试部署，使用正式内容，没有域名或 HTTPS；自动备份和正式数据恢复演练已完成，
-  基础 CI 与 Linux Playwright 已接入，镜像发布和自动回滚尚未接入。
+  基础 CI、Linux Playwright、真实 MySQL 集成和本地镜像发布/回滚已接入；安全访问统计尚未接入。
 - 实例标识、公网地址、随机管理路径、数据库密码、JWT secret 和管理员密码只保存在服务器侧，
   不进入版本库。
 - 开发机已安装阿里云 Workbench CLI v1.0.1，绝对路径为
@@ -461,7 +464,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | 已修复 | 管理路径 | 前端 `VITE_ADMIN_PATH`，后端移除未使用配置。 |
 | 已修复 | 上下文启动 | MyBatis 同时扫描 entity/dto 别名；`ClientIpResolver` 显式构造注入；业务 JSON 统一使用 Jackson 3。 |
 | 已修复 | 内容导入 | 候选归档显式使用 `umo:umo` 文件所有权；恢复项目名限制为小写；管理员初始化完成后才轮换密码。 |
-| 已知限制 | CI 合并门禁 | 私有仓库当前计划不支持分支保护或规则集，CI 失败只能报告；本地发布入口已强制要求当前 commit 的成功 push CI，但 ECS 发布/回滚尚未完成实际演练。 |
+| 已修复 | CI 合并门禁 | 私有仓库当前计划不支持分支保护或规则集，CI 失败只能报告；本地发布入口已强制要求当前 commit 的成功 push CI，并完成真实发布/回滚演练。 |
 | 低 | 爬虫控制 | `index.html` 有 `noindex`，但没有 `public/robots.txt`。 |
 
 ---
