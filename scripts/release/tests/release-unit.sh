@@ -73,10 +73,12 @@ cat > "$manifest" <<EOF
   "builtAtUtc": "2026-09-13T04:00:00Z",
   "backendImage": {
     "tag": "umoweb-backend:v1.0.0-rc.1",
+    "commitTag": "umoweb-backend:sha-922849cbf7b4",
     "imageId": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
   },
   "frontendImage": {
     "tag": "umoweb-frontend:v1.0.0-rc.1",
+    "commitTag": "umoweb-frontend:sha-922849cbf7b4",
     "imageId": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
   },
   "archive": {
@@ -235,10 +237,12 @@ cat > "$release_manifest" <<EOF
   "builtAtUtc": "2026-09-13T04:00:00Z",
   "backendImage": {
     "tag": "umoweb-backend:v1.0.0-rc.1",
+    "commitTag": "umoweb-backend:sha-922849cbf7b4",
     "imageId": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
   },
   "frontendImage": {
     "tag": "umoweb-frontend:v1.0.0-rc.1",
+    "commitTag": "umoweb-frontend:sha-922849cbf7b4",
     "imageId": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
   },
   "archive": {

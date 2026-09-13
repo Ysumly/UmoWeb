@@ -98,6 +98,30 @@ function Assert-TagCanBePublished {
     }
 }
 
+function Test-ReleaseStateMatchesManifest {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $State,
+        [Parameter(Mandatory)]
+        $Manifest
+    )
+
+    foreach ($property in @("releaseId", "version", "gitCommit")) {
+        if ([string]$State.$property -ne [string]$Manifest.$property) {
+            return $false
+        }
+    }
+    foreach ($image in @("backendImage", "frontendImage")) {
+        foreach ($property in @("tag", "imageId")) {
+            if ([string]$State.$image.$property -ne [string]$Manifest.$image.$property) {
+                return $false
+            }
+        }
+    }
+    return $true
+}
+
 function New-ReleaseManifest {
     [CmdletBinding()]
     param(
