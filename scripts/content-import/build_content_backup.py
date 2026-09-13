@@ -156,6 +156,16 @@ def load_catalog(path: Path) -> Catalog:
         category = article.get("category")
         if category not in category_keys:
             raise ContentImportError(f"article references unknown category: {category}")
+        if "summary" in article:
+            summary = article["summary"]
+            if not isinstance(summary, str) or not summary.strip():
+                raise ContentImportError(
+                    f"article summary must be a non-empty string: {article['slug']}"
+                )
+            if len(summary) > 2000:
+                raise ContentImportError(
+                    f"article summary exceeds 2000 characters: {article['slug']}"
+                )
         source = _normalize_relative(article["source"])
         if source in article_sources or article["slug"] in article_slugs:
             raise ContentImportError(
@@ -255,7 +265,10 @@ def build_content_backup(
                     "title": title,
                     "slug": article_spec["slug"],
                     "body_path": body_path,
-                    "summary": derive_summary(markdown, title),
+                    "summary": (
+                        article_spec.get("summary")
+                        or derive_summary(markdown, title)
+                    ),
                     "metadata": json.dumps(
                         {"readingTime": reading_minutes},
                         ensure_ascii=False,

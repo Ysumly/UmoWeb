@@ -264,6 +264,7 @@ class BuildContentBackupTests(unittest.TestCase):
                         "slug": "common-algorithms",
                         "category": "algorithms",
                         "tags": ["algorithm"],
+                        "summary": "人工整理的常见算法摘要。",
                     },
                     {
                         "source": "02_Java开发/01_设计模式/Java设计模式.md",
@@ -339,6 +340,7 @@ class BuildContentBackupTests(unittest.TestCase):
             self.assertNotIn("\r", metadata)
             self.assertIn("INSERT INTO contents", database_sql)
             self.assertIn("common-algorithms", database_sql)
+            self.assertIn("人工整理的常见算法摘要。", database_sql)
             self.assertNotIn(str(source), database_sql)
 
     def test_rejects_missing_local_image(self):

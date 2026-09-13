@@ -237,8 +237,8 @@ bash scripts/backup/tests/backup-unit.sh
 python -m unittest discover -s scripts\content-import\tests -v
 ```
 
-当前 6 个测试覆盖标题/摘要、水平分隔线过滤、目录分类、Markdown 内链、图片重写与去重、
-`umo:umo` 文件所有权和缺失素材阻断。
+当前 6 个测试覆盖显式人工摘要优先、标题/摘要提取、水平分隔线过滤、目录分类、Markdown 内链、
+图片重写与去重、`umo:umo` 文件所有权和缺失素材阻断。
 
 候选包和提升命令见 [docker-guide.md](docker-guide.md) 第 8.5 节。便携冒烟入口：
 
