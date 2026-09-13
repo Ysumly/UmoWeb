@@ -1,0 +1,21 @@
+[Unit]
+Description=UmoWeb loopback-only access security report
+After=network.target
+
+[Service]
+Type=simple
+User=@REPORT_USER@
+Group=@REPORT_GROUP@
+EnvironmentFile=-/etc/umoweb/access.env
+ExecStart=/usr/bin/env bash @INSTALL_ROOT@/scripts/access/serve-access-report.sh
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=@INSTALL_ROOT@/access/reports
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

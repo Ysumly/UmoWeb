@@ -87,11 +87,32 @@ cat > "$manifest" <<EOF
     "size": $archive_size
   },
   "adminPathSha256": "55b15c306754cf0b831e9d4ea80403c98b6bac5266597e9afc0121a35f475fce"
+  ,"accessPolicy": {
+    "rawRetentionDays": 30,
+    "aggregateRetentionDays": 180
+  }
 }
 EOF
 
 verify_archive "$archive" "$manifest"
 verify_admin_path_hash "$manifest"
+
+wrong_access_manifest="$temp_root/wrong-access-manifest.json"
+python3 - "$manifest" "$wrong_access_manifest" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    manifest = json.load(handle)
+manifest["accessPolicy"]["rawRetentionDays"] = 6
+with open(sys.argv[2], "w", encoding="utf-8") as handle:
+    json.dump(manifest, handle, ensure_ascii=False, indent=2)
+    handle.write("\n")
+PY
+if (validate_manifest "$wrong_access_manifest") >/dev/null 2>&1; then
+    failures=$((failures + 1))
+    printf 'ASSERTION FAILED: invalid access policy was accepted\n' >&2
+fi
 
 wrong_admin_manifest="$temp_root/wrong-admin-manifest.json"
 sed 's/55b15c306754cf0b831e9d4ea80403c98b6bac5266597e9afc0121a35f475fce/e1d0e445857ba8bf7987ac03559de6f398e2c49a9fbbd3e2e50f3255d8c686b7/' \

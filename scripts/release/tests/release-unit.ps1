@@ -169,7 +169,9 @@ try {
         -ArchiveFileName "umoweb-images-v1.0.0-rc.1.tar" `
         -ArchiveSha256 "3333333333333333333333333333333333333333333333333333333333333333" `
         -ArchiveSize 123456 `
-        -AdminPath $adminPath
+        -AdminPath $adminPath `
+        -AccessRawRetentionDays 30 `
+        -AccessAggregateRetentionDays 180
 
     Assert-Equal -Actual $manifest.schemaVersion -Expected 1 -Message "Unexpected manifest schema version"
     Assert-Equal -Actual $manifest.releaseId -Expected "v1.0.0-rc.1" -Message "Unexpected release ID"
@@ -181,6 +183,30 @@ try {
         -Actual $manifest.adminPathSha256 `
         -Expected "55b15c306754cf0b831e9d4ea80403c98b6bac5266597e9afc0121a35f475fce" `
         -Message "Unexpected admin path hash"
+    Assert-Equal -Actual $manifest.accessPolicy.rawRetentionDays -Expected 30 -Message "Unexpected raw access retention"
+    Assert-Equal -Actual $manifest.accessPolicy.aggregateRetentionDays -Expected 180 -Message "Unexpected aggregate access retention"
+
+    Assert-Throws -Message "Invalid raw access retention was accepted" -Action {
+        New-ReleaseManifest `
+            -ReleaseId "v1.0.0-rc.2" `
+            -Kind "release" `
+            -Version "v1.0.0-rc.2" `
+            -GitCommit "922849cbf7b4fd14764bb29ce765607a6e6681d9" `
+            -CiRunId 34736666387 `
+            -BuiltAtUtc "2026-09-13T04:00:00Z" `
+            -BackendTag "umoweb-backend:v1.0.0-rc.2" `
+            -BackendCommitTag "umoweb-backend:sha-922849cbf7b4" `
+            -BackendImageId "sha256:1111111111111111111111111111111111111111111111111111111111111111" `
+            -FrontendTag "umoweb-frontend:v1.0.0-rc.2" `
+            -FrontendCommitTag "umoweb-frontend:sha-922849cbf7b4" `
+            -FrontendImageId "sha256:2222222222222222222222222222222222222222222222222222222222222222" `
+            -ArchiveFileName "umoweb-images-v1.0.0-rc.2.tar" `
+            -ArchiveSha256 "3333333333333333333333333333333333333333333333333333333333333333" `
+            -ArchiveSize 123456 `
+            -AdminPath $adminPath `
+            -AccessRawRetentionDays 6 `
+            -AccessAggregateRetentionDays 180
+    }
 
     Assert-TagCanBePublished `
         -Tag "v1.0.0-rc.1" `

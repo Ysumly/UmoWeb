@@ -75,6 +75,10 @@ services:
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:80"
+    volumes:
+      - ./access/logs:/var/log/umoweb
+      - ./access/privacy-config.json:/usr/share/nginx/html/privacy-config.json:ro
+      - ./access/trusted-proxies.conf:/etc/nginx/umoweb/trusted-proxies.conf:ro
     depends_on:
       backend:
         condition: service_healthy

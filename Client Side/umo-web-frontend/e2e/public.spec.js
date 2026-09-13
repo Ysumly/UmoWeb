@@ -114,6 +114,18 @@ test('书库接口失败时显示可重试错误态', async ({ page, apiMock }) 
   await expect(page.getByRole('button', { name: '重新加载' })).toBeVisible()
 })
 
+test('页脚隐私入口展示实际保留策略', async ({ page, apiMock }) => {
+  void apiMock
+  await page.goto('/')
+  await page.getByRole('navigation', { name: '页脚导航' }).getByRole('link', { name: '隐私' }).click()
+
+  await expect(page).toHaveURL(/\/privacy$/)
+  await expect(page.getByRole('heading', { name: /只保留维护安全/ })).toBeVisible()
+  await expect(page.getByText('当前原始日志保留 30 天')).toBeVisible()
+  await expect(page.getByText('匿名聚合保留 180 天')).toBeVisible()
+  await expect(page.getByText(/不记录查询参数、请求体、Cookie、Authorization/)).toBeVisible()
+})
+
 test.describe('390px 公开端布局', () => {
   test.use({
     viewport: { width: 390, height: 844 },
@@ -129,6 +141,10 @@ test.describe('390px 公开端布局', () => {
 
     await page.goto('/library')
     await expect(page.getByRole('heading', { name: '按主题，慢慢翻阅。' })).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+
+    await page.goto('/privacy')
+    await expect(page.getByRole('heading', { name: /只保留维护安全/ })).toBeVisible()
     await expectNoHorizontalOverflow(page)
   })
 })

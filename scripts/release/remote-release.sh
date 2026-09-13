@@ -140,6 +140,20 @@ if not isinstance(archive.get("size"), int) or archive["size"] <= 0:
     raise SystemExit("archive has an invalid size")
 if not re.fullmatch(r"[0-9a-fA-F]{64}", str(manifest.get("adminPathSha256", ""))):
     raise SystemExit("manifest has an invalid admin path SHA-256")
+access_policy = manifest.get("accessPolicy")
+if access_policy is not None:
+    if not isinstance(access_policy, dict):
+        raise SystemExit("manifest has an invalid access policy")
+    raw_days = access_policy.get("rawRetentionDays")
+    aggregate_days = access_policy.get("aggregateRetentionDays")
+    if isinstance(raw_days, bool) or not isinstance(raw_days, int) or not 7 <= raw_days <= 30:
+        raise SystemExit("manifest has an invalid raw access retention")
+    if (
+        isinstance(aggregate_days, bool)
+        or not isinstance(aggregate_days, int)
+        or not 1 <= aggregate_days <= 3650
+    ):
+        raise SystemExit("manifest has an invalid aggregate access retention")
 PY
 }
 
@@ -371,7 +385,28 @@ runtime_base_url() {
     printf 'http://127.0.0.1:%s\n' "$app_port"
 }
 
+verify_access_runtime() {
+    local manifest="$1"
+    require_file "$manifest"
+    validate_manifest "$manifest"
+
+    if "$(python_command)" - "$manifest" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    manifest = json.load(handle)
+raise SystemExit(0 if manifest.get("accessPolicy") is not None else 1)
+PY
+    then
+        local verifier="$UMOWEB_ROOT/scripts/access/verify-access-deployment.sh"
+        require_file "$verifier"
+        bash "$verifier" "$(runtime_base_url)"
+    fi
+}
+
 verify_runtime() {
+    local manifest="${1:-}"
     require_file "$COMPOSE_ENV_FILE"
     require_file "$COMPOSE_FILE"
 
@@ -388,6 +423,9 @@ verify_runtime() {
         local public_url="${RELEASE_PUBLIC_BASE_URL%/}"
         log "verifying public endpoint"
         verify_site_url "$public_url"
+    fi
+    if [[ -n "$manifest" ]]; then
+        verify_access_runtime "$manifest"
     fi
 }
 
@@ -559,7 +597,7 @@ deploy_release() {
         rollback_previous_config "$previous_backend" "$previous_frontend" || true
         die "release containers failed to start"
     fi
-    if ! verify_runtime; then
+    if ! verify_runtime "$manifest"; then
         rollback_previous_config "$previous_backend" "$previous_frontend" || true
         die "release runtime verification failed"
     fi
@@ -757,7 +795,7 @@ verify_current() {
     validate_manifest "$state_file"
     verify_admin_path_hash "$state_file"
     verify_image_ids "$state_file"
-    verify_runtime
+    verify_runtime "$state_file"
     cat "$state_file"
 }
 

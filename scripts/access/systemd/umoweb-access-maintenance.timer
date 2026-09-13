@@ -1,0 +1,11 @@
+[Unit]
+Description=Run UmoWeb access log maintenance daily
+
+[Timer]
+OnCalendar=*-*-* 02:40:00
+RandomizedDelaySec=5m
+Persistent=true
+Unit=umoweb-access-maintenance.service
+
+[Install]
+WantedBy=timers.target

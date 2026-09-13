@@ -20,6 +20,7 @@ const currentYear = new Date().getFullYear()
         <router-link to="/search">搜索</router-link>
         <router-link to="/project">项目</router-link>
         <router-link to="/about">关于</router-link>
+        <router-link to="/privacy">隐私</router-link>
       </nav>
       <p class="site-footer__copyright">© {{ currentYear }} {{ siteTitle }}</p>
     </div>
