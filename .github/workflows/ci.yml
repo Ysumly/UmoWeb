@@ -101,9 +101,8 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-  linux-baselines:
-    name: Generate Linux visual baselines
-    if: github.event_name == 'pull_request' && github.head_ref == 'codex/task-2.2-playwright-linux'
+  browser:
+    name: Browser tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -128,13 +127,16 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Update Linux visual baselines
-        run: npm run test:e2e:update
+      - name: Run Playwright tests
+        run: npm run test:e2e
 
-      - name: Upload Linux snapshots
+      - name: Upload Playwright report
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-linux-visual-baselines
-          path: Client Side/umo-web-frontend/e2e/visual.spec.js-snapshots/*-linux.png
-          if-no-files-found: error
+          name: playwright-report-${{ github.run_attempt }}
+          path: |
+            Client Side/umo-web-frontend/playwright-report/
+            Client Side/umo-web-frontend/test-results/
+          if-no-files-found: ignore
           retention-days: 14
