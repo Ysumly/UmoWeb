@@ -401,7 +401,7 @@ PY
     then
         local verifier="$UMOWEB_ROOT/scripts/access/verify-access-deployment.sh"
         require_file "$verifier"
-        bash "$verifier" "$(runtime_base_url)"
+        bash "$verifier" "$(runtime_base_url)" >&2
     fi
 }
 
