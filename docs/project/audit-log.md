@@ -1,5 +1,42 @@
 # 审计日志
 
+## 审计 #25 - 2026-09-13 — 本地镜像发布与回滚
+
+### 范围
+
+- 在不引入 ACR/GHCR 的前提下，建立开发机版本归档、Workbench 传输和 ECS 本地发布流程。
+- 强制当前 commit 的成功 push CI，校验归档、镜像 ID、前端管理路径、公开入口和容器健康。
+- 完成 rc.1 发布、发布前 baseline 回滚和 rc.1 恢复演练。
+
+### 实现
+
+- `scripts/release/umoweb-release.ps1` 提供 `CaptureBaseline`、`Publish`、`Rollback` 和 `Verify`。
+- 前后端镜像同时使用版本标签和 `sha-<12位commit>` 标签；manifest 记录 image ID、CI run、
+  归档 SHA-256/大小和管理路径哈希。
+- 远端脚本提供发布锁、陈旧锁恢复、原子 env 更新、失败自动恢复、公网检查、旧镜像清理和状态记录。
+- 首次真实发布暴露 ECS `.env.docker` 未显式配置镜像标签的问题；修复为回退 Compose 默认值
+  `umoweb-backend:latest`/`umoweb-frontend:latest` 后完成发布。
+- Verify 公网日志曾污染 JSON stdout；日志改到 stderr，并补充本地已验证归档的幂等恢复路径。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 发布候选 | `v1.0.0-rc.1`，提交 `f6f5ce170b3c`，CI run `34739475146` |
+| 发布耗时 | 170 秒，ECS 与公网检查通过 |
+| 回滚候选 | `baseline-20260913`，恢复原前后端 image ID |
+| 回滚耗时 | 120 秒，ECS 与公网检查通过 |
+| rc.1 恢复 | 122 秒，最终 `Verify` 返回 `v1.0.0-rc.1` |
+| 最终工具链 CI | `5a41e81` push CI run `34740201125` 通过 |
+| 脚本自测与敏感扫描 | 通过 |
+
+### 剩余风险
+
+1. 当前仍是单机 Compose 和单实例内存限流；多实例部署需要共享限流状态。
+2. ECS 无长期镜像仓库，回滚依赖开发机保存并校验的版本归档。
+3. Workbench 单文件上限为 1 GiB；当前归档约 167.4 MB，超过上限时发布脚本会拒绝。
+4. 公网入口仍是无域名 HTTP 测试部署，HTTPS 阻断项未关闭。
+
 ## 审计 #24 - 2026-09-13 — 真实 MySQL 集成验证
 
 ### 范围

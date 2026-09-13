@@ -360,3 +360,15 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
 - `.env.docker` 中的 `INIT_ADMIN_PASS` 必须与当前管理员密码一致；远端会在切换镜像前先验证
   管理员登录，凭据失效时在发布前终止。
 - Workbench 单文件上传上限为 1 GiB；发布脚本在归档超过 1,000,000,000 字节时停止上传。
+
+### 9.5 2026-09-13 演练记录
+
+- `v1.0.0-rc.1` 由提交 `f6f5ce170b3c` 构建，成功 push CI run 为 `34739475146`。
+- 后端 image ID 为 `sha256:fa443c568cfbbdfcc855d9e3db0b8b061833d0c0b289cb371b24c73ea219590c`，
+  前端 image ID 为 `sha256:c67094ec1a5f4eac74f5b2928b3b378ee4dc7fb5e33b21dffca9824a0250bd8f`。
+- 发布归档 SHA-256 为
+  `a25ac88f8efc06c13db317a8c6a3576395233ae35c8e2b766c12d8f196ea0653`，大小 175,557,120 字节。
+- `baseline-20260913` 恢复的前后端 image ID 与发布前一致；归档 SHA-256 为
+  `4d320a5ca115d63a71afe644493b99ee51d59350f057223f50c4827389bf93d8`。
+- 发布、baseline 回滚和 rc.1 恢复分别约 170、120、122 秒。每一步都通过 ECS 本地容器、
+  首页、公开 API、管理员登录和公网入口验证。

@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-09-13 — 本地镜像发布与回滚
+
+- 新增 `scripts/release/` 开发机发布入口和 ECS 控制脚本，以版本 + commit 双标签保存前后端镜像。
+- 发布硬门禁为当前 commit 存在成功的 `CI` push 运行，并校验归档 SHA-256、image ID 和前端管理路径哈希。
+- 开发机只保留最近两个版本归档；ECS 发布期间删除上传归档，只保留当前运行镜像和 `current.json`。
+- 发布、回滚和恢复均执行 MySQL/backend 健康、frontend 运行、首页、公开 API 和管理员登录检查。
+- 完成 `v1.0.0-rc.1` 发布、`baseline-20260913` 回滚和 rc.1 恢复演练；三种阶段均通过公网检查。
+
 ## 2026-09-13 — 真实 MySQL 集成验证
 
 - GitHub Actions 新增 MySQL 8.4 集成 job，从空库执行 Schema、种子数据和兼容迁移，
