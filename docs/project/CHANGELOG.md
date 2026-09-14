@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-09-14 — `v1.0.0-rc.5` ECS 发布
+
+- `v1.0.0-rc.5` 从提交 `2019c7521844` 构建并部署，发布 CI run `34813314026`；
+  annotated tag `v1.0.0-rc.5` 已推送。
+- 后端 image ID 为
+  `sha256:5facf2c38922884123da1272b3e4cb50c0d597fdb12bc17929f88efe87c4a937`，
+  前端 image ID 为
+  `sha256:4d365dbae44b54f65fa0448243c69be2055f754732be3f770a6dba0465be4f58`。
+- 发布归档 SHA-256 为 `5ae8b7f215fc3f3bc4a28826895951aa5508816c044d681041ced8b93bcbdee2`，
+  大小 175642112 字节。
+- ECS `api-smoke.py` 29/29 通过；独立 `Verify` 返回 rc.5 和 manifest image ID，公网入口健康。
+- 当前生产版本为 `v1.0.0-rc.5`；开发机保留 rc.4 和 rc.5 归档，rc.4 作为正式回滚目标。
+
 ## 2026-09-14 — 修复 Stroop 色词显示判定
 
 - Stroop 五色文字统一使用对应按钮色源；黄色试次不再因未定义的 `--game-gold` 回退到正文色。

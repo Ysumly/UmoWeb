@@ -412,6 +412,19 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
   `content_search=28`、`image_cleanup_queue=0`，备份、访问维护和报表服务均 active。
 - 当前生产版本为 `v1.0.0-rc.4`；开发机保留 rc.3 和 rc.4 归档，rc.3 为正式回滚目标。
 
+### 9.8 Stroop 修复发布
+
+- `v1.0.0-rc.5` 从提交 `2019c7521844` 构建，发布 CI run `34813314026`；annotated tag
+  `v1.0.0-rc.5` 已推送。
+- 后端 image ID 为
+  `sha256:5facf2c38922884123da1272b3e4cb50c0d597fdb12bc17929f88efe87c4a937`，前端 image ID 为
+  `sha256:4d365dbae44b54f65fa0448243c69be2055f754732be3f770a6dba0465be4f58`。
+- 发布归档 SHA-256 为
+  `5ae8b7f215fc3f3bc4a28826895951aa5508816c044d681041ced8b93bcbdee2`，大小 175642112 字节。
+- ECS 回填 28 篇已发布正文，独立 `Verify` 返回 rc.5 和 manifest image ID，
+  `api-smoke.py` 29/29 通过。
+- 当前生产版本为 `v1.0.0-rc.5`；开发机保留 rc.4 和 rc.5 归档，rc.4 为正式回滚目标。
+
 ## 10. 访问安全日志与报表
 
 ### 10.1 日志边界

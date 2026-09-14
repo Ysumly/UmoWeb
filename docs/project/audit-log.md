@@ -1,5 +1,38 @@
 # 审计日志
 
+## 审计 #39 - 2026-09-14 — `v1.0.0-rc.5` ECS 发布
+
+### 范围
+
+- 将 Stroop 五色显示判定修复从提交 `2019c7521844` 发布到当前 ECS。
+- 使用现有开发机构建、Workbench 传输、ECS 原子切换和失败自动回滚流程。
+
+### 实现
+
+- 发布 CI run `34813314026` 成功，满足当前 commit 的成功 push CI 前置条件。
+- 从 ECS 私密读取前端管理路径配置，构建后端和前端版本化镜像。
+- 远端先校验归档 SHA-256 和 manifest image ID，再载入并切换 rc.5。
+- 发布完成后创建并推送 annotated tag `v1.0.0-rc.5`。
+- 开发机保留 rc.4 和 rc.5 两个归档，rc.4 作为当前回滚目标。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 发布 CI | run `34813314026` 全绿 |
+| 后端 image ID | `sha256:5facf2c38922884123da1272b3e4cb50c0d597fdb12bc17929f88efe87c4a937` |
+| 前端 image ID | `sha256:4d365dbae44b54f65fa0448243c69be2055f754732be3f770a6dba0465be4f58` |
+| 发布归档 | SHA-256 `5ae8b7f215fc3f3bc4a28826895951aa5508816c044d681041ced8b93bcbdee2` |
+| 正文索引 | 28 篇已发布正文回填完成 |
+| 独立 Verify | rc.5、operation `deploy`、ECS 与公网入口检查通过 |
+| ECS 接口 | `api-smoke.py` 29/29，exit code 0 |
+| 当前状态 | MySQL、backend healthy，frontend running |
+
+### 剩余风险
+
+1. ECS 仍为单机 HTTP 测试部署，正式域名、HTTPS 和正式来源 CORS 尚未启用。
+2. 当前限流仍是单实例内存实现，多后端实例需要共享限流存储或网关限流。
+
 ## 审计 #38 - 2026-09-14 — 修复 Stroop 色词显示判定
 
 ### 范围

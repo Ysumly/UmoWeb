@@ -396,6 +396,14 @@ SHA-256/大小、镜像 ID、发布锁、Compose 健康解析、迁移顺序与�
 - 首页、书库、搜索、编辑器、隐私、游戏中心和四条游戏路由返回 200，搜索接口返回 200。
 - 独立 `Verify` 返回 rc.4 及 manifest image ID；备份、访问维护和报表 timer/service 均 active。
 
+2026-09-14 Stroop 修复发布：
+
+- `v1.0.0-rc.5` 从提交 `2019c7521844` 构建，发布 CI run 为 `34813314026`。
+- 发布归档 SHA-256 为 `5ae8b7f215fc3f3bc4a28826895951aa5508816c044d681041ced8b93bcbdee2`，
+  远端 image ID 与 manifest 一致。
+- ECS `api-smoke.py` 29/29，exit code 0；独立 `Verify` 返回 rc.5，ECS 与公网入口检查通过。
+- 开发机保留 rc.4 和 rc.5 归档，rc.4 为当前回滚目标。
+
 ### 2.10 访问安全日志
 
 本机单元与安装渲染测试：
