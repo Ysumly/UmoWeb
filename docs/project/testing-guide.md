@@ -164,10 +164,12 @@ npm run test:e2e
 2026-09-14 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
-- 前端 72 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
+- 前端 82 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、
-  API 错误解析、日期格式、书库后代参数和 Markdown 安全。
-- Playwright 71 个浏览器检查，其中 43 个 functional 用例覆盖公开端、隐私说明、在线编辑器、
+  API 错误解析、日期格式、书库后代参数、文章目录树/展开状态、标题 ID 与旧锚点兼容和
+  Markdown 安全。
+- Playwright 74 个浏览器检查，其中 46 个 functional 用例覆盖公开端、文章目录与阅读进度、
+  隐私说明、在线编辑器、
   四款游戏（含高密度网格、长数字、10 张牌、旧成绩和响应式场景）和管理端核心流程，
   28 个视觉断言覆盖 14 个核心页面状态的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
@@ -175,8 +177,8 @@ npm run test:e2e
 
 2026-09-14 已验证：
 
-- Windows 本机 Chrome 当前运行 71 个 Playwright 检查，28 张 `win32` 视觉快照通过。
-- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 71 个检查，
+- Windows 本机 Chrome 当前运行 74 个 Playwright 检查，28 张 `win32` 视觉快照通过。
+- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 74 个检查，
   通过独立的 `linux` 视觉快照验证。
 - `browser` job 失败时会保留 Playwright HTML 报告、trace 和失败截图 artifact。
 
@@ -289,14 +291,15 @@ bash scripts/backup/tests/backup-unit.sh
 
 ### 2.7 正式内容候选包
 
-内容导入器单元测试：
+内容导入与锚点迁移工具测试：
 
 ```powershell
 python -m unittest discover -s scripts\content-import\tests -v
 ```
 
-当前 6 个测试覆盖显式人工摘要优先、标题/摘要提取、水平分隔线过滤、目录分类、Markdown 内链、
-图片重写与去重、`umo:umo` 文件所有权和缺失素材阻断。
+当前 10 个测试覆盖显式人工摘要优先、标题/摘要提取、水平分隔线过滤、目录分类、Markdown 内链、
+图片重写与去重、`umo:umo` 文件所有权和缺失素材阻断；另覆盖旧版 Markdown 锚点迁移的
+dry-run、外部备份、原子写入、幂等和缺少目标阻断。
 
 候选包和提升命令见 [docker-guide.md](docker-guide.md) 第 8.5 节。便携冒烟入口：
 
@@ -582,6 +585,14 @@ GET {{baseUrl}}/api/public/contents/no-such-slug
 
 `previous` 指向更早发布的内容，`next` 指向更晚发布的内容；边界为 `null`。同发布时间下，
 小 ID 为更早，大 ID 为更晚。
+
+公开详情浏览器回归还验证：
+
+1. 首个文档 H1 不计入目录，只展示至少两个 H1-H3 章节。
+2. 桌面侧栏与 390px 悬浮面板可以展开分支、跟随滚动高亮并恢复移动端焦点。
+3. 点击目录后 URL hash、当前章节和阅读进度同步更新。
+4. 标题重复时按出现顺序生成稳定后缀，旧版标题锚点通过兼容别名继续可达。
+5. 章节不足时目录入口和阅读进度条均不显示，移动端没有横向溢出。
 
 ### 4.8 搜索
 

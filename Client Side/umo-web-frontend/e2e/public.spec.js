@@ -1,5 +1,59 @@
 import { expect, test } from './support/apiMock.js'
 
+async function mockOutlineArticle(page) {
+  await page.route('**/api/public/contents/outline-public', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 98,
+        slug: 'outline-public',
+        title: '长文目录测试',
+        summary: '用于验证目录、阅读进度和长文滚动行为。',
+        type: 'NOTE',
+        status: 'PUBLISHED',
+        body: [
+          '# 长文目录测试',
+          '',
+          '这是一篇用于验证目录的正文。',
+          '',
+          '## 第一节',
+          '',
+          '第一节的第一段正文，用于确保文章具有足够的阅读长度。'.repeat(3),
+          '',
+          '### 子节一',
+          '',
+          '子节一正文。'.repeat(20),
+          '',
+          '### 子节二',
+          '',
+          '子节二正文。'.repeat(20),
+          '',
+          '## 第二节',
+          '',
+          '第二节正文。'.repeat(24),
+          '',
+          '### 子节三',
+          '',
+          '子节三正文。'.repeat(24),
+          '',
+          '```js',
+          'console.log("Umo")',
+          '```',
+          '',
+          '结尾阅读段落。'.repeat(60),
+        ].join('\n'),
+        metadata: {},
+        publishedAt: '2026-09-12T10:00:00',
+        categories: [],
+        tags: [],
+        previous: null,
+        next: null,
+      }),
+    }),
+  )
+}
+
 async function expectNoHorizontalOverflow(page) {
   const overflow = await page.evaluate(() => {
     return document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -85,6 +139,107 @@ test('文章详情展示正文、分类标签和前后文章', async ({ page, ap
   await expect(page.locator('.post-header__taxonomy').getByText('# Vue')).toBeVisible()
   await expect(page.getByRole('navigation', { name: '前后文章' }).getByText('公开文章 02')).toBeVisible()
   await expect(page.locator('.markdown-body')).toContainText('这是一篇 E2E 正文。')
+})
+
+test('文章详情目录按层级展开并同步滚动高亮和阅读进度', async ({
+  page,
+}) => {
+  await mockOutlineArticle(page)
+  await page.goto('/post/outline-public')
+
+  const toc = page.getByRole('navigation', { name: '文章目录' })
+  const firstSection = toc.getByRole('link', { name: '第一节' })
+  const firstChild = toc.getByRole('link', { name: '子节一' })
+  const secondSection = toc.getByRole('link', { name: '第二节' })
+  const secondChild = toc.getByRole('link', { name: '子节三' })
+
+  await expect(firstSection).toBeVisible()
+  await expect(firstChild).toBeHidden()
+  await expect(toc.getByRole('button', { name: '展开 第一节' })).toBeVisible()
+
+  const progress = page.locator('.reading-progress__bar')
+  const beforeProgress = await progress.evaluate(
+    (element) => getComputedStyle(element).transform,
+  )
+
+  await toc.getByRole('button', { name: '展开 第一节' }).click()
+  await expect(firstChild).toBeVisible()
+  await secondSection.click()
+
+  await expect
+    .poll(() => decodeURIComponent(new URL(page.url()).hash))
+    .toBe('#第二节')
+  await expect(secondSection).toHaveAttribute('aria-current', 'location')
+  await expect(firstChild).toBeVisible()
+  await expect(secondChild).toBeVisible()
+
+  await expect
+    .poll(() =>
+      progress.evaluate((element) => getComputedStyle(element).transform),
+    )
+    .not.toBe(beforeProgress)
+})
+
+test('文章详情移动端使用悬浮目录并在跳转后关闭', async ({
+  page,
+}) => {
+  await mockOutlineArticle(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/post/outline-public')
+
+  const trigger = page.getByRole('button', { name: '打开文章目录' })
+  await expect(trigger).toBeVisible()
+  await trigger.click()
+
+  const panel = page.getByRole('dialog', { name: '文章目录' })
+  await expect(panel).toBeVisible()
+  await panel.getByRole('button', { name: '展开 第一节' }).click()
+  await panel.getByRole('link', { name: '子节一' }).click()
+
+  await expect
+    .poll(() => decodeURIComponent(new URL(page.url()).hash))
+    .toBe('#子节一')
+  await expect(panel).toBeHidden()
+  await expect(trigger).toBeFocused()
+  await expectNoHorizontalOverflow(page)
+
+  await trigger.click()
+  await expect(panel).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(panel).toBeHidden()
+  await expect(trigger).toBeFocused()
+})
+
+test('文章详情没有足够章节时不显示目录入口', async ({ page }) => {
+  await page.route('**/api/public/contents/no-headings', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 99,
+        slug: 'no-headings',
+        title: '没有章节的文章',
+        summary: '短文章。',
+        type: 'NOTE',
+        status: 'PUBLISHED',
+        body: '# 没有章节的文章\n\n只有一段正文。',
+        metadata: {},
+        publishedAt: '2026-09-12T10:00:00',
+        categories: [],
+        tags: [],
+        previous: null,
+        next: null,
+      }),
+    }),
+  )
+
+  await page.goto('/post/no-headings')
+
+  await expect(page.getByRole('navigation', { name: '文章目录' })).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: '打开文章目录' }),
+  ).toHaveCount(0)
+  await expect(page.locator('.reading-progress')).toHaveCount(0)
 })
 
 test('Markdown 标题在公开页和管理端预览使用相同排版', async ({ page, apiMock }) => {

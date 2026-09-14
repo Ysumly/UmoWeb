@@ -1,18 +1,34 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue'
 import { useRoute } from 'vue-router'
 
 import { getContent } from '@/api/public'
+import ArticleOutline from '@/components/public/ArticleOutline.vue'
 import ContentState from '@/components/public/ContentState.vue'
 import MarkdownArticle from '@/components/public/MarkdownArticle.vue'
+import { flattenOutline } from '@/utils/articleOutline'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatPublishedDate } from '@/utils/format'
+import { extractMarkdownOutline } from '@/utils/markdown'
 
 const route = useRoute()
 const status = ref('loading')
 const errorMessage = ref('')
 const article = ref(null)
+const articleRef = ref(null)
+const activeHeadingId = ref('')
+const readingProgress = ref(0)
+const readingProgressVisible = ref(false)
 let requestId = 0
+let animationFrame = 0
+let resizeObserver = null
 
 const typeLabels = {
   NOTE: '技术笔记',
@@ -25,6 +41,77 @@ const tags = computed(() => article.value?.tags || [])
 const metadata = computed(() => article.value?.metadata || {})
 const previousArticle = computed(() => article.value?.previous || null)
 const nextArticle = computed(() => article.value?.next || null)
+const outline = computed(() =>
+  article.value?.body ? extractMarkdownOutline(article.value.body) : [],
+)
+const flatOutline = computed(() => flattenOutline(outline.value))
+
+function readingOffset() {
+  const header = document.querySelector('.site-header')
+  return (header?.getBoundingClientRect().height || 78) + 40
+}
+
+function updateReadingState() {
+  animationFrame = 0
+  const element = articleRef.value
+  if (!element) {
+    activeHeadingId.value = ''
+    readingProgress.value = 0
+    readingProgressVisible.value = false
+    return
+  }
+
+  const offset = readingOffset()
+  const bounds = element.getBoundingClientRect()
+  const readableHeight = Math.max(1, window.innerHeight - offset)
+  const scrollableDistance = Math.max(1, bounds.height - readableHeight)
+  readingProgress.value = Math.min(
+    1,
+    Math.max(0, (offset - bounds.top) / scrollableDistance),
+  )
+  readingProgressVisible.value = bounds.height > readableHeight + 96
+
+  let currentHeading = ''
+  for (const heading of flatOutline.value) {
+    const headingElement = document.getElementById(heading.id)
+    if (!headingElement) {
+      continue
+    }
+    if (headingElement.getBoundingClientRect().top <= offset + 1) {
+      currentHeading = heading.id
+    } else {
+      break
+    }
+  }
+  activeHeadingId.value = currentHeading
+}
+
+function scheduleReadingUpdate() {
+  if (animationFrame) {
+    return
+  }
+  animationFrame = window.requestAnimationFrame(updateReadingState)
+}
+
+function scrollToHeading(heading) {
+  const element = document.getElementById(heading.id)
+  if (!element) {
+    return
+  }
+
+  const nextHash = `#${encodeURIComponent(heading.id)}`
+  if (window.location.hash !== nextHash) {
+    window.history.replaceState(null, '', nextHash)
+  }
+  activeHeadingId.value = heading.id
+  element.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth',
+    block: 'start',
+  })
+  scheduleReadingUpdate()
+}
 
 async function load() {
   const currentRequest = ++requestId
@@ -38,6 +125,13 @@ async function load() {
     }
     article.value = response.data
     status.value = 'success'
+    activeHeadingId.value = ''
+    await nextTick()
+    if (route.hash) {
+      const targetId = decodeURIComponent(route.hash.slice(1))
+      document.getElementById(targetId)?.scrollIntoView({ block: 'start' })
+    }
+    updateReadingState()
   } catch (error) {
     if (currentRequest !== requestId) {
       return
@@ -49,6 +143,28 @@ async function load() {
 }
 
 watch(() => route.params.slug, load, { immediate: true })
+
+watch(articleRef, (element) => {
+  resizeObserver?.disconnect()
+  if (element) {
+    resizeObserver = new ResizeObserver(scheduleReadingUpdate)
+    resizeObserver.observe(element)
+  }
+})
+
+onMounted(() => {
+  window.addEventListener('scroll', scheduleReadingUpdate, { passive: true })
+  window.addEventListener('resize', scheduleReadingUpdate)
+})
+
+onBeforeUnmount(() => {
+  if (animationFrame) {
+    window.cancelAnimationFrame(animationFrame)
+  }
+  resizeObserver?.disconnect()
+  window.removeEventListener('scroll', scheduleReadingUpdate)
+  window.removeEventListener('resize', scheduleReadingUpdate)
+})
 </script>
 
 <template>
@@ -74,7 +190,18 @@ watch(() => route.params.slug, load, { immediate: true })
     @retry="load"
   />
 
-  <article v-else-if="article" class="post-page">
+  <article v-else-if="article" ref="articleRef" class="post-page">
+    <div
+      v-if="readingProgressVisible"
+      class="reading-progress"
+      aria-hidden="true"
+    >
+      <span
+        class="reading-progress__bar"
+        :style="{ transform: `scaleX(${readingProgress})` }"
+      />
+    </div>
+
     <header class="post-header">
       <div class="post-header__meta">
         <span>{{ typeLabels[article.type] || article.type }}</span>
@@ -116,6 +243,11 @@ watch(() => route.params.slug, load, { immediate: true })
             <dd>{{ categories.map((item) => item.name).join(' / ') }}</dd>
           </div>
         </dl>
+        <ArticleOutline
+          :headings="outline"
+          :active-id="activeHeadingId"
+          @select="scrollToHeading"
+        />
       </aside>
 
       <div class="post-body-wrap">
