@@ -173,10 +173,11 @@ test('文章详情目录按层级展开并同步滚动高亮和阅读进度', as
   await expect(firstChild).toBeVisible()
   await expect(secondChild).toBeVisible()
 
-  const afterProgress = await progress.evaluate(
-    (element) => getComputedStyle(element).transform,
-  )
-  expect(afterProgress).not.toBe(beforeProgress)
+  await expect
+    .poll(() =>
+      progress.evaluate((element) => getComputedStyle(element).transform),
+    )
+    .not.toBe(beforeProgress)
 })
 
 test('文章详情移动端使用悬浮目录并在跳转后关闭', async ({
