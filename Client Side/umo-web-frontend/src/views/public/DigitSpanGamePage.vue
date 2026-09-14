@@ -261,7 +261,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="game-actions">
-      <button class="button button--quiet" type="button" @click="restart">重新开始</button>
+      <button class="button button--outline" type="button" @click="restart">重新开始</button>
       <button class="button button--primary" type="button" :disabled="phase !== 'idle'" @click="showDigits">
         显示数字
       </button>

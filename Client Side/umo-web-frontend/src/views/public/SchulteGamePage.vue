@@ -232,7 +232,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="game-actions">
-      <button class="button button--quiet" type="button" @click="resetGame">重新洗牌</button>
+      <button class="button button--outline" type="button" @click="resetGame">重新洗牌</button>
       <button class="button button--primary" type="button" :disabled="running" @click="startGame">
         {{ running ? '挑战中…' : '开始挑战' }}
       </button>

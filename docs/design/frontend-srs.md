@@ -213,5 +213,5 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 - visual-desktop 和 visual-mobile 保存 24 张核心页面截图基线。
 - 浏览器套件使用 Mock API，本机 Chrome 和 Windows 基线；真实后端继续由 MySQL 冒烟脚本验证。
 
-当前已有 72 个 Node 内置测试；现代 Playwright 套件包含每个平台 63 个浏览器检查
-（39 functional + 24 visual）。尚无组件级单元测试框架。
+当前已有 72 个 Node 内置测试；现代 Playwright 套件包含每个平台 64 个浏览器检查
+（40 functional + 24 visual）。尚无组件级单元测试框架。
