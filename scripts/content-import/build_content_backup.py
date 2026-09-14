@@ -311,6 +311,7 @@ def build_content_backup(
             "content_category": sum(1 for row in article_rows if row["category"]),
             "content_tag": sum(len(row["tags"]) for row in article_rows),
             "images": len(unique_images),
+            "image_cleanup_queue": 0,
             "site_options": len(catalog.site_options),
         }
         metadata = _build_metadata(

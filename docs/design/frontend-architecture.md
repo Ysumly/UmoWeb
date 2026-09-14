@@ -178,7 +178,7 @@ umo-web-frontend/
 | 文件 | 实际函数数 | 内容 |
 |---|---:|---|
 | `api/public.js` | 8 | 8 个公开端接口 |
-| `api/admin.js` | 19 | 19 个管理端函数，包含修改密码 |
+| `api/admin.js` | 21 | 21 个管理端函数，包含图片列表、图片删除和修改密码 |
 
 ---
 
@@ -222,6 +222,7 @@ token 来源和存储位置都是 `localStorage`。
 | `ContentEditPage.vue` | 新建/编辑、Markdown front matter 导入、分类标签、metadata、分屏预览、图片上传和未保存保护 |
 | `CategoryManagePage.vue` | 分类树筛选、父级/排序字段、增改删、409 提示和未保存保护 |
 | `TagManagePage.vue` | 标签增改删、字段校验、409 提示和未保存保护 |
+| `ImageManagePage.vue` | 图片缩略图、引用筛选、分页、删除确认、409 提示和列表刷新 |
 | `OptionPage.vue` | 站点信息、About/Project Markdown 预览、统一保存和部分失败反馈 |
 | `ChangePasswordPage.vue` | 密码校验、修改后清 token、跳转登录页 |
 | `EditorPage.vue` | `.md` 导入/下载、Markdown 编辑与安全预览、移动端切换和本地草稿恢复 |
@@ -268,7 +269,7 @@ server: {
 }
 ```
 
-2026-09-13 执行 `npm test`、`npm run build` 和完整 Playwright 测试成功。当前 60 个 Node 测试覆盖路由、
+2026-09-13 执行 `npm test`、`npm run build` 和完整 Playwright 测试成功。当前 62 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
 Markdown front matter 导入、书库后代参数、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；
 Playwright 另含 26 个 functional 和 14 个视觉检查。书库选择分类时 URL 使用
@@ -284,7 +285,7 @@ Playwright 另含 26 个 functional 和 14 个视觉检查。书库选择分类�
 1. 第一阶段完成正式数据、HTTPS、备份恢复和上线回滚。
 2. 第二阶段已接入 CI、Linux Playwright、真实 MySQL 集成、本地版本化镜像发布/回滚和
    自托管访问统计，`v1.0.0-rc.3` 已通过 ECS 验收。
-3. 第三阶段完成 Markdown 导入、子分类筛选、图片删除、全文搜索和四个训练游戏。
+3. 第三阶段完成 Markdown 导入、子分类筛选和图片删除，后续实现全文搜索和四个训练游戏。
 4. 第四阶段在需求明确后评估 AI 能力，当前暂缓。
 
 完整路线见

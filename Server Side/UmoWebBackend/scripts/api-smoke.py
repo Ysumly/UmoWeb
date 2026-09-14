@@ -37,6 +37,8 @@ class Smoke:
         self.tag_id: int | None = None
         self.content_id: int | None = None
         self.previous_content_id: int | None = None
+        self.reference_content_id: int | None = None
+        self.image_id: int | None = None
 
     def run(self) -> None:
         run_id = str(uuid.uuid4())
@@ -529,6 +531,7 @@ class Smoke:
                 and str(image["url"]).endswith(".png"),
                 "uploaded image must return a public path",
             )
+            self.image_id = image["id"]
             self.step(25, "POST /api/admin/images/upload")
 
             options = self.expect_json("GET", "/api/admin/options", token=self.token)
@@ -561,10 +564,82 @@ class Smoke:
             )
             self.step(27, "PUT /api/admin/options/{key}")
 
+            orphan_images = self.expect_json(
+                "GET",
+                "/api/admin/images?usage=ORPHANED&page=1&size=100",
+                token=self.token,
+            )
+            self.require(
+                any(item.get("id") == self.image_id for item in orphan_images["items"]),
+                "uploaded image must appear as an orphan",
+            )
+            self.step(28, "GET /api/admin/images")
+
+            reference_content = self.expect_json(
+                "POST",
+                "/api/admin/contents",
+                {
+                    "title": f"Smoke Image Reference {run_id}",
+                    "slug": f"smoke-image-reference-{run_id}",
+                    "body": f"![smoke]({image['url']})",
+                    "summary": "Temporary image reference",
+                    "type": "NOTE",
+                    "status": "DRAFT",
+                    "categoryIds": [],
+                    "tagIds": [],
+                },
+                token=self.token,
+            )
+            self.reference_content_id = reference_content.get("id")
+            self.require(
+                self.reference_content_id,
+                "reference content must have id",
+            )
+
+            conflict = self.expect_json(
+                "DELETE",
+                f"/api/admin/images/{self.image_id}",
+                token=self.token,
+                expected=409,
+            )
+            self.require(
+                conflict.get("code") == 409,
+                "referenced image deletion must return 409",
+            )
+
+            self.request(
+                "DELETE",
+                f"/api/admin/contents/{self.reference_content_id}",
+                token=self.token,
+                expected=204,
+            )
+            self.reference_content_id = None
+            self.request(
+                "DELETE",
+                f"/api/admin/images/{self.image_id}",
+                token=self.token,
+                expected=204,
+            )
+            self.image_id = None
+            self.request("GET", image["url"], expected=404)
+            remaining_images = self.expect_json(
+                "GET",
+                "/api/admin/images?usage=ORPHANED&page=1&size=100",
+                token=self.token,
+            )
+            self.require(
+                all(
+                    item.get("id") != image["id"]
+                    for item in remaining_images["items"]
+                ),
+                "deleted image must leave the list",
+            )
+            self.step(29, "DELETE /api/admin/images/{id}")
+
             print(
-                "API smoke passed: 27/27 endpoints, authentication guard, "
+                "API smoke passed: 29/29 endpoints, authentication guard, "
                 "draft isolation, public filters, content associations, "
-                "previous/next navigation, password invalidation, image upload, "
+                "previous/next navigation, password invalidation, image lifecycle, "
                 "and search rate limit."
             )
         finally:
@@ -580,6 +655,11 @@ class Smoke:
                 if self.previous_content_id
                 else None
             ),
+            (
+                f"/api/admin/contents/{self.reference_content_id}"
+                if self.reference_content_id
+                else None
+            ),
             f"/api/admin/tags/{self.tag_id}" if self.tag_id else None,
             (
                 f"/api/admin/categories/{self.child_category_id}"
@@ -587,6 +667,7 @@ class Smoke:
                 else None
             ),
             f"/api/admin/categories/{self.category_id}" if self.category_id else None,
+            f"/api/admin/images/{self.image_id}" if self.image_id else None,
         ):
             if path:
                 try:
@@ -600,7 +681,7 @@ class Smoke:
             raise SmokeFailure(
                 f"Smoke step ordering error: expected {number}, got {self.steps}"
             )
-        print(f"[{number}/27] PASS {name}")
+        print(f"[{number}/29] PASS {name}")
 
     def require(self, condition: Any, message: str) -> None:
         if not condition:

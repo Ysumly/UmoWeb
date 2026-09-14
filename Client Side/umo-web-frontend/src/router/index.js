@@ -39,6 +39,7 @@ const routes = [
       { path: 'contents/:id/edit', name: 'content-edit', component: () => import('@/views/admin/ContentEditPage.vue') },
       { path: 'categories',   name: 'admin-cats',      component: () => import('@/views/admin/CategoryManagePage.vue') },
       { path: 'tags',         name: 'admin-tags',      component: () => import('@/views/admin/TagManagePage.vue') },
+      { path: 'images',       name: 'admin-images',    component: () => import('@/views/admin/ImageManagePage.vue') },
       { path: 'options',      name: 'admin-options',   component: () => import('@/views/admin/OptionPage.vue') },
       { path: 'password',     name: 'admin-password',  component: () => import('@/views/admin/ChangePasswordPage.vue') },
     ]

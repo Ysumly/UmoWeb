@@ -58,7 +58,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；98 个测试（3 个 MySQL 环境门控） |
+| 测试 | Spring Boot Test、Mockito、MockMvc；114 个测试（4 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -118,7 +118,7 @@ cd "Server Side\UmoWebBackend"
 .\scripts\api-smoke.ps1 -BaseUrl "http://127.0.0.1:8080" -Username "admin" -Password "<current-password>"
 ```
 
-脚本覆盖 27 个接口，并校验管理端 401、搜索 429、详情前后文章、改密后旧 token 失效和真实 PNG 上传。
+脚本覆盖 29 个接口，并校验管理端 401、搜索 429、详情前后文章、改密后旧 token 失效和图片完整生命周期。
 
 Docker 全栈：
 
@@ -232,7 +232,7 @@ HTTP 状态与返回：
 | GET | `/api/public/contents/{slug}` |
 | GET | `/api/public/contents/search` |
 
-管理端共 19 个：
+管理端共 21 个：
 
 | 方法 | 路径 |
 |---|---|
@@ -245,6 +245,8 @@ HTTP 状态与返回：
 | GET/POST | `/api/admin/tags` |
 | PUT/DELETE | `/api/admin/tags/{id}` |
 | POST | `/api/admin/images/upload` |
+| GET | `/api/admin/images` |
+| DELETE | `/api/admin/images/{id}` |
 | GET | `/api/admin/options` |
 | PUT | `/api/admin/options/{key}` |
 
@@ -310,7 +312,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 
 ## 5. 数据库基线
 
-实际 DDL 定义 8 张表：
+实际 DDL 定义 9 张表：
 
 | 表 | 用途 |
 |---|---|
@@ -321,6 +323,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | `content_category` | 内容与分类关联 |
 | `content_tag` | 内容与标签关联 |
 | `images` | 图片元信息 |
+| `image_cleanup_queue` | 图片文件待清理与重试队列 |
 | `site_options` | 站点 KV 配置 |
 
 当前 SQL 含必要索引和外键：
@@ -328,6 +331,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 内容关联的分类/标签外键使用 `ON DELETE RESTRICT`，内容外键使用 `ON DELETE CASCADE`。
 - `categories.parent_id` 使用自引用 `RESTRICT`。
 - 旧库通过 `docs/design/migrations/20260911_integrity_security.sql` 兼容迁移。
+- 图片清理队列通过 `docs/design/migrations/20260913_image_cleanup_queue.sql` 幂等迁移。
 
 ---
 
@@ -352,6 +356,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 管理端分类管理：按类型筛选树形结构，支持父级、排序值、增改删和关联/子分类 409 提示；
   分类名与 slug 统一左对齐，使用固定标记表达父子层级，编辑加载态保持文案和列宽稳定。
 - 管理端标签管理：列表增改删、字段校验和关联内容 409 提示。
+- 管理端图片管理：缩略图列表、全部/使用中/未引用筛选、分页、引用状态和删除确认；
+  被文章或固定页引用时显示 409 保护提示。
 - 管理端站点设置：统一读取/保存四项配置，About/Project 支持 Markdown 预览、部分保存反馈和缓存刷新。
 - 管理端修改密码：独立受保护页面；成功后清理本地 token，并在登录页提示重新登录。
 - 公开在线 Markdown 编辑器：导入/下载 `.md`、实时安全预览、移动端编辑/预览切换和 `umo-editor-draft-v1` 本地草稿恢复。
@@ -369,6 +375,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
   隐私说明；另有 404 回退。
 - 2026-09-13 已完成 Task 3.2：分类筛选默认保持精确匹配，显式 `includeDescendants=true`
   展开全部后代；书库分类入口默认启用该行为，真实 MySQL 集成测试覆盖根/子/孙和循环拒绝。
+- 2026-09-13 已完成 Task 3.3：图片列表与删除、全部文章和固定页引用扫描、持久化文件
+  清理队列及管理端图片管理页。
 
 ### 6.2 其他前端事实
 
@@ -438,6 +446,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
   `app_data` 保存为压缩包并附带逐文件 SHA-256 清单。
 - Compose 后端和前端显式使用 `BACKEND_IMAGE`、`FRONTEND_IMAGE`，隔离项目无需重新构建镜像。
 - 恢复项目只允许 `umoweb-restore-*`，使用独立卷、网络和回环端口，不覆盖生产 `umoweb`。
+- 恢复数据库后自动补跑兼容迁移，并校验包含 `image_cleanup_queue` 在内的当前表行数。
 - ECS systemd timer 每周日 03:30 执行，允许 10 分钟随机延迟并支持补跑；本地文件和目录权限为
   `0600/0700`。
 - 当前归档不做加密和自动异地复制，只提供导出入口；正式数据导入后的最终恢复演练已完成。
@@ -457,13 +466,13 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 新增 Mapper XML 别名解析、`ClientIpResolver` 容器装配和 Jackson 3 自动配置回归测试。
 - `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，覆盖非法配置、可信代理链和未授权转发头。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
-- 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成 27/27 接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
+- 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成 29/29 接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
 - PowerShell 与 Bash 发布脚本自测已纳入 `repository` CI job，覆盖 CI 选择、manifest、归档校验、
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
 - 内容导入器有 6 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、图片重写、内容去重、
-  Linux 文件所有权和缺失素材阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 27 个接口。
-- 前端 60 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、管理端文章/分类/标签/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、Markdown front matter 导入、日期格式、书库后代参数、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- Playwright 每个平台运行 40 个浏览器检查：26 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入与书库子分类筛选），14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+  Linux 文件所有权和缺失素材阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 29 个接口。
+- 前端 62 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、管理端文章/分类/标签/图片/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、Markdown front matter 导入、日期格式、书库后代参数、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
+- Playwright 每个平台运行 42 个浏览器检查：28 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入、图片管理删除保护、移动端图片布局与书库子分类筛选），14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
 - Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；
@@ -473,7 +482,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `scripts/ci/scan-sensitive-info.sh` 扫描全部已跟踪文件，覆盖公开 IPv4、ECS 实例 ID、AccessKey、
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。
 - GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、MySQL 8.4 集成、
-  前端测试、生产构建和 Linux Playwright；MySQL job 同时验证 Schema、种子、迁移和 27/27 冒烟。
+  前端测试、生产构建和 Linux Playwright；MySQL job 同时验证 Schema、种子、迁移和 29/29 冒烟。
 
 ### 7.2 当前代码风险
 
@@ -490,6 +499,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | 已修复 | 上下文启动 | MyBatis 同时扫描 entity/dto 别名；`ClientIpResolver` 显式构造注入；业务 JSON 统一使用 Jackson 3。 |
 | 已修复 | 内容导入 | 候选归档显式使用 `umo:umo` 文件所有权；恢复项目名限制为小写；管理员初始化完成后才轮换密码。 |
 | 已修复 | CI 合并门禁 | 私有仓库当前计划不支持分支保护或规则集，CI 失败只能报告；本地发布入口已强制要求当前 commit 的成功 push CI，并完成真实发布/回滚演练。 |
+| 低 | 图片引用扫描 | 每次列表和删除请求读取全部文章正文；当前 28 篇规模可接受，内容量显著增长后应改为显式引用表。 |
+| 低 | 图片清理重试 | 清理队列只在启动和后续图片操作时重试；长期无图片操作时失败任务会等待下一次触发。 |
 | 低 | 爬虫控制 | `index.html` 有 `noindex`，但没有 `public/robots.txt`。 |
 
 ---

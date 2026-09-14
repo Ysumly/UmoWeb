@@ -316,4 +316,49 @@ class BoundaryTest {
         mvc.perform(get("/api/public/categories?type=NOTE"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("27. 图片列表: 分页和未引用筛选 → 200")
+    void imageListWithUsageFilter() throws Exception {
+        mvc.perform(get("/api/admin/images?page=1&size=24&usage=ORPHANED"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("28. 图片列表: 非法 usage → 400")
+    void imageListInvalidUsage() throws Exception {
+        mvc.perform(get("/api/admin/images?usage=INVALID"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    @DisplayName("29. 删除图片: 未引用 → 204")
+    void imageDeleteNoContent() throws Exception {
+        mvc.perform(delete("/api/admin/images/1"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("30. 删除图片: ID 不存在 → 404")
+    void imageDeleteNotFound() throws Exception {
+        doThrow(new NotFoundException("Image not found: id=999"))
+                .when(imageService).delete(999L);
+
+        mvc.perform(delete("/api/admin/images/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(404));
+    }
+
+    @Test
+    @DisplayName("31. 删除图片: 仍被引用 → 409")
+    void imageDeleteReferenced() throws Exception {
+        doThrow(new BusinessException(409, "图片仍被内容引用，无法删除"))
+                .when(imageService).delete(1L);
+
+        mvc.perform(delete("/api/admin/images/1"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(409))
+                .andExpect(jsonPath("$.message").value("图片仍被内容引用，无法删除"));
+    }
 }

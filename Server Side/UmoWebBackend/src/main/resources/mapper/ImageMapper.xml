@@ -17,4 +17,15 @@
         WHERE id = #{id}
     </select>
 
+    <select id="findAll" resultType="Image">
+        SELECT id, original_name, stored_name, path, size,
+               content_type, width, height, created_at
+        FROM images
+        ORDER BY created_at DESC, id DESC
+    </select>
+
+    <delete id="delete">
+        DELETE FROM images WHERE id = #{id}
+    </delete>
+
 </mapper>

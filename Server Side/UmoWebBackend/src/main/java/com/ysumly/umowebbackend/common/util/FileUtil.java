@@ -94,6 +94,11 @@ public class FileUtil {
 
     /** 删除 MD 文件。 */
     public void deleteMarkdown(String relativePath) throws IOException {
+        deleteStoredFile(relativePath);
+    }
+
+    /** 删除存储根目录内的任意文件。 */
+    public void deleteStoredFile(String relativePath) throws IOException {
         Files.deleteIfExists(resolveStoredPath(relativePath));
     }
 

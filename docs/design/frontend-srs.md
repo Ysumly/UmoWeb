@@ -82,13 +82,13 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 | GET | `/public/contents/{slug}` |
 | GET | `/public/contents/search` |
 
-管理端当前已封装的 19 个函数覆盖：
+管理端当前已封装的 21 个函数覆盖：
 
 - 登录。
 - 文章 CRUD。
 - 分类 CRUD。
 - 标签 CRUD。
-- 图片上传。
+- 图片上传、引用状态列表和受保护删除。
 - 站点配置查询和更新。
 
 修改密码已接入独立受保护页面；成功后清理本地 token，要求使用新密码重新登录。
@@ -189,5 +189,5 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 - visual-desktop 和 visual-mobile 保存 14 张核心页面截图基线。
 - 浏览器套件使用 Mock API，本机 Chrome 和 Windows 基线；真实后端继续由 MySQL 冒烟脚本验证。
 
-当前已有 60 个 Node 内置测试；现代 Playwright 套件包含每个平台 40 个浏览器检查
+当前已有 62 个 Node 内置测试；现代 Playwright 套件包含每个平台 42 个浏览器检查
 （26 functional + 14 visual）。尚无组件级单元测试框架。

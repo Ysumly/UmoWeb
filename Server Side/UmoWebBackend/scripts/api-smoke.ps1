@@ -70,7 +70,7 @@ function Step {
     if ($script:StepCount -ne $Number) {
         throw "Smoke step ordering error: expected $Number but got $($script:StepCount)"
     }
-    Write-Host ("[{0}/27] PASS {1}" -f $Number, $Name)
+    Write-Host ("[{0}/29] PASS {1}" -f $Number, $Name)
 }
 
 function Invoke-ImageUpload {
@@ -135,6 +135,8 @@ $childCategoryId = $null
 $tagId = $null
 $contentId = $null
 $previousContentId = $null
+$referenceContentId = $null
+$imageId = $null
 
 try {
     $site = Get-Json (Invoke-Checked -Method GET -Path "/api/public/site-info")
@@ -385,6 +387,7 @@ try {
     $image = Invoke-ImageUpload -Token $token -ImagePath $imagePath
     Assert-True ($image.id -gt 0) "uploaded image must have id"
     Assert-True ($image.url -match "^/images/\d{4}/\d{2}/[0-9a-f-]+\.png$") "uploaded image URL must use the configured storage path"
+    $imageId = $image.id
     Step 25 "POST /api/admin/images/upload"
 
     $options = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/options" -Headers $authHeaders)
@@ -400,10 +403,47 @@ try {
         -Body @{ value = $originalTitle } -ExpectedStatus 204 | Out-Null
     Step 27 "PUT /api/admin/options/{key}"
 
-    if ($script:StepCount -ne 27) {
-        throw "Expected 27 endpoints but covered $script:StepCount"
+    $orphanImages = Get-Json (Invoke-Checked -Method GET -Headers $authHeaders `
+            -Path "/api/admin/images?usage=ORPHANED&page=1&size=100")
+    Assert-True (($orphanImages.items | Where-Object id -eq $imageId).Count -eq 1) `
+        "uploaded image must appear as an orphan"
+    Step 28 "GET /api/admin/images"
+
+    $referenceContent = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/contents" `
+            -Headers $authHeaders -Body @{
+                title = "Smoke Image Reference $runId"
+                slug = "smoke-image-reference-$runId"
+                body = "![smoke]($($image.url))"
+                summary = "Temporary image reference"
+                type = "NOTE"
+                status = "DRAFT"
+                categoryIds = @()
+                tagIds = @()
+            })
+    $referenceContentId = $referenceContent.id
+    Assert-True ($referenceContentId -gt 0) "reference content must have id"
+
+    $conflict = Invoke-Checked -Method DELETE -Path "/api/admin/images/$imageId" `
+        -Headers $authHeaders -ExpectedStatus 409
+    Assert-True ((Get-Json $conflict).code -eq 409) "referenced image deletion must return 409"
+
+    Invoke-Checked -Method DELETE -Path "/api/admin/contents/$referenceContentId" `
+        -Headers $authHeaders -ExpectedStatus 204 | Out-Null
+    $referenceContentId = $null
+    Invoke-Checked -Method DELETE -Path "/api/admin/images/$imageId" `
+        -Headers $authHeaders -ExpectedStatus 204 | Out-Null
+    $imageId = $null
+    Invoke-Checked -Method GET -Path $image.url -ExpectedStatus 404 | Out-Null
+    $remainingImages = Get-Json (Invoke-Checked -Method GET -Headers $authHeaders `
+            -Path "/api/admin/images?usage=ORPHANED&page=1&size=100")
+    Assert-True (($remainingImages.items | Where-Object id -eq $image.id).Count -eq 0) `
+        "deleted image must leave the list"
+    Step 29 "DELETE /api/admin/images/{id}"
+
+    if ($script:StepCount -ne 29) {
+        throw "Expected 29 endpoints but covered $($script:StepCount)"
     }
-    Write-Host "API smoke passed: 27/27 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, password invalidation, image upload, and search rate limit."
+    Write-Host "API smoke passed: 29/29 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, password invalidation, image lifecycle, and search rate limit."
 }
 finally {
     Remove-TestResource -Path "/api/admin/contents/$contentId" -Headers $authHeaders
@@ -411,5 +451,7 @@ finally {
     Remove-TestResource -Path "/api/admin/tags/$tagId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/categories/$childCategoryId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/categories/$categoryId" -Headers $authHeaders
+    Remove-TestResource -Path "/api/admin/contents/$referenceContentId" -Headers $authHeaders
+    Remove-TestResource -Path "/api/admin/images/$imageId" -Headers $authHeaders
     Remove-Item -LiteralPath $imagePath -Force -ErrorAction SilentlyContinue
 }

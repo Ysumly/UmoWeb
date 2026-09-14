@@ -151,6 +151,11 @@
         </if>
     </select>
 
+    <select id="findAllBodyPaths" resultType="string">
+        SELECT body_path
+        FROM contents
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO contents (title, slug, body_path, summary, type, status,
                               metadata, published_at)

@@ -101,6 +101,21 @@ LocalDateTime createdAt;
 LocalDateTime updatedAt;
 ```
 
+### 2.7 ImageCleanupTask
+
+```java
+Long id;
+Long imageId;
+String path;
+Integer attempts;
+String lastError;
+LocalDateTime createdAt;
+LocalDateTime updatedAt;
+```
+
+待清理队列不设置指向 `images` 的外键，因为图片记录和队列任务在同一事务中写入，
+前者的删除是预期行为。
+
 ---
 
 ## 3. DTO
@@ -111,6 +126,7 @@ LocalDateTime updatedAt;
 | `ChangePasswordRequest` | `oldPassword`、`newPassword` | 均必填，新密码至少 6 位 |
 | `ContentSaveRequest` | `title`、`slug`、`body`、`summary`、`type`、`status`、`categoryIds`、`tagIds`、`metadata` | 必填、长度、安全 slug、枚举和 JSON 对象校验 |
 | `ContentQuery` | `page`、`size`、`type`、`categoryId`、`includeDescendants`、`tagId`、`status`、`sort`、`q` | page >= 1，size 1-100，type/status 枚举，q <= 200，后代筛选依赖 categoryId |
+| `ImageQuery` | `page`、`size`、`usage` | page >= 1，size 1-100，usage 为 `REFERENCED` 或 `ORPHANED` |
 | `CategorySaveRequest` | `name`、`slug`、`parentId`、`type`、`sortOrder` | 必填、长度、安全 slug、类型枚举 |
 | `TagSaveRequest` | `name`、`slug` | 必填、长度、安全 slug |
 | `OptionSaveRequest` | `value` | 必填 |
@@ -140,6 +156,7 @@ Controller 的 `@Valid` 会在进入 Service 前拒绝非法 page/size。
 | `CategoryVO` | `id`、`name`、`slug`、`parentId`、`type`、`sortOrder` |
 | `TagVO` | `id`、`name`、`slug` |
 | `ImageVO` | `id`、`url`、`originalName`、`size` |
+| `ImageManageVO` | `id`、`url`、`originalName`、`size`、`contentType`、`createdAt`、`referenced` |
 | `SiteInfoVO` | `siteTitle`、`siteSubtitle`、`aboutHtml`、`projectHtml` |
 
 `metadata` 是 `Map<String, Object>`；数据库字符串解析失败时返回空 Map。
@@ -226,9 +243,20 @@ long countContentsByTagId(Long tagId);
 ```java
 void insert(Image image);
 Image findById(Long id);
+List<Image> findAll();
+void delete(Long id);
 ```
 
-### 5.8 SiteOptionMapper
+### 5.8 ImageCleanupTaskMapper
+
+```java
+void insert(ImageCleanupTask task);
+List<ImageCleanupTask> findAll();
+void delete(Long id);
+void recordFailure(Long id, String error);
+```
+
+### 5.9 SiteOptionMapper
 
 ```java
 List<SiteOption> findAll();
@@ -365,7 +393,9 @@ countContentsByTagId(tagId)
 
 其中内容外键使用 `ON DELETE CASCADE`，分类和标签外键使用 `ON DELETE RESTRICT`。
 已有数据库使用 `docs/design/migrations/20260911_integrity_security.sql` 先清理孤儿行、再补列、
-索引和外键。`users.token_version` 也由该脚本兼容添加。
+索引和外键。`users.token_version` 也由该脚本兼容添加；
+`docs/design/migrations/20260913_image_cleanup_queue.sql` 通过 `CREATE TABLE IF NOT EXISTS`
+兼容新增图片清理队列表。
 
 ---
 
@@ -377,7 +407,8 @@ GitHub Actions 的 MySQL 8.4 job 另行启动真实后端并验证 Mapper SQL：
 - 没有 Entity 与 Schema 的自动一致性测试。
 - 没有 SQL 注入和分页边界测试。
 
-2026-09-13 起 CI 会从空库执行 Schema、种子数据、兼容迁移和 27/27 接口冒烟，
-覆盖 Mapper 查询、分类/标签关联与详情前后文章；2026-09-11 隔离 MySQL 5.7 副本记录继续保留。
+2026-09-13 起 CI 会从空库执行 Schema、种子数据和全部兼容迁移，再执行 29/29 接口冒烟；
+覆盖 Mapper 查询、分类/标签关联、详情前后文章、图片生命周期与清理队列；
+2026-09-11 隔离 MySQL 5.7 副本记录继续保留。
 
 构建和测试命令见 [codebase-memory.md](../project/codebase-memory.md)。

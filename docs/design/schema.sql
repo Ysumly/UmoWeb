@@ -124,7 +124,22 @@ CREATE TABLE images (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------
--- 8. site_options — 站点配置 KV
+-- 8. image_cleanup_queue — 图片文件待清理队列
+-- -----------------------------------------------------------
+CREATE TABLE image_cleanup_queue (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    image_id    BIGINT       NOT NULL,
+    path        VARCHAR(500) NOT NULL,
+    attempts    INT          NOT NULL DEFAULT 0,
+    last_error  VARCHAR(1000) NULL,
+    created_at  DATETIME     NOT NULL DEFAULT NOW(),
+    updated_at  DATETIME     NOT NULL DEFAULT NOW() ON UPDATE NOW(),
+    UNIQUE KEY uk_image_cleanup_path (path),
+    INDEX idx_image_cleanup_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------
+-- 9. site_options — 站点配置 KV
 -- -----------------------------------------------------------
 CREATE TABLE site_options (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,

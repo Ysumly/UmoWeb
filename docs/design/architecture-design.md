@@ -86,6 +86,7 @@ contents ──< content_category >── categories
     └────< content_tag >────────────── tags
 
 images                         本地上传图片记录
+image_cleanup_queue            删除图片后的文件清理重试队列
 site_options                   站点 KV 配置
 ```
 
@@ -100,6 +101,7 @@ site_options                   站点 KV 配置
 | `content_category` | 内容-分类关联 | `content_id`、`category_id` |
 | `content_tag` | 内容-标签关联 | `content_id`、`tag_id` |
 | `images` | 图片元信息 | `original_name`、`stored_name`、`path`、`size`、`content_type` |
+| `image_cleanup_queue` | 图片文件待清理队列 | `image_id`、`path`、`attempts`、`last_error` |
 | `site_options` | 站点配置 | `option_key`、`option_value` |
 
 当前 DDL 已包含必要外键和级联约束，Service 仍负责返回可读的 409 业务错误。
@@ -148,7 +150,7 @@ images/{YYYY}/{MM}/{uuid}.{ext}
 API 分两组：
 
 - 公开端：`/api/public/**`，共 8 个接口。
-- 管理端：`/api/admin/**`，共 19 个接口；除登录外都经过 JWT 拦截器。
+- 管理端：`/api/admin/**`，共 21 个接口；除登录外都经过 JWT 拦截器。
 
 正常响应直接返回业务数据，例如：
 
