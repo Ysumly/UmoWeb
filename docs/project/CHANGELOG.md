@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-09-14 — Task 3 ECS 发布
+
+- `v1.0.0-rc.4` 从提交 `c9c9f8ee50e5` 构建并部署，发布 CI run `34807582609`。
+- ECS 在切换镜像前执行全部幂等迁移，创建 `image_cleanup_queue`、`content_search` 和 ngram
+  FULLTEXT 索引；回填 28 篇已发布正文并校验索引计数一致。
+- 发布前备份完成 SHA-256 与内层清单校验；发布后 `content_search=28`、
+  `image_cleanup_queue=0`，29/29 接口和全部核心公开路由通过。
+- 管理员原密码在冒烟后保持有效；备份、访问维护和报表 systemd 服务均 active。
+- 当前开发机归档保留 rc.3 和 rc.4，rc.3 作为回滚目标；Task3 本地和远端特性分支已清理。
+
 ## 2026-09-14 — 修复版本化发布后的 ECS 备份
 
 - 备份脚本改为从 `.env.docker` 读取当前前后端镜像标签，不再在版本化发布清理 `:latest` 后

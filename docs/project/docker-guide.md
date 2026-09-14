@@ -392,7 +392,25 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
   修复后发布流程会同步 `compose.yaml`，前端镜像设置 `umask 0027`，验证输出写 stderr。
 - rc.3 发布后独立 `Verify`、ECS 27/27 冒烟、六字段日志、权限和回环报表验收通过；
   `current.json` 的 operation 为 `deploy`。
-- `v1.0.0-rc.2` 仅保留为失败候选审计记录，不应作为回滚目标；当前生产版本为 rc.3。
+- `v1.0.0-rc.2` 仅保留为失败候选审计记录，不应作为回滚目标。
+
+### 9.7 Task 3 最终发布
+
+- `v1.0.0-rc.4` 从提交 `c9c9f8ee50e5` 构建，发布 CI run `34807582609`；annotated tag
+  `v1.0.0-rc.4` 已推送。
+- 发布前备份 `umoweb-backup-20260914T045534Z-unknown.tar.gz` 通过 SHA-256 与内层清单校验，
+  归档 SHA-256 为 `bca75e57789565998689064f2205e04284811101168a83088b9d8b42406d2ac9`。
+- ECS 在切换镜像前完成全部 SQL 迁移，校验 `image_cleanup_queue`、`content_search` 和
+  `ft_content_search_body` FULLTEXT 索引；新后端回填 28 篇正文，索引计数一致。
+- 后端 image ID 为
+  `sha256:72fcfc5f1ed687afc32a6e9c1078b7b1c212c9932f5c5bddc8b818d29e1552c7`，前端 image ID 为
+  `sha256:474d5fb446463eb0fc11557c84344e8218838c9dc3981a379f16527606c5e8c9`。
+- 发布归档 SHA-256 为
+  `e5ee704873b23de00b8b0f1ff4614f8378ebbdcfe3f7e2ac15bcf53a758dac6f`，大小 175642112 字节。
+- ECS `api-smoke.py` 29/29 通过；管理员原密码恢复后仍为 200，临时内容、标签、分类和图片全部回收。
+- 首页、书库、搜索、编辑器、隐私、游戏中心和四条游戏路由均返回 200；
+  `content_search=28`、`image_cleanup_queue=0`，备份、访问维护和报表服务均 active。
+- 当前生产版本为 `v1.0.0-rc.4`；开发机保留 rc.3 和 rc.4 归档，rc.3 为正式回滚目标。
 
 ## 10. 访问安全日志与报表
 

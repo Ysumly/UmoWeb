@@ -385,6 +385,16 @@ SHA-256/大小、镜像 ID、发布锁、Compose 健康解析、迁移顺序与�
 - ECS 串行执行 `api-smoke.py` 为 27/27，exit code 0；`Verify` 返回 rc.3 及 manifest image ID。
 - 访问 timer/report service 均 enabled/active，报表只监听 `127.0.0.1:7890`。
 
+2026-09-14 Task 3 最终发布：
+
+- 发布前备份 `20260914T045534Z` 完成外层 SHA-256 与内层清单校验。
+- `v1.0.0-rc.4` 从提交 `c9c9f8ee50e5` 构建，发布 CI run 为 `34807582609`。
+- ECS 迁移后表数量、ngram FULLTEXT 索引、`PUBLISHED=28` 与 `content_search=28` 一致，
+  `image_cleanup_queue=0`。
+- ECS `api-smoke.py` 29/29，exit code 0；冒烟后原管理员密码重新登录返回 200。
+- 首页、书库、搜索、编辑器、隐私、游戏中心和四条游戏路由返回 200，搜索接口返回 200。
+- 独立 `Verify` 返回 rc.4 及 manifest image ID；备份、访问维护和报表 timer/service 均 active。
+
 ### 2.10 访问安全日志
 
 本机单元与安装渲染测试：
