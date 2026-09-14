@@ -135,12 +135,30 @@ compose_source exec -T mysql sh -c '
         UNION ALL SELECT '\''content_category'\'', COUNT(*) FROM content_category
         UNION ALL SELECT '\''content_tag'\'', COUNT(*) FROM content_tag
         UNION ALL SELECT '\''images'\'', COUNT(*) FROM images
-        UNION ALL SELECT '\''image_cleanup_queue'\'', COUNT(*) FROM image_cleanup_queue
         UNION ALL SELECT '\''site_options'\'', COUNT(*) FROM site_options
         UNION ALL SELECT '\''contents_published'\'', COUNT(*) FROM contents WHERE status = '\''PUBLISHED'\''
         UNION ALL SELECT '\''contents_draft'\'', COUNT(*) FROM contents WHERE status = '\''DRAFT'\'';
     "
 ' > "$staging_dir/table-counts.tsv"
+
+queue_table_exists="$(
+    compose_source exec -T mysql sh -c '
+        mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -N -B -e "
+            SELECT COUNT(*) FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = '\''image_cleanup_queue'\'';
+        "
+    ' | tr -d '\r'
+)"
+if [[ "$queue_table_exists" == "1" ]]; then
+    compose_source exec -T mysql sh -c '
+        mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -N -B -e "
+            SELECT '\''image_cleanup_queue'\'', COUNT(*) FROM image_cleanup_queue;
+        "
+    ' >> "$staging_dir/table-counts.tsv"
+elif [[ "$queue_table_exists" != "0" ]]; then
+    die "failed to determine image_cleanup_queue table state: $queue_table_exists"
+fi
 
 log "archiving app_data and creating the file manifest"
 staging_mount="$(docker_host_path "$staging_dir")"

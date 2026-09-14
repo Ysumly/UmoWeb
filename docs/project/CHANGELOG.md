@@ -6,6 +6,8 @@
   因镜像缺失而失败。
 - ECS 备份 timer 安装器移除旧的固定镜像环境变量；发布入口同步备份脚本和 systemd 单元，并
   在发布时刷新 timer 配置。
+- 备份表行数统计将 `image_cleanup_queue` 视为可选表，使 Task3 迁移前的旧 Schema 也能完成
+  发布前一致性备份。
 - 备份单元测试新增「Compose 标签覆盖陈旧 timer 标签」和「缺少环境文件回退 latest」场景。
 
 ## 2026-09-14 — Task3 发布链路收尾
