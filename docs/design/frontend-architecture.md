@@ -1,8 +1,8 @@
 # UmoWeb 前端架构
 
-> 基线日期: 2026-09-13
+> 基线日期: 2026-09-14
 > 项目路径: `Client Side/umo-web-frontend/`
-> 状态: 公开端、公开在线编辑器、隐私说明和管理端核心业务页均已实现；新建文章支持 Markdown 导入
+> 状态: 公开端、在线编辑器、隐私说明、四款训练游戏和管理端核心业务页均已实现
 
 ---
 
@@ -39,6 +39,7 @@ umo-web-frontend/
 │   │   └── apiMock.js
 │   ├── admin.spec.js
 │   ├── editor.spec.js
+│   ├── games.spec.js
 │   ├── public.spec.js
 │   └── visual.spec.js
 ├── public/
@@ -53,7 +54,12 @@ umo-web-frontend/
     ├── directives/
     │   └── reveal.js
     ├── config/
-    │   └── contentTypes.js
+    │   ├── contentTypes.js
+    │   └── games.js
+    ├── games/
+    │   ├── gameLogic.js
+    │   ├── gameLogic.test.js
+    │   └── games.css
     ├── layouts/
     │   └── PublicLayout.vue
     ├── theme/
@@ -87,6 +93,9 @@ umo-web-frontend/
     │   │   ├── SectionHeading.vue
     │   │   ├── SiteFooter.vue
     │   │   └── SiteHeader.vue
+    │   ├── games/
+    │   │   ├── GameResultDialog.vue
+    │   │   └── GameShell.vue
     │   └── admin/
     │       └── AdminLayout.vue
     └── views/
@@ -99,6 +108,11 @@ umo-web-frontend/
         │   ├── ProjectPage.vue
         │   ├── EditorPage.vue
         │   ├── PrivacyPage.vue
+        │   ├── GamesPage.vue
+        │   ├── StroopGamePage.vue
+        │   ├── DigitSpanGamePage.vue
+        │   ├── PokerMemoryGamePage.vue
+        │   ├── SchulteGamePage.vue
         │   └── NotFoundPage.vue
         └── admin/
             ├── LoginPage.vue
@@ -142,6 +156,11 @@ umo-web-frontend/
 | `/project` | `project` | `ProjectPage.vue` | 已接入真实 API |
 | `/editor` | `editor` | `EditorPage.vue` | 纯浏览器本地编辑器 |
 | `/privacy` | `privacy` | `PrivacyPage.vue` | 读取运行时访问保留策略 |
+| `/games` | `games` | `GamesPage.vue` | 四款游戏入口 |
+| `/games/stroop` | `game-stroop` | `StroopGamePage.vue` | 纯浏览器游戏 |
+| `/games/digit-span` | `game-digit-span` | `DigitSpanGamePage.vue` | 纯浏览器游戏 |
+| `/games/poker-memory` | `game-poker-memory` | `PokerMemoryGamePage.vue` | 纯浏览器游戏 |
+| `/games/schulte` | `game-schulte` | `SchulteGamePage.vue` | 纯浏览器游戏 |
 | `/secret-admin` | - | `AdminLayout.vue` | 重定向到文章页 |
 | `/secret-admin/login` | `login` | `LoginPage.vue` | 已实现 |
 | `/secret-admin/contents` | `admin-contents` | `ContentListPage.vue` | 已接入真实 API |
@@ -156,6 +175,8 @@ umo-web-frontend/
 守卫逻辑直接读取 `localStorage.token`，没有在路由进入时调用后端验证 token。
 
 公开路由通过 `meta.motion` 区分 `cinematic` 和 `focused` 动效等级。
+游戏路由额外设置 `instantTransition`，不渲染全屏 route wipe，并以 `section: games`
+维持主导航激活状态。
 
 ---
 
@@ -227,6 +248,8 @@ token 来源和存储位置都是 `localStorage`。
 | `ChangePasswordPage.vue` | 密码校验、修改后清 token、跳转登录页 |
 | `EditorPage.vue` | `.md` 导入/下载、Markdown 编辑与安全预览、移动端切换和本地草稿恢复 |
 | `PrivacyPage.vue` | 展示收集目的、六字段边界、实际保留期、管理员访问边界和第三方限制 |
+| `GamesPage.vue` | 展示四款训练入口，不调用 API |
+| 四款游戏页面 | 保留原规则、键盘/触控操作、结果结算和旧版本地成绩 |
 | `NotFoundPage.vue` | 公开端视觉样式，提供返回首页和书库入口 |
 
 ### 7.2 公开端真实 API
@@ -244,6 +267,17 @@ token 来源和存储位置都是 `localStorage`。
 ### 7.3 公开在线编辑器
 
 `EditorPage.vue` 不调用后端，使用原生 `textarea` 和 `MarkdownArticle` 完成分屏编辑/预览；窄屏切换单栏。支持导入与下载 `.md`、文件名规范化、导入替换确认和清空；草稿写入 `localStorage["umo-editor-draft-v1"]`，页面重新进入时恢复。
+
+### 7.4 训练游戏
+
+游戏中心和四款游戏均位于公开端，不调用后端。共享 `GameShell` 负责标题、返回和游戏区域，
+`GameResultDialog` 提供焦点、`aria-modal`、Escape 和结果结算；纯逻辑集中在
+`src/games/gameLogic.js`。
+
+Stroop 保留 84 试次和 25% 一致试次，使用 `stroop_84_parchment`；
+倒背数字保留 4 位起步、每级三题答对两题升级，不保存成绩；扑克牌保留两张开局、
+三秒记忆和 `poker_memory_best_span`；舒尔特保留 3×3 至 10×10 和
+`schulte_parchment_best` 分尺寸最佳成绩。游戏路由即时进入，非规则反馈等待已压缩。
 
 ---
 
@@ -269,11 +303,12 @@ server: {
 }
 ```
 
-2026-09-13 执行 `npm test`、`npm run build` 和完整 Playwright 测试成功。搜索覆盖标题、摘要和
-Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 62 个 Node 测试覆盖路由、
+2026-09-14 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
+搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 72 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
-Markdown front matter 导入、书库后代参数、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；
-Playwright 另含 28 个 functional 和 14 个视觉检查。书库选择分类时 URL 使用
+Markdown front matter 导入、书库后代参数、游戏规则与旧成绩、Markdown 原始 HTML、
+危险 URL 协议和图片 alt 转义；Playwright 另含 38 个 functional 和 24 个视觉检查。
+书库选择分类时 URL 使用
 `category=<id>&includeDescendants=true`，显式 `false` 仍可请求精确匹配。
 
 ---
@@ -286,7 +321,8 @@ Playwright 另含 28 个 functional 和 14 个视觉检查。书库选择分类�
 1. 第一阶段完成正式数据、HTTPS、备份恢复和上线回滚。
 2. 第二阶段已接入 CI、Linux Playwright、真实 MySQL 集成、本地版本化镜像发布/回滚和
    自托管访问统计，`v1.0.0-rc.3` 已通过 ECS 验收。
-3. 第三阶段完成 Markdown 导入、子分类筛选、图片删除和正文全文搜索，后续实现四个训练游戏。
+3. 第三阶段已完成 Markdown 导入、子分类筛选、图片删除、正文全文搜索和四个训练游戏；
+   待分支合并后满足阶段出口条件。
 4. 第四阶段在需求明确后评估 AI 能力，当前暂缓。
 
 完整路线见

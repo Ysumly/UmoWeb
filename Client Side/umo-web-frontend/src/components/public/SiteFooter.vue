@@ -19,6 +19,7 @@ const currentYear = new Date().getFullYear()
         <router-link to="/library">书库</router-link>
         <router-link to="/search">搜索</router-link>
         <router-link to="/project">项目</router-link>
+        <router-link to="/games">游戏</router-link>
         <router-link to="/about">关于</router-link>
         <router-link to="/privacy">隐私</router-link>
       </nav>
