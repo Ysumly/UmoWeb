@@ -26,7 +26,7 @@ onMounted(() => {
 
 <template>
   <div class="public-shell" :class="`motion-${route.meta.motion || 'focused'}`">
-    <div :key="route.fullPath" class="route-wipe" aria-hidden="true" />
+    <div v-if="!route.meta.instantTransition" :key="route.fullPath" class="route-wipe" aria-hidden="true" />
     <SiteHeader />
     <div v-if="siteStore.status === 'error'" class="site-notice" role="alert">
       <span>{{ siteStore.error }}</span>
@@ -34,7 +34,7 @@ onMounted(() => {
     </div>
     <main id="main-content" class="public-main">
       <router-view v-slot="{ Component }">
-        <transition :name="transitionName" mode="out-in">
+        <transition :name="route.meta.instantTransition ? 'instant' : transitionName" mode="out-in">
           <component :is="Component" :key="route.fullPath" />
         </transition>
       </router-view>

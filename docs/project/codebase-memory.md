@@ -1,6 +1,6 @@
 # UmoWeb 代码基线记忆
 
-> 基线日期: 2026-09-13
+> 基线日期: 2026-09-14
 > 范围: 当前工作区中的前端、后端、数据库脚本和文档
 > 原则: 代码行为优先；计划能力与已实现能力必须分开记录
 
@@ -36,7 +36,7 @@ UmoWeb/
 ```
 
 后端主源码为 82 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
-主题与 Markdown 工具、页面源码和 Node 测试。`Downloads/`、
+游戏规则与页面、主题与 Markdown 工具和 Node 测试。`Downloads/`、
 `.superpowers/`、`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
 ---
@@ -83,7 +83,7 @@ UmoWeb/
 | 触发 | `pull_request` 和 `master` push |
 | 运行环境 | Ubuntu、Temurin Java 17、Node 24.12.0 |
 | 检查 | 后端 Maven 测试、MySQL 8.4 Schema/种子/迁移与接口冒烟、前端 Node 测试、前端构建、Linux Playwright、diff 检查和敏感信息扫描 |
-| 视觉基线 | 14 张 Windows Chrome 与 14 张 Linux Chromium 独立 PNG |
+| 视觉基线 | 24 张 Windows Chrome 与 24 张 Linux Chromium 独立 PNG |
 | 权限 | `contents: read`，不配置仓库 Secret |
 | 合并门禁 | 当前私有仓库计划不支持分支保护或规则集，失败结果不能强制阻止合并 |
 
@@ -383,19 +383,24 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 基于服务端契约的书库筛选/分页、搜索 429 倒计时、Markdown 渲染和代码高亮。
 - 搜索覆盖标题、摘要和 Markdown 正文；正文命中时结果卡片展示 `excerpt`。
 - 404 页面采用公开端视觉布局。
-- 公开端已有 8 个业务路由：首页、书库、搜索、文章详情、About、Project、在线编辑器、
-  隐私说明；另有 404 回退。
+- 公开端已有 13 个业务路由：首页、书库、搜索、文章详情、About、Project、在线编辑器、
+  隐私说明、游戏中心及四款训练游戏；另有 404 回退。
 - 2026-09-13 已完成 Task 3.2：分类筛选默认保持精确匹配，显式 `includeDescendants=true`
   展开全部后代；书库分类入口默认启用该行为，真实 MySQL 集成测试覆盖根/子/孙和循环拒绝。
 - 2026-09-13 已完成 Task 3.3：图片列表与删除、全部文章和固定页引用扫描、持久化文件
   清理队列及管理端图片管理页。
 - 2026-09-13 已完成 Task 3.4：MySQL 8.4 ngram 正文索引、写入生命周期同步、可重复回填、
   标题/摘要/正文统一搜索和正文命中摘要。
+- 2026-09-14 已完成 Task 3.5：首页、导航和页脚增加游戏入口；Stroop、倒背数字、
+  扑克牌记忆和舒尔特迁移为 Vue 路由，保留原规则和三组旧 `localStorage` 成绩键；
+  游戏路由即时进入，反馈等待与装饰动画已经压缩，并通过 320×568 至 1440×900、
+  10×10 网格、10 位数字和 10 张牌的响应式回归。
 
 ### 6.2 其他前端事实
 
 - 管理端路径由统一 `VITE_ADMIN_PATH` 工具控制，默认 `/secret-admin`，不再依赖后端 `app.admin-path`。
-- 当前存在公开端 `SiteHeader`、`SiteFooter`、`ContentCard`、`ContentState`、`MarkdownArticle` 和 `ThemeToggle`；管理端仍没有统一表单/表格组件。
+- 当前存在公开端 `SiteHeader`、`SiteFooter`、`ContentCard`、`ContentState`、`MarkdownArticle`、
+  `ThemeToggle`、`GameShell` 和 `GameResultDialog`；管理端仍没有统一表单/表格组件。
 - 公开端页头和管理端侧栏共用 `public/umo-logo.png`，浏览器图标为 `public/favicon.png`。
 - 前端已建立 Playwright functional 与视觉回归；Windows 使用本机 Chrome，CI 使用 Linux Chromium，
   浏览器测试不连接后端，真实接口由 CI MySQL 8.4 集成 job 和冒烟脚本负责。
@@ -486,13 +491,18 @@ Spring Multipart 限制单文件和请求均为 50MB。
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
 - 内容导入器有 6 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、图片重写、内容去重、
   Linux 文件所有权和缺失素材阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 29 个接口。
-- 前端 62 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、管理端文章/分类/标签/图片/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、Markdown front matter 导入、日期格式、书库后代参数、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- Playwright 每个平台运行 42 个浏览器检查：28 个 functional 用例覆盖公开端、正文摘要、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入、图片管理删除保护、移动端图片布局与书库子分类筛选），14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+- 前端 72 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、游戏规则与旧成绩解析、
+  管理端文章/分类/标签/图片/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、
+  Markdown front matter 导入、日期格式、书库后代参数、Markdown 原始 HTML、危险 URL
+  协议和图片 alt 转义。
+- Playwright 每个平台运行 62 个浏览器检查：38 个 functional 用例覆盖公开端、正文摘要、
+  隐私说明、在线编辑器、四款游戏的高密度/长序列/旧成绩兼容和管理端核心流程；
+  24 个视觉断言覆盖 12 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
 - Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；
   Windows 默认 Chrome channel，Linux CI 使用锁定 Playwright 版本的 Chromium。
-- 仓库分别保存 14 张 `win32` 和 14 张 `linux` 视觉快照；Linux 快照通过手动
+- 仓库目标分别保存 24 张 `win32` 和 24 张 `linux` 视觉快照；Linux 快照通过手动
   `Playwright Linux Baselines` 工作流生成 artifact 后人工审查提交，不会自动写回仓库。
 - `scripts/ci/scan-sensitive-info.sh` 扫描全部已跟踪文件，覆盖公开 IPv4、ECS 实例 ID、AccessKey、
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。

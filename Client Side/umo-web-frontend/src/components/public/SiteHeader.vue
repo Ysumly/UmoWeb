@@ -14,10 +14,11 @@ const navigation = [
   { to: '/library', label: '书库', name: 'library' },
   { to: '/search', label: '搜索', name: 'search' },
   { to: '/project', label: '项目', name: 'project' },
+  { to: '/games', label: '游戏', name: 'games' },
   { to: '/about', label: '关于', name: 'about' },
 ]
 
-const currentSection = computed(() => route.name)
+const currentSection = computed(() => route.meta.section || route.name)
 const siteTitle = computed(() => siteStore.siteTitle || 'Umo')
 const siteSubtitle = computed(() => siteStore.siteSubtitle)
 

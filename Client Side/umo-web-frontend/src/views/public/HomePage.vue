@@ -6,6 +6,7 @@ import ContentCard from '@/components/public/ContentCard.vue'
 import ContentState from '@/components/public/ContentState.vue'
 import SectionHeading from '@/components/public/SectionHeading.vue'
 import { contentTypes } from '@/config/contentTypes'
+import { gameCatalog } from '@/config/games'
 import { useSiteStore } from '@/stores/site'
 import { getApiErrorMessage } from '@/utils/apiError'
 
@@ -219,6 +220,22 @@ function resetBookPointer() {
       <div>
         <p>每一篇文章都允许被重写，每一个判断都保留被推翻的可能。这个空间更像一本持续装订中的书。</p>
         <router-link class="button button--text" to="/about">翻开关于页</router-link>
+      </div>
+    </section>
+
+    <section class="home-games" v-reveal aria-labelledby="home-games-title">
+      <div class="home-games__copy">
+        <span class="editorial-eyebrow">Brain Training</span>
+        <h2 id="home-games-title">让注意力短跑一会儿。</h2>
+        <p>四款本地训练游戏，不登录、不上传成绩，练习结束即可离开。</p>
+        <router-link class="button button--outline" to="/games">进入游戏中心</router-link>
+      </div>
+      <div class="home-games__list">
+        <router-link v-for="game in gameCatalog" :key="game.id" :to="game.path">
+          <span aria-hidden="true">{{ game.mark }}</span>
+          <strong>{{ game.title }}</strong>
+          <small>{{ game.english }}</small>
+        </router-link>
       </div>
     </section>
   </div>

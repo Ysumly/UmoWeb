@@ -88,3 +88,53 @@ test('管理端文章列表视觉基线', async ({ page, apiMock }) => {
 
   await expect(page).toHaveScreenshot('admin-contents.png', { fullPage: true })
 })
+
+test('游戏中心视觉基线', async ({ page, apiMock }) => {
+  void apiMock
+  await prepareScreenshot(page)
+  await page.goto('/games')
+  await expect(page.getByRole('heading', { name: '脑力训练馆' })).toBeVisible()
+  await waitForStablePage(page)
+
+  await expect(page).toHaveScreenshot('games-hub.png', { fullPage: true })
+})
+
+test('Stroop 视觉基线', async ({ page, apiMock }) => {
+  void apiMock
+  await prepareScreenshot(page)
+  await page.goto('/games/stroop')
+  await expect(page.getByRole('heading', { name: '色词测试' })).toBeVisible()
+  await waitForStablePage(page)
+
+  await expect(page).toHaveScreenshot('game-stroop.png', { fullPage: true })
+})
+
+test('倒背数字视觉基线', async ({ page, apiMock }) => {
+  void apiMock
+  await prepareScreenshot(page)
+  await page.goto('/games/digit-span')
+  await expect(page.getByRole('heading', { name: '倒背数字训练' })).toBeVisible()
+  await waitForStablePage(page)
+
+  await expect(page).toHaveScreenshot('game-digit-span.png', { fullPage: true })
+})
+
+test('扑克牌记忆视觉基线', async ({ page, apiMock }) => {
+  void apiMock
+  await prepareScreenshot(page)
+  await page.goto('/games/poker-memory')
+  await expect(page.getByRole('heading', { name: '扑克牌记忆训练' })).toBeVisible()
+  await waitForStablePage(page)
+
+  await expect(page).toHaveScreenshot('game-poker-memory.png', { fullPage: true })
+})
+
+test('舒尔特视觉基线', async ({ page, apiMock }) => {
+  void apiMock
+  await prepareScreenshot(page)
+  await page.goto('/games/schulte')
+  await expect(page.getByRole('heading', { name: '舒尔特方格' })).toBeVisible()
+  await waitForStablePage(page)
+
+  await expect(page).toHaveScreenshot('game-schulte.png', { fullPage: true })
+})
