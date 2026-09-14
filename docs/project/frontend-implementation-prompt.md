@@ -141,16 +141,20 @@
 
 ## 6. 推荐实施顺序
 
-后续实施顺序已调整为四阶段路线：
+后续实施顺序已调整为 Post-v1 路线：
 
 1. 正式上线与数据安全。
 2. 工程交付、质量基线与安全统计：CI、Linux 视觉基线、真实 MySQL 集成和最小化访问日志
    已在 `v1.0.0-rc.5` 通过 ECS 发布和核心路由验收。
 3. 功能设计；Task 3.1 Markdown 导入、Task 3.2 子分类筛选、Task 3.3 图片删除、
    Task 3.4 正文全文搜索和 Task 3.5 四款训练游戏已完成并合并 master，第三阶段出口条件满足。
-4. 需求明确后评估 AI 能力，当前暂缓。
+4. 第四阶段实现非 AI 阅读体验、批量管理和定时发布，不包含文章修订历史。
+5. 第五阶段在需求、隐私和成本明确后评估管理端 AI；草稿和结果只保存在浏览器本地。
+6. 公开 AI 搜索、原文问答和知识图谱继续后置。
 
 完整顺序和出口条件见
+[`../superpowers/plans/2026-09-14-post-v1-roadmap.md`](../superpowers/plans/2026-09-14-post-v1-roadmap.md)。
+第一至第三阶段历史记录见
 [`../superpowers/plans/2026-09-12-four-phase-roadmap.md`](../superpowers/plans/2026-09-12-four-phase-roadmap.md)。
 
 ---

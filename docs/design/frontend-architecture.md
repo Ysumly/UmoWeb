@@ -317,14 +317,18 @@ Markdown front matter 导入、书库后代参数、游戏规则与旧成绩、M
 ## 9. 下一步实现顺序
 
 当前已提供 Docker Compose 全栈入口，前端由 Nginx 提供静态构建并代理 `/api`、`/images`；
-详细命令见 `docs/project/docker-guide.md`。后续工作按四阶段推进：
+详细命令见 `docs/project/docker-guide.md`。后续工作按 Post-v1 路线推进：
 
 1. 第一阶段完成正式数据、HTTPS、备份恢复和上线回滚。
 2. 第二阶段已接入 CI、Linux Playwright、真实 MySQL 集成、本地版本化镜像发布/回滚和
    自托管访问统计，`v1.0.0-rc.5` 已通过 ECS 发布和 29/29 验收。
 3. 第三阶段已完成并合并 Markdown 导入、子分类筛选、图片删除、正文全文搜索和四个训练游戏，
    阶段出口条件已满足。
-4. 第四阶段在需求明确后评估 AI 能力，当前暂缓。
+4. 第四阶段实现非 AI 阅读体验、批量管理和定时发布，不包含文章修订历史。
+5. 第五阶段在需求、隐私和成本明确后评估管理端 AI；AI 草稿和转换结果只保存在浏览器本地。
+6. 公开语义搜索、原文问答和知识图谱继续后置，作为独立项目重新评审。
 
 完整路线见
+[`docs/superpowers/plans/2026-09-14-post-v1-roadmap.md`](../superpowers/plans/2026-09-14-post-v1-roadmap.md)。
+第一至第三阶段的历史记录见
 [`docs/superpowers/plans/2026-09-12-four-phase-roadmap.md`](../superpowers/plans/2026-09-12-four-phase-roadmap.md)。
