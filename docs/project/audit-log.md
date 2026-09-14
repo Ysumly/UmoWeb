@@ -1,5 +1,35 @@
 # 审计日志
 
+## 审计 #35 - 2026-09-14 — 修复版本化发布后的 ECS 备份
+
+### 范围
+
+- rc.4 发布前备份演练发现 `umoweb-backup.service` 仍使用 `umoweb-backend:latest`。
+- 版本化发布完成旧镜像清理后 `:latest` 不存在，导致本次和周备份均无法执行。
+
+### 实现
+
+- `scripts/backup/lib/common.sh` 优先从 `.env.docker` 读取 `BACKEND_IMAGE` 和
+  `FRONTEND_IMAGE`，仅在环境文件缺失或未配置时回退 `:latest`。
+- `install-backup-timer.sh` 不再生成固定镜像标签，并清理已有 `backup.env` 中的旧
+  `BACKEND_IMAGE`/`FRONTEND_IMAGE` 行。
+- 发布入口同步 `scripts/backup/` 与 systemd 单元，并在发布时重新安装备份 timer。
+- 备份单元测试覆盖 Compose 标签覆盖陈旧 timer 值，以及缺少环境文件时的回退行为。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 备份脚本自测 | 通过 |
+| PowerShell 发布脚本自测 | 通过 |
+| Bash 发布脚本自测 | 通过 |
+| `git diff --check` | 通过，仅保留 Windows LF/CRLF 提示 |
+
+### 剩余风险
+
+1. ECS 现有 `/etc/umoweb/backup.env` 仍需由更新后的安装器或同步后的发布脚本刷新，修复上传前
+   周备份保持失败状态。
+
 ## 审计 #34 - 2026-09-14 — Task3 发布链路与 ECS 冒烟保护
 
 ### 范围

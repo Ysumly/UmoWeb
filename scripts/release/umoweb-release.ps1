@@ -24,10 +24,12 @@ $ErrorActionPreference = "Stop"
 
 $RemoteReleaseScript = "$RemoteRoot/scripts/release/remote-release.sh"
 $RemoteAccessRoot = "$RemoteRoot/scripts/access"
+$RemoteBackupRoot = "$RemoteRoot/scripts/backup"
 $RemoteMigrationsRoot = "$RemoteRoot/docs/design/migrations"
 $RemoteSmokeRoot = "$RemoteRoot/scripts/smoke"
 $RemoteIncomingRoot = "$RemoteRoot/releases/incoming"
 $LocalAccessRoot = Join-Path (Split-Path $PSScriptRoot -Parent) "access"
+$LocalBackupRoot = Join-Path (Split-Path $PSScriptRoot -Parent) "backup"
 $LocalMigrationsRoot = Join-Path $RepositoryRoot "docs/design/migrations"
 
 function Invoke-NativeCapture {
@@ -189,7 +191,7 @@ function requireLocalFile {
 
 function Sync-RemoteReleaseControl {
     Invoke-WorkbenchCommand `
-        -Command "mkdir -p '$RemoteRoot/scripts/release' '$RemoteSmokeRoot' '$RemoteMigrationsRoot' '$RemoteIncomingRoot' && chmod 0700 '$RemoteRoot/releases' '$RemoteIncomingRoot'" |
+        -Command "mkdir -p '$RemoteRoot/scripts/release' '$RemoteBackupRoot/lib' '$RemoteBackupRoot/systemd' '$RemoteSmokeRoot' '$RemoteMigrationsRoot' '$RemoteIncomingRoot' && chmod 0700 '$RemoteRoot/releases' '$RemoteIncomingRoot'" |
         Out-Null
     Invoke-WorkbenchUpload `
         -LocalPath (Join-Path $PSScriptRoot "remote-release.sh") `
@@ -200,6 +202,20 @@ function Sync-RemoteReleaseControl {
     Invoke-WorkbenchUpload `
         -LocalPath (Join-Path $RepositoryRoot "Server Side/UmoWebBackend/scripts/api-smoke.py") `
         -RemotePath "$RemoteSmokeRoot/api-smoke.py"
+
+    foreach ($backupFile in @(
+        "lib/common.sh",
+        "create-backup.sh",
+        "verify-backup.sh",
+        "install-backup-timer.sh",
+        "systemd/umoweb-backup.service",
+        "systemd/umoweb-backup.timer"
+    )) {
+        $relativePath = $backupFile -replace "/", [System.IO.Path]::DirectorySeparatorChar
+        Invoke-WorkbenchUpload `
+            -LocalPath (Join-Path $LocalBackupRoot $relativePath) `
+            -RemotePath "$RemoteBackupRoot/$backupFile"
+    }
 
     $migrations = @(
         Get-ChildItem -LiteralPath $LocalMigrationsRoot -File -Filter "*.sql" |
@@ -620,6 +636,10 @@ function Invoke-Publish {
     Sync-RemoteAccessControl
     Invoke-WorkbenchCommand `
         -Command "bash '$RemoteAccessRoot/install-access-timer.sh'" `
+        -TimeoutSeconds 120 |
+        Out-Null
+    Invoke-WorkbenchCommand `
+        -Command "bash '$RemoteBackupRoot/install-backup-timer.sh'" `
         -TimeoutSeconds 120 |
         Out-Null
     $accessPolicy = Get-RemoteAccessPolicy

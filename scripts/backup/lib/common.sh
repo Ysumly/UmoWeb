@@ -4,12 +4,34 @@ REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
 COMPOSE_FILE="${COMPOSE_FILE:-$REPO_ROOT/compose.yaml}"
 COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-$REPO_ROOT/.env.docker}"
 COMPOSE_PROJECT="${COMPOSE_PROJECT:-umoweb}"
+
+read_compose_env_value() {
+    local key="$1"
+    [[ -f "$COMPOSE_ENV_FILE" ]] || return 1
+    awk -v key="$key" '
+        index($0, key "=") == 1 {
+            sub("^[^=]*=", "")
+            print
+            found = 1
+            exit
+        }
+        END {
+            if (!found) {
+                exit 1
+            }
+        }
+    ' "$COMPOSE_ENV_FILE"
+}
+
+compose_backend_image="$(read_compose_env_value BACKEND_IMAGE 2>/dev/null || true)"
+compose_frontend_image="$(read_compose_env_value FRONTEND_IMAGE 2>/dev/null || true)"
+
 BACKUP_ROOT="${BACKUP_ROOT:-/opt/umoweb/backups}"
 BACKUP_RETENTION_COUNT="${BACKUP_RETENTION_COUNT:-6}"
 BACKUP_MAX_BYTES="${BACKUP_MAX_BYTES:-8589934592}"
 BACKUP_HELPER_IMAGE="${BACKUP_HELPER_IMAGE:-mysql:8.4}"
-BACKEND_IMAGE="${BACKEND_IMAGE:-umoweb-backend:latest}"
-FRONTEND_IMAGE="${FRONTEND_IMAGE:-umoweb-frontend:latest}"
+BACKEND_IMAGE="${compose_backend_image:-${BACKEND_IMAGE:-umoweb-backend:latest}}"
+FRONTEND_IMAGE="${compose_frontend_image:-${FRONTEND_IMAGE:-umoweb-frontend:latest}}"
 GIT_COMMIT="${GIT_COMMIT:-}"
 RESTORE_PORT="${RESTORE_PORT:-18080}"
 RESTORE_SUBNET="${RESTORE_SUBNET:-172.31.0.0/24}"

@@ -27,12 +27,12 @@ BACKUP_ROOT=$INSTALL_ROOT/backups
 BACKUP_RETENTION_COUNT=6
 BACKUP_MAX_BYTES=8589934592
 BACKUP_HELPER_IMAGE=mysql:8.4
-BACKEND_IMAGE=umoweb-backend:latest
-FRONTEND_IMAGE=umoweb-frontend:latest
 # Non-Git deployments may set GIT_COMMIT to the deployed source revision.
 EOF
     chmod 0600 "$TIMER_ENV_FILE"
 fi
+
+sed -i '/^BACKEND_IMAGE=/d;/^FRONTEND_IMAGE=/d' "$TIMER_ENV_FILE"
 
 sed "s|@INSTALL_ROOT@|$INSTALL_ROOT|g" \
     "$SCRIPT_DIR/systemd/umoweb-backup.service" \

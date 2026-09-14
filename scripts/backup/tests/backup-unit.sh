@@ -112,6 +112,35 @@ test_checksum_detection() {
     assert_failure "modified file must fail verification" verify_sha256_file "$target" "$TEMP_ROOT/checksum.sha256"
 }
 
+test_backup_images_follow_compose_environment() {
+    local compose_env="$TEMP_ROOT/compose-images.env"
+    cat > "$compose_env" <<'EOF'
+BACKEND_IMAGE=umoweb-backend:v1.0.0-rc.3
+FRONTEND_IMAGE=umoweb-frontend:v1.0.0-rc.3
+EOF
+
+    if ! (
+        BACKEND_IMAGE=umoweb-backend:latest
+        FRONTEND_IMAGE=umoweb-frontend:latest
+        COMPOSE_ENV_FILE="$compose_env"
+        source "$BACKUP_DIR/lib/common.sh"
+        [[ "$BACKEND_IMAGE" == "umoweb-backend:v1.0.0-rc.3" ]] &&
+            [[ "$FRONTEND_IMAGE" == "umoweb-frontend:v1.0.0-rc.3" ]]
+    ); then
+        fail "compose image tags did not override stale timer image tags"
+    fi
+
+    if ! (
+        unset BACKEND_IMAGE FRONTEND_IMAGE
+        COMPOSE_ENV_FILE="$TEMP_ROOT/missing.env"
+        source "$BACKUP_DIR/lib/common.sh"
+        [[ "$BACKEND_IMAGE" == "umoweb-backend:latest" ]] &&
+            [[ "$FRONTEND_IMAGE" == "umoweb-frontend:latest" ]]
+    ); then
+        fail "missing compose environment did not fall back to latest image tags"
+    fi
+}
+
 test_verify_and_export_cli() {
     local root="$TEMP_ROOT/archive"
     local contents="$root/contents"
@@ -145,6 +174,7 @@ test_retention_removes_oldest_and_keeps_latest
 test_retention_removes_by_total_size
 test_restore_project_guard
 test_checksum_detection
+test_backup_images_follow_compose_environment
 test_verify_and_export_cli
 
 if ((FAILURES > 0)); then
