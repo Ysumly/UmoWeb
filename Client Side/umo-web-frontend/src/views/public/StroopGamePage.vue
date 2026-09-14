@@ -236,7 +236,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <GameShell
+  <div class="game-route">
+    <GameShell
     eyebrow="Stroop Test"
     title="色词测试"
     subtitle="84 试次反应训练，只判断字体颜色。"
@@ -292,15 +293,16 @@ onBeforeUnmount(() => {
         {{ running ? '测试中…' : '开始挑战' }}
       </button>
     </div>
-  </GameShell>
+    </GameShell>
 
-  <GameResultDialog
-    :open="finished"
-    title="84 试次完成"
-    icon="色"
-    :stats="resultStats"
-    :detail="resultDetail"
-    action-label="再来一局"
-    @close="resetGame"
-  />
+    <GameResultDialog
+      :open="finished"
+      title="84 试次完成"
+      icon="色"
+      :stats="resultStats"
+      :detail="resultDetail"
+      action-label="再来一局"
+      @close="resetGame"
+    />
+  </div>
 </template>

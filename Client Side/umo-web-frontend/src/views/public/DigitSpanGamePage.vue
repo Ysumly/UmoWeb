@@ -199,7 +199,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <GameShell
+  <div class="game-route">
+    <GameShell
     eyebrow="Reverse Digit Span"
     title="倒背数字训练"
     subtitle="记住数字并按相反顺序输入，每级三题答对两题即可升级。"
@@ -268,15 +269,16 @@ onBeforeUnmount(() => {
         确认
       </button>
     </div>
-  </GameShell>
+    </GameShell>
 
-  <GameResultDialog
-    :open="resultOpen"
-    title="倒背数字训练结束"
-    icon="数"
-    :stats="resultStats"
-    :detail="resultDetail"
-    action-label="再来一局"
-    @close="restart"
-  />
+    <GameResultDialog
+      :open="resultOpen"
+      title="倒背数字训练结束"
+      icon="数"
+      :stats="resultStats"
+      :detail="resultDetail"
+      action-label="再来一局"
+      @close="restart"
+    />
+  </div>
 </template>

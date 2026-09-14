@@ -32,6 +32,17 @@ test('游戏路由不显示全屏擦除动画', async ({ page, apiMock }) => {
   await expect(page.getByRole('button', { name: '开始挑战' })).toBeVisible()
 })
 
+test('游戏页面返回游戏中心不会卡在路由转场', async ({ page, apiMock }) => {
+  void apiMock
+  await page.goto('/games/schulte')
+  await expect(page.getByRole('heading', { name: '舒尔特方格' })).toBeVisible()
+
+  await page.getByRole('link', { name: '返回游戏中心' }).click()
+  await expect(page).toHaveURL(/\/games$/)
+  await expect(page.getByRole('heading', { name: '脑力训练馆' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Stroop 色词测试/ })).toBeVisible()
+})
+
 test('Stroop 完成 84 试次并保存正确率与反应时', async ({ page, apiMock }) => {
   void apiMock
   await useDeterministicRandom(page)

@@ -176,7 +176,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <GameShell
+  <div class="game-route">
+    <GameShell
     eyebrow="Schulte Grid"
     title="舒尔特方格"
     subtitle="按顺序从 1 点击到末尾，训练视觉搜索速度。"
@@ -240,15 +241,16 @@ onBeforeUnmount(() => {
     <div v-if="resultOpen && !reducedMotion" class="game-confetti" aria-hidden="true">
       <span v-for="index in 10" :key="index" :style="{ '--confetti-index': index }" />
     </div>
-  </GameShell>
+    </GameShell>
 
-  <GameResultDialog
-    :open="resultOpen"
-    :title="`${size} × ${size} 挑战完成`"
-    icon="格"
-    :stats="resultStats"
-    :detail="`完成 ${total} 个数字，成绩已与当前尺寸的历史最佳比较。`"
-    action-label="再来一局"
-    @close="resetGame"
-  />
+    <GameResultDialog
+      :open="resultOpen"
+      :title="`${size} × ${size} 挑战完成`"
+      icon="格"
+      :stats="resultStats"
+      :detail="`完成 ${total} 个数字，成绩已与当前尺寸的历史最佳比较。`"
+      action-label="再来一局"
+      @close="resetGame"
+    />
+  </div>
 </template>

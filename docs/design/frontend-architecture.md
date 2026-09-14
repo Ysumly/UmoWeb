@@ -307,7 +307,7 @@ server: {
 搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 72 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
 Markdown front matter 导入、书库后代参数、游戏规则与旧成绩、Markdown 原始 HTML、
-危险 URL 协议和图片 alt 转义；Playwright 另含 38 个 functional 和 24 个视觉检查。
+危险 URL 协议和图片 alt 转义；Playwright 另含 39 个 functional 和 24 个视觉检查。
 书库选择分类时 URL 使用
 `category=<id>&includeDescendants=true`，显式 `false` 仍可请求精确匹配。
 

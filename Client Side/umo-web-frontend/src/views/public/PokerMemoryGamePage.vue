@@ -195,7 +195,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <GameShell
+  <div class="game-route">
+    <GameShell
     eyebrow="Poker Memory"
     title="扑克牌记忆训练"
     subtitle="观察牌面三秒，牌背朝上后回答目标牌的位置。"
@@ -270,15 +271,16 @@ onBeforeUnmount(() => {
         开始记忆
       </button>
     </div>
-  </GameShell>
+    </GameShell>
 
-  <GameResultDialog
-    :open="resultOpen"
-    title="扑克牌记忆结束"
-    icon="牌"
-    :stats="resultStats"
-    :detail="resultIsNew ? '本次刷新了本地最佳记忆广度。' : '成绩只保存在当前浏览器。'"
-    action-label="再来一局"
-    @close="resetGame"
-  />
+    <GameResultDialog
+      :open="resultOpen"
+      title="扑克牌记忆结束"
+      icon="牌"
+      :stats="resultStats"
+      :detail="resultIsNew ? '本次刷新了本地最佳记忆广度。' : '成绩只保存在当前浏览器。'"
+      action-label="再来一局"
+      @close="resetGame"
+    />
+  </div>
 </template>

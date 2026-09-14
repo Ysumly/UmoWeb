@@ -29,7 +29,8 @@
 | 验证 | 结果 |
 |---|---|
 | 前端 Node 测试 | 72 tests / 0 failures |
-| Windows Playwright | 62 passed（38 functional + 24 visual） |
+| Windows Playwright | 63 passed（39 functional + 24 visual） |
+| 转场回归 | 四款游戏从游戏页返回游戏中心均正常挂载主体 |
 | 核心游戏流程 | 四款开始、作答、正确/错误、重开、成绩保存与刷新恢复通过 |
 | 旧成绩兼容 | 三组旧键结构读取和错误数据降级通过 |
 | 响应式场景 | 5 种视口、10×10 网格、10 位数字、10 张牌无页面横向溢出 |
