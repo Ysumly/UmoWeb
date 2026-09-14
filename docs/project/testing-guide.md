@@ -224,7 +224,7 @@ Linux 工作流不会自动提交或推送文件。浏览器或 Playwright 升�
 npm run test:all
 ```
 
-视觉基线位于 `e2e/visual.spec.js-snapshots/`，当前目标包含 24 张 `win32` 和 24 张 `linux`
+视觉基线位于 `e2e/visual.spec.js-snapshots/`，当前包含 24 张 `win32` 和 24 张 `linux`
 文件。平台后缀由 Playwright 自动选择，不互相覆盖。
 
 游戏专项验证：

@@ -502,7 +502,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
 - Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；
   Windows 默认 Chrome channel，Linux CI 使用锁定 Playwright 版本的 Chromium。
-- 仓库目标分别保存 24 张 `win32` 和 24 张 `linux` 视觉快照；Linux 快照通过手动
+- 仓库分别保存 24 张 `win32` 和 24 张 `linux` 视觉快照；Linux 快照通过手动
   `Playwright Linux Baselines` 工作流生成 artifact 后人工审查提交，不会自动写回仓库。
 - `scripts/ci/scan-sensitive-info.sh` 扫描全部已跟踪文件，覆盖公开 IPv4、ECS 实例 ID、AccessKey、
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。
