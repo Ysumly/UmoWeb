@@ -23,6 +23,7 @@ const wrongNumber = ref(null)
 const resultOpen = ref(false)
 const records = ref({})
 const reducedMotion = ref(false)
+const clickCount = ref(0)
 
 let animationFrameId = null
 let wrongTimer = null
@@ -33,7 +34,7 @@ const currentBest = computed(() => records.value[String(size.value)] ?? null)
 const resultStats = computed(() => [
   { label: '用时', value: formatGameDuration(elapsed.value), tone: 'accent' },
   { label: '最佳成绩', value: formatGameDuration(currentBest.value) },
-  { label: '点击次数', value: nextNumber.value - 1 },
+  { label: '点击次数', value: clickCount.value },
 ])
 const gridStyle = computed(() => ({
   '--schulte-size': size.value,
@@ -77,6 +78,7 @@ function startGame() {
   }
   shuffleBoard()
   running.value = true
+  clickCount.value = 0
   startTime = performance.now()
   animationFrameId = requestAnimationFrame(tick)
 }
@@ -94,6 +96,7 @@ function handleNumber(number) {
     return
   }
 
+  clickCount.value += 1
   const result = getSchulteClickResult(number, nextNumber.value)
   if (result === 'ignored') {
     return
@@ -136,6 +139,7 @@ function finish() {
 function resetGame() {
   running.value = false
   resultOpen.value = false
+  clickCount.value = 0
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId)
     animationFrameId = null
