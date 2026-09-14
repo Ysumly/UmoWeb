@@ -167,16 +167,16 @@ npm run test:e2e
 - 前端 72 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、
   API 错误解析、日期格式、书库后代参数和 Markdown 安全。
-- Playwright 64 个浏览器检查，其中 40 个 functional 用例覆盖公开端、隐私说明、在线编辑器、
+- Playwright 69 个浏览器检查，其中 41 个 functional 用例覆盖公开端、隐私说明、在线编辑器、
   四款游戏（含高密度网格、长数字、10 张牌、旧成绩和响应式场景）和管理端核心流程，
-  24 个视觉断言覆盖 12 个核心页面状态的桌面与 390px 基线。
+  28 个视觉断言覆盖 14 个核心页面状态的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
   MySQL 副本、`api-smoke.py`/`api-smoke.ps1` 和第 2.8 节的 CI 集成 job 验证。
 
 2026-09-14 已验证：
 
-- Windows 本机 Chrome 当前运行 64 个 Playwright 检查，24 张 `win32` 视觉快照通过。
-- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 64 个检查，
+- Windows 本机 Chrome 当前运行 69 个 Playwright 检查，28 张 `win32` 视觉快照通过。
+- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 69 个检查，
   通过独立的 `linux` 视觉快照验证。
 - `browser` job 失败时会保留 Playwright HTML 报告、trace 和失败截图 artifact。
 
@@ -199,7 +199,7 @@ npm run test:e2e
    Chromium；可通过 `PLAYWRIGHT_CHANNEL` 显式覆盖。
 4. 浏览器级路由拦截 `/api/**`，每个测试使用独立的状态化 Mock API。
 5. functional 项目覆盖公开阅读、在线编辑器、管理端认证、Markdown 导入与 CRUD，以及 390px 布局。
-6. visual-desktop 和 visual-mobile 项目比较 24 张页面截图。
+6. visual-desktop 和 visual-mobile 项目比较 28 张页面截图。
 
 更新 Windows 视觉基线：
 
@@ -212,7 +212,7 @@ npm run test:e2e:update
 1. 在 GitHub Actions 手动运行 `Playwright Linux Baselines` 工作流。
 2. 工作流执行 `npm run test:e2e:update`，只上传 `playwright-linux-visual-baselines` artifact。
 3. 使用 `gh run download <run-id> --name playwright-linux-visual-baselines --dir <临时目录>`
-   下载 artifact，人工审查 24 张 `*-linux.png`，确认页面布局差异符合预期。
+   下载 artifact，人工审查 28 张 `*-linux.png`，确认页面布局差异符合预期。
 4. 将快照提交到 `e2e/visual.spec.js-snapshots/`，随后运行常规 CI 连续验证两次。
 
 Linux 工作流不会自动提交或推送文件。浏览器或 Playwright 升级后必须走同一流程，
@@ -224,7 +224,7 @@ Linux 工作流不会自动提交或推送文件。浏览器或 Playwright 升�
 npm run test:all
 ```
 
-视觉基线位于 `e2e/visual.spec.js-snapshots/`，当前包含 24 张 `win32` 和 24 张 `linux`
+视觉基线位于 `e2e/visual.spec.js-snapshots/`，当前包含 28 张 `win32` 和 28 张 `linux`
 文件。平台后缀由 Playwright 自动选择，不互相覆盖。
 
 游戏专项验证：

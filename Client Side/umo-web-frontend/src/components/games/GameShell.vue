@@ -22,8 +22,10 @@ defineProps({
 <template>
   <div class="game-page">
     <header class="game-heading">
-      <router-link class="game-back" to="/games">返回游戏中心</router-link>
-      <span class="editorial-eyebrow">{{ eyebrow }}</span>
+      <div class="game-heading__top">
+        <span class="editorial-eyebrow">{{ eyebrow }}</span>
+        <router-link class="game-back" to="/games">返回游戏中心</router-link>
+      </div>
       <h1>{{ title }}</h1>
       <p v-if="subtitle">{{ subtitle }}</p>
     </header>

@@ -83,7 +83,7 @@ UmoWeb/
 | 触发 | `pull_request` 和 `master` push |
 | 运行环境 | Ubuntu、Temurin Java 17、Node 24.12.0 |
 | 检查 | 后端 Maven 测试、MySQL 8.4 Schema/种子/迁移与接口冒烟、前端 Node 测试、前端构建、Linux Playwright、diff 检查和敏感信息扫描 |
-| 视觉基线 | 24 张 Windows Chrome 与 24 张 Linux Chromium 独立 PNG |
+| 视觉基线 | 28 张 Windows Chrome 与 28 张 Linux Chromium 独立 PNG |
 | 权限 | `contents: read`，不配置仓库 Secret |
 | 合并门禁 | 当前私有仓库计划不支持分支保护或规则集，失败结果不能强制阻止合并 |
 
@@ -495,14 +495,14 @@ Spring Multipart 限制单文件和请求均为 50MB。
   管理端文章/分类/标签/图片/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、
   Markdown front matter 导入、日期格式、书库后代参数、Markdown 原始 HTML、危险 URL
   协议和图片 alt 转义。
-- Playwright 每个平台运行 64 个浏览器检查：40 个 functional 用例覆盖公开端、正文摘要、
+- Playwright 每个平台运行 69 个浏览器检查：41 个 functional 用例覆盖公开端、正文摘要、
   隐私说明、在线编辑器、四款游戏的高密度/长序列/旧成绩兼容和管理端核心流程；
-  24 个视觉断言覆盖 12 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+  28 个视觉断言覆盖 14 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
 - Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；
   Windows 默认 Chrome channel，Linux CI 使用锁定 Playwright 版本的 Chromium。
-- 仓库分别保存 24 张 `win32` 和 24 张 `linux` 视觉快照；Linux 快照通过手动
+- 仓库分别保存 28 张 `win32` 和 28 张 `linux` 视觉快照；Linux 快照通过手动
   `Playwright Linux Baselines` 工作流生成 artifact 后人工审查提交，不会自动写回仓库。
 - `scripts/ci/scan-sensitive-info.sh` 扫描全部已跟踪文件，覆盖公开 IPv4、ECS 实例 ID、AccessKey、
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。

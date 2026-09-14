@@ -465,6 +465,14 @@ svg {
   box-shadow: 8px 10px 0 color-mix(in srgb, var(--gold) 55%, transparent);
 }
 
+:root[data-theme="dark"] .button--primary {
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
+}
+
+:root[data-theme="dark"] .button--primary:hover {
+  box-shadow: 0 11px 28px rgba(0, 0, 0, 0.42);
+}
+
 .button--outline {
   border-color: var(--line-strong);
   background: var(--surface-soft);

@@ -31,7 +31,6 @@ const resultOpen = ref(false)
 const inputRef = ref(null)
 
 let hideTimer = null
-let feedbackTimer = null
 
 const roundProgress = computed(() => correctCount.value + wrongCount.value)
 const rating = computed(() => getDigitSpanRating(maxSpan.value))
@@ -46,7 +45,6 @@ const resultDetail = computed(() => (
 
 function clearTimers() {
   window.clearTimeout(hideTimer)
-  window.clearTimeout(feedbackTimer)
 }
 
 function setFeedback(message, tone = '') {
@@ -104,8 +102,6 @@ function submitAnswer() {
   }
 
   phase.value = 'feedback'
-  window.clearTimeout(feedbackTimer)
-  feedbackTimer = window.setTimeout(proceedRound, isCorrect ? 500 : 1000)
 }
 
 function proceedRound() {
@@ -172,7 +168,6 @@ function skipFeedback() {
   if (phase.value !== 'feedback') {
     return
   }
-  window.clearTimeout(feedbackTimer)
   proceedRound()
 }
 
@@ -204,7 +199,7 @@ onBeforeUnmount(() => {
     eyebrow="Reverse Digit Span"
     title="倒背数字训练"
     subtitle="记住数字并按相反顺序输入，每级三题答对两题即可升级。"
-    note="空格显示数字，Enter 提交答案；反馈阶段可用 Enter 或空格跳过等待。"
+    note="空格显示数字，Enter 提交答案；反馈会保留到你确认后再进入下一题。"
   >
     <div class="game-stats">
       <div>
@@ -265,8 +260,13 @@ onBeforeUnmount(() => {
       <button class="button button--primary" type="button" :disabled="phase !== 'idle'" @click="showDigits">
         显示数字
       </button>
-      <button class="button button--primary" type="button" :disabled="phase !== 'input'" @click="submitAnswer">
-        确认
+      <button
+        class="button button--primary"
+        type="button"
+        :disabled="phase !== 'input' && phase !== 'feedback'"
+        @click="phase === 'feedback' ? skipFeedback() : submitAnswer()"
+      >
+        {{ phase === 'feedback' ? '继续' : '确认' }}
       </button>
     </div>
     </GameShell>
