@@ -43,6 +43,43 @@ test('游戏页面返回游戏中心不会卡在路由转场', async ({ page, ap
   await expect(page.getByRole('link', { name: /Stroop 色词测试/ })).toBeVisible()
 })
 
+test('舒尔特标题层级、操作按钮和数字保持清晰分工', async ({ page, apiMock }) => {
+  void apiMock
+  await page.goto('/games/schulte')
+
+  const back = await page.getByRole('link', { name: '返回游戏中心' }).boundingBox()
+  const eyebrow = await page.locator('.game-heading .editorial-eyebrow').boundingBox()
+  expect(back.y + back.height).toBeLessThanOrEqual(eyebrow.y)
+
+  const reset = page.getByRole('button', { name: '重新洗牌' })
+  const start = page.getByRole('button', { name: '开始挑战' })
+  const resetBox = await reset.boundingBox()
+  const startBox = await start.boundingBox()
+  expect(Math.abs(resetBox.height - startBox.height)).toBeLessThanOrEqual(1)
+
+  const buttonStyles = await page.evaluate(() => {
+    const read = (label) => {
+      const button = [...document.querySelectorAll('.game-actions button')]
+        .find((item) => item.textContent.trim() === label)
+      const style = getComputedStyle(button)
+      return {
+        background: style.backgroundColor,
+        border: style.borderColor,
+        radius: style.borderRadius,
+      }
+    }
+    return { reset: read('重新洗牌'), start: read('开始挑战') }
+  })
+  expect(buttonStyles.reset.radius).toBe(buttonStyles.start.radius)
+  expect(buttonStyles.reset.background).not.toBe(buttonStyles.start.background)
+  expect(buttonStyles.reset.border).not.toBe(buttonStyles.start.border)
+
+  const numberSize = await page.locator('.schulte-grid button').first().evaluate((element) => {
+    return Number.parseFloat(getComputedStyle(element).fontSize)
+  })
+  expect(numberSize).toBeGreaterThanOrEqual(18)
+})
+
 test('Stroop 完成 84 试次并保存正确率与反应时', async ({ page, apiMock }) => {
   void apiMock
   await useDeterministicRandom(page)
@@ -174,6 +211,12 @@ test('高密度与长序列状态在窄屏和横屏不溢出', async ({ page, ap
   await page.getByRole('button', { name: '10 × 10' }).click()
   await expect(page.locator('.schulte-grid button')).toHaveCount(100)
   await expectNoHorizontalOverflow(page)
+  const hasCellOverflow = await page.locator('.schulte-grid button').evaluateAll((cells) => {
+    return cells.some((cell) => (
+      cell.scrollWidth > cell.clientWidth || cell.scrollHeight > cell.clientHeight
+    ))
+  })
+  expect(hasCellOverflow).toBe(false)
 
   await page.setViewportSize({ width: 844, height: 390 })
   await page.goto('/games/digit-span')

@@ -266,7 +266,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="game-actions">
-      <button class="button button--quiet" type="button" @click="resetGame">重新开始</button>
+      <button class="button button--outline" type="button" @click="resetGame">重新开始</button>
       <button class="button button--primary" type="button" :disabled="phase !== 'idle'" @click="startMemorize">
         开始记忆
       </button>
