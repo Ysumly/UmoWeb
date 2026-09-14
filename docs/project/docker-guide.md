@@ -216,7 +216,8 @@ umoweb-backup-<UTC时间>-<commit>.tar.gz.sha256
 归档包含 MySQL 逻辑 dump、`app_data` 压缩包、逐文件 SHA-256 清单和数据库版本/表行数等元数据。
 默认保留最多 6 份，且总大小不超过 8GiB；容量达到任一上限时从最旧完整备份开始清理。
 元数据同时保存前后端和 helper 镜像 ID；非 Git 部署可在 `/etc/umoweb/backup.env` 中显式设置
-`GIT_COMMIT`，避免归档标识继续使用 `unknown`。
+`GIT_COMMIT`，避免归档标识继续使用 `unknown`。前后端镜像标签以当前 `.env.docker` 为准，
+不再固定依赖 `:latest` 标签；发布入口会同步备份脚本并刷新 timer 配置。
 
 ### 8.2 手动校验与导出
 
@@ -272,7 +273,7 @@ python scripts/content-import/build_content_backup.py `
 ```
 
 候选包先通过现有 `restore-backup.sh` 在 `umoweb-restore-*` 项目恢复，并执行
-`Server Side/UmoWebBackend/scripts/api-smoke.py`。只有 27/27 通过后，才允许使用提升脚本：
+`Server Side/UmoWebBackend/scripts/api-smoke.py`。只有 29/29 通过后，才允许使用提升脚本：
 
 ```bash
 /opt/umoweb/scripts/content-import/promote-content-backup.sh \
@@ -280,7 +281,7 @@ python scripts/content-import/build_content_backup.py `
 ```
 
 提升脚本会先创建生产备份，替换正式数据库与 `app_data`，轮换 MySQL/JWT/管理员凭据，最后再次
-执行 27/27。归档和 `.env.docker` 始终不进入仓库。
+执行 29/29。归档和 `.env.docker` 始终不进入仓库。
 
 ## 9. 本地版本化镜像发布与回滚
 

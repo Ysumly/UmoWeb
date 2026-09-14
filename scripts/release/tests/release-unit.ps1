@@ -388,6 +388,12 @@ exit 1
                 -Condition ($uploadLog -match [regex]::Escape($migration)) `
                 -Message "Verify entry point did not upload $migration"
         }
+        Assert-True `
+            -Condition ($uploadLog -match "scripts/backup/lib/common\.sh") `
+            -Message "Verify entry point did not upload the backup common library"
+        Assert-True `
+            -Condition ($uploadLog -match "install-backup-timer\.sh") `
+            -Message "Verify entry point did not upload the backup timer installer"
 
         $captureArchive = Join-Path $tempRoot "umoweb-images-baseline-test.tar"
         [System.IO.File]::WriteAllBytes($captureArchive, [byte[]](1..100))

@@ -465,6 +465,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `scripts/backup/` 提供 Bash 备份、校验、导出、隔离恢复、清理和 systemd 安装入口。
 - 备份时短暂停止 `frontend` 和 `backend`，通过 trap 恢复服务；MySQL 使用逻辑 dump，
   `app_data` 保存为压缩包并附带逐文件 SHA-256 清单。
+- 备份脚本从 `.env.docker` 读取当前前后端版本标签，不再固定使用可能已被发布流程清理的
+  `:latest` 镜像；发布入口同步备份控制文件并刷新 timer。
 - Compose 后端和前端显式使用 `BACKEND_IMAGE`、`FRONTEND_IMAGE`，隔离项目无需重新构建镜像。
 - 恢复项目只允许 `umoweb-restore-*`，使用独立卷、网络和回环端口，不覆盖生产 `umoweb`。
 - 恢复数据库后自动补跑兼容迁移，并校验包含 `image_cleanup_queue` 在内的当前表行数。
