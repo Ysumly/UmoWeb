@@ -101,9 +101,9 @@ bash scripts/ci/scan-sensitive-info.sh
 ### 文档
 
 - 搜索旧版本号、错误的响应包装和“已实现”措辞。
-- 所有 API 数量应保持：公开 8、管理 19、总计 27。
+- 所有 API 数量应保持：公开 8、管理 21、总计 29。
 - 所有新建接口状态应为 200。
-- 搜索应描述为 title/summary，不是全文/Markdown。
+- 搜索应描述为标题、摘要和 Markdown 正文全文；正文使用 MySQL ngram 索引。
 
 ---
 

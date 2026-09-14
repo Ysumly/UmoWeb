@@ -183,6 +183,17 @@ function enrichContent(content, state) {
   }
 }
 
+function enrichSearchContent(content, state, query) {
+  const item = enrichContent(content, state)
+  if (query && String(content.body || '').toLowerCase().includes(query)) {
+    item.excerpt = String(content.body)
+      .replace(/[#*`]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+  return item
+}
+
 function sortContents(contents, sort) {
   return [...contents].sort((left, right) => {
     if (sort === 'created_at_desc') {
@@ -257,6 +268,7 @@ function filterContents(contents, searchParams, publishedOnly, categories) {
       query
       && !content.title.toLowerCase().includes(query)
       && !content.summary.toLowerCase().includes(query)
+      && !String(content.body || '').toLowerCase().includes(query)
     ) {
       return false
     }
@@ -326,7 +338,9 @@ async function handlePublicApi(route, state, pathname, searchParams) {
     const page = paginate(sortContents(matches, 'published_at_desc'), searchParams)
     return json(route, {
       ...page,
-      items: page.items.map((content) => enrichContent(content, state)),
+      items: page.items.map((content) => (
+        enrichSearchContent(content, state, String(searchParams.get('q') || '').trim().toLowerCase())
+      )),
     })
   }
   if (pathname === '/api/public/contents') {

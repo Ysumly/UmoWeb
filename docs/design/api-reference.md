@@ -264,14 +264,15 @@ GET /api/public/contents/search?q=Spring&page=1&size=10
 
 | 参数 | 类型 | 默认值 | 实际行为 |
 |---|---|---|---|
-| `q` | string | `""` | 匹配 `title LIKE` 或 `summary LIKE` |
+| `q` | string | `""` | 正文全文匹配，或 `title` / `summary` 子串匹配 |
 | `page` | int | 1 | 1-1000000 |
 | `size` | int | 10 | 1 到 100 |
 
 说明：
 
-- 不搜索 Markdown 正文。
-- 无 `q` 时 SQL 使用 `LIKE '%%'`，因此返回全部已发布内容。
+- Markdown 正文使用 MySQL 8.4 `FULLTEXT ... WITH PARSER ngram` 索引。
+- 无 `q` 时返回全部已发布内容，不生成 `excerpt`。
+- 正文命中时列表项包含可选 `excerpt`；否则回退摘要或正文开头。
 - 同 IP 10 秒内只允许一次请求，重复请求返回 429。
 
 错误示例：

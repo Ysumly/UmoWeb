@@ -14,6 +14,7 @@ import com.ysumly.umowebbackend.model.entity.Content;
 import com.ysumly.umowebbackend.model.vo.ContentDetailVO;
 import com.ysumly.umowebbackend.model.vo.ContentListVO;
 import com.ysumly.umowebbackend.service.CategoryHierarchyResolver;
+import com.ysumly.umowebbackend.service.ContentSearchIndexService;
 import com.ysumly.umowebbackend.service.ContentVOMapper;
 import com.ysumly.umowebbackend.service.admin.ContentManageService;
 import org.slf4j.Logger;
@@ -41,6 +42,7 @@ public class ContentManageServiceImpl implements ContentManageService {
     private final FileUtil fileUtil;
     private final ContentVOMapper voMapper;
     private final CategoryHierarchyResolver categoryHierarchyResolver;
+    private final ContentSearchIndexService searchIndexService;
 
     public ContentManageServiceImpl(ContentMapper contentMapper,
                                     ContentCategoryMapper contentCategoryMapper,
@@ -49,7 +51,8 @@ public class ContentManageServiceImpl implements ContentManageService {
                                     TagMapper tagMapper,
                                     FileUtil fileUtil,
                                     ContentVOMapper voMapper,
-                                    CategoryHierarchyResolver categoryHierarchyResolver) {
+                                    CategoryHierarchyResolver categoryHierarchyResolver,
+                                    ContentSearchIndexService searchIndexService) {
         this.contentMapper = contentMapper;
         this.contentCategoryMapper = contentCategoryMapper;
         this.contentTagMapper = contentTagMapper;
@@ -58,6 +61,7 @@ public class ContentManageServiceImpl implements ContentManageService {
         this.fileUtil = fileUtil;
         this.voMapper = voMapper;
         this.categoryHierarchyResolver = categoryHierarchyResolver;
+        this.searchIndexService = searchIndexService;
     }
 
     @Override
@@ -94,7 +98,8 @@ public class ContentManageServiceImpl implements ContentManageService {
         String temporaryPath = null;
         AtomicBoolean promoted = new AtomicBoolean(false);
         try {
-            temporaryPath = fileUtil.writeTemporaryMarkdown(bodyPath, body(request));
+            String markdownBody = body(request);
+            temporaryPath = fileUtil.writeTemporaryMarkdown(bodyPath, markdownBody);
             registerCreateRollbackCleanup(temporaryPath, bodyPath, promoted);
 
             Content content = new Content();
@@ -110,6 +115,7 @@ public class ContentManageServiceImpl implements ContentManageService {
             }
             contentMapper.insert(content);
             saveAssociations(content.getId(), request.getCategoryIds(), request.getTagIds());
+            searchIndexService.sync(content, markdownBody);
 
             fileUtil.promoteTemporaryMarkdown(temporaryPath, bodyPath, false);
             promoted.set(true);
@@ -153,7 +159,8 @@ public class ContentManageServiceImpl implements ContentManageService {
         AtomicBoolean promoted = new AtomicBoolean(false);
         try {
             backupPath = pathChanged ? null : fileUtil.copyToTemporaryMarkdown(old.getBodyPath());
-            temporaryPath = fileUtil.writeTemporaryMarkdown(newBodyPath, body(request));
+            String markdownBody = body(request);
+            temporaryPath = fileUtil.writeTemporaryMarkdown(newBodyPath, markdownBody);
             registerUpdateRollbackCleanup(
                     old.getBodyPath(), newBodyPath, temporaryPath, backupPath, promoted, pathChanged);
 
@@ -176,6 +183,7 @@ public class ContentManageServiceImpl implements ContentManageService {
             contentCategoryMapper.deleteByContentId(id);
             contentTagMapper.deleteByContentId(id);
             saveAssociations(id, request.getCategoryIds(), request.getTagIds());
+            searchIndexService.sync(old, markdownBody);
 
             // DB 写入成功后，替换最终文件。
             fileUtil.promoteTemporaryMarkdown(temporaryPath, newBodyPath, true);

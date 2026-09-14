@@ -49,7 +49,7 @@ const tags = computed(() => props.content.tags || [])
       {{ content.title }}
     </h3>
 
-    <p class="content-card__summary">{{ content.summary }}</p>
+    <p class="content-card__summary">{{ content.excerpt || content.summary }}</p>
 
     <div class="content-card__footer">
       <div class="content-card__tags">

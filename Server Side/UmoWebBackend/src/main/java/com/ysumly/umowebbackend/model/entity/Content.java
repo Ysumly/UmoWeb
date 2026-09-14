@@ -16,4 +16,5 @@ public class Content {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime publishedAt;
+    private String searchBody;
 }

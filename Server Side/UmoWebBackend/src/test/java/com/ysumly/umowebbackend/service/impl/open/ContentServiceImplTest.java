@@ -13,6 +13,7 @@ import com.ysumly.umowebbackend.model.entity.Content;
 import com.ysumly.umowebbackend.model.entity.Tag;
 import com.ysumly.umowebbackend.model.dto.ContentQuery;
 import com.ysumly.umowebbackend.service.CategoryHierarchyResolver;
+import com.ysumly.umowebbackend.service.SearchExcerptService;
 import com.ysumly.umowebbackend.service.ContentVOMapper;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
@@ -33,6 +34,7 @@ class ContentServiceImplTest {
     private final FileUtil fileUtil = mock(FileUtil.class);
     private final CategoryHierarchyResolver categoryHierarchyResolver =
             mock(CategoryHierarchyResolver.class);
+    private final SearchExcerptService searchExcerptService = mock(SearchExcerptService.class);
 
     @Test
     void publicDetailIncludesCategoriesAndTags() throws Exception {
@@ -80,7 +82,8 @@ class ContentServiceImplTest {
                 contentMapper,
                 fileUtil,
                 voMapper,
-                categoryHierarchyResolver);
+                categoryHierarchyResolver,
+                searchExcerptService);
 
         var detail = service.getBySlug("article");
 
@@ -168,7 +171,42 @@ class ContentServiceImplTest {
                 contentMapper,
                 fileUtil,
                 voMapper,
-                categoryHierarchyResolver);
+                categoryHierarchyResolver,
+                searchExcerptService);
+    }
+
+    @Test
+    void searchAddsExcerptFromBodyMatch() {
+        Content content = content(1L, "searchable", LocalDateTime.of(2026, 6, 20, 10, 0));
+        content.setSummary("普通摘要");
+        content.setSearchBody("正文中的检索词附近内容");
+        ContentQuery query = new ContentQuery();
+        query.setQ("检索词");
+        when(contentMapper.search("检索词", 0, 10)).thenReturn(List.of(content));
+        when(contentMapper.countSearch("检索词")).thenReturn(1L);
+        when(searchExcerptService.build("正文中的检索词附近内容", "检索词", "普通摘要"))
+                .thenReturn("正文中的检索词附近内容");
+
+        var result = service().search(query);
+
+        assertThat(result.getItems()).singleElement()
+                .extracting("excerpt")
+                .isEqualTo("正文中的检索词附近内容");
+    }
+
+    @Test
+    void emptySearchPreservesListingWithoutBuildingExcerpt() {
+        Content content = content(1L, "all-content", LocalDateTime.of(2026, 6, 20, 10, 0));
+        ContentQuery query = new ContentQuery();
+        when(contentMapper.search("", 0, 10)).thenReturn(List.of(content));
+        when(contentMapper.countSearch("")).thenReturn(1L);
+
+        var result = service().search(query);
+
+        assertThat(result.getItems()).singleElement()
+                .extracting("excerpt")
+                .isNull();
+        verifyNoInteractions(searchExcerptService);
     }
 
     private Content content(Long id, String slug, LocalDateTime publishedAt) {

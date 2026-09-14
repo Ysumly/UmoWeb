@@ -58,7 +58,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；114 个测试（4 个 MySQL 环境门控） |
+| 测试 | Spring Boot Test、Mockito、MockMvc；128 个测试（7 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -110,6 +110,14 @@ mvn test
 若机器级 Maven `settings.xml` 的仓库路径不可写，应通过 `-gs` 和 `-s` 指向隔离的临时 settings 文件运行 Maven，不要修改系统安装目录。
 
 说明：项目自带 `mvnw.cmd`，但在当前 Windows/PowerShell 环境中曾因 wrapper 脚本执行失败；系统 Maven 可用。2026-09-12 使用项目内 `.m2/repository` 隔离仓库执行 `mvn test`，83 个测试全部通过。
+
+回填全文索引：
+
+```bash
+cd "Server Side/UmoWebBackend"
+mvn -DskipTests package
+bash ../../scripts/search/rebuild-content-search.sh
+```
 
 真实接口冒烟：
 
@@ -260,7 +268,8 @@ HTTP 状态与返回：
 - `tagId` 精确匹配标签。
 - 分类后代由 `CategoryHierarchyResolver` 展开；命中范围内循环或超过 32 层返回 409，
   分类不存在仍返回空结果。排序在时间字段后使用 `id DESC` 稳定次序。
-- 搜索 SQL 为 `title LIKE` 或 `summary LIKE`，不检索 Markdown 正文。
+- 搜索正文使用 `content_search` 的 MySQL 8.4 `ngram` FULLTEXT 索引，标题和摘要继续使用
+  `LIKE` 子串匹配；正文命中时返回可选 `excerpt`。
 - `q` 为空或未传时，搜索等价于匹配全部已发布内容。
 - 搜索同 IP 10 秒内只允许一次；仅信任显式配置的代理，记录定期清理。
 - 公开文章列表和详情都组装 `categories` 和 `tags`，使用共享 `ContentVOMapper` 按 contentIds 批量查询。
@@ -312,7 +321,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 
 ## 5. 数据库基线
 
-实际 DDL 定义 9 张表：
+实际 DDL 定义 10 张表：
 
 | 表 | 用途 |
 |---|---|
@@ -324,6 +333,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | `content_tag` | 内容与标签关联 |
 | `images` | 图片元信息 |
 | `image_cleanup_queue` | 图片文件待清理与重试队列 |
+| `content_search` | 已发布 Markdown 正文全文索引 |
 | `site_options` | 站点 KV 配置 |
 
 当前 SQL 含必要索引和外键：
@@ -332,6 +342,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `categories.parent_id` 使用自引用 `RESTRICT`。
 - 旧库通过 `docs/design/migrations/20260911_integrity_security.sql` 兼容迁移。
 - 图片清理队列通过 `docs/design/migrations/20260913_image_cleanup_queue.sql` 幂等迁移。
+- 正文索引通过 `docs/design/migrations/20260913_content_search.sql` 幂等迁移。
 
 ---
 
@@ -370,6 +381,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
   两篇导航索引不进入公开文章，About/Project 使用正式配置。
 - 亮暗双主题，主题值写入 `data-theme` 并持久化到 `localStorage`。
 - 基于服务端契约的书库筛选/分页、搜索 429 倒计时、Markdown 渲染和代码高亮。
+- 搜索覆盖标题、摘要和 Markdown 正文；正文命中时结果卡片展示 `excerpt`。
 - 404 页面采用公开端视觉布局。
 - 公开端已有 8 个业务路由：首页、书库、搜索、文章详情、About、Project、在线编辑器、
   隐私说明；另有 404 回退。
@@ -377,6 +389,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
   展开全部后代；书库分类入口默认启用该行为，真实 MySQL 集成测试覆盖根/子/孙和循环拒绝。
 - 2026-09-13 已完成 Task 3.3：图片列表与删除、全部文章和固定页引用扫描、持久化文件
   清理队列及管理端图片管理页。
+- 2026-09-13 已完成 Task 3.4：MySQL 8.4 ngram 正文索引、写入生命周期同步、可重复回填、
+  标题/摘要/正文统一搜索和正文命中摘要。
 
 ### 6.2 其他前端事实
 
@@ -466,13 +480,14 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 新增 Mapper XML 别名解析、`ClientIpResolver` 容器装配和 Jackson 3 自动配置回归测试。
 - `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，覆盖非法配置、可信代理链和未授权转发头。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
+- 新增正文索引 upsert/剔除、回填容错、摘要提取、正文命中搜索和空查询契约测试。
 - 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成 29/29 接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
 - PowerShell 与 Bash 发布脚本自测已纳入 `repository` CI job，覆盖 CI 选择、manifest、归档校验、
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
 - 内容导入器有 6 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、图片重写、内容去重、
   Linux 文件所有权和缺失素材阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 29 个接口。
 - 前端 62 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、管理端文章/分类/标签/图片/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、Markdown front matter 导入、日期格式、书库后代参数、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- Playwright 每个平台运行 42 个浏览器检查：28 个 functional 用例覆盖公开端、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入、图片管理删除保护、移动端图片布局与书库子分类筛选），14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+- Playwright 每个平台运行 42 个浏览器检查：28 个 functional 用例覆盖公开端、正文摘要、隐私说明、在线编辑器和管理端核心流程（含 Markdown 导入、图片管理删除保护、移动端图片布局与书库子分类筛选），14 个视觉断言覆盖 7 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
 - Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；
@@ -482,7 +497,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `scripts/ci/scan-sensitive-info.sh` 扫描全部已跟踪文件，覆盖公开 IPv4、ECS 实例 ID、AccessKey、
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。
 - GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、MySQL 8.4 集成、
-  前端测试、生产构建和 Linux Playwright；MySQL job 同时验证 Schema、种子、迁移和 29/29 冒烟。
+  前端测试、生产构建和 Linux Playwright；MySQL job 同时验证 Schema、种子、两次正文回填、
+  中文 ngram 查询和 29/29 冒烟。
 
 ### 7.2 当前代码风险
 
@@ -501,6 +517,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | 已修复 | CI 合并门禁 | 私有仓库当前计划不支持分支保护或规则集，CI 失败只能报告；本地发布入口已强制要求当前 commit 的成功 push CI，并完成真实发布/回滚演练。 |
 | 低 | 图片引用扫描 | 每次列表和删除请求读取全部文章正文；当前 28 篇规模可接受，内容量显著增长后应改为显式引用表。 |
 | 低 | 图片清理重试 | 清理队列只在启动和后续图片操作时重试；长期无图片操作时失败任务会等待下一次触发。 |
+| 低 | 正文索引 | 直接改动 Markdown 文件不会自动更新索引，需要执行可重复的回填脚本。 |
 | 低 | 爬虫控制 | `index.html` 有 `noindex`，但没有 `public/robots.txt`。 |
 
 ---

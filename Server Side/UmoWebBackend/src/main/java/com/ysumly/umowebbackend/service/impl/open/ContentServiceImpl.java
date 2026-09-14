@@ -11,6 +11,7 @@ import com.ysumly.umowebbackend.model.vo.ContentListVO;
 import com.ysumly.umowebbackend.model.vo.ContentNeighborVO;
 import com.ysumly.umowebbackend.service.CategoryHierarchyResolver;
 import com.ysumly.umowebbackend.service.ContentVOMapper;
+import com.ysumly.umowebbackend.service.SearchExcerptService;
 import com.ysumly.umowebbackend.service.open.ContentService;
 import org.springframework.stereotype.Service;
 
@@ -24,15 +25,18 @@ public class ContentServiceImpl implements ContentService {
     private final FileUtil fileUtil;
     private final ContentVOMapper voMapper;
     private final CategoryHierarchyResolver categoryHierarchyResolver;
+    private final SearchExcerptService searchExcerptService;
 
     public ContentServiceImpl(ContentMapper contentMapper,
                               FileUtil fileUtil,
                               ContentVOMapper voMapper,
-                              CategoryHierarchyResolver categoryHierarchyResolver) {
+                              CategoryHierarchyResolver categoryHierarchyResolver,
+                              SearchExcerptService searchExcerptService) {
         this.contentMapper = contentMapper;
         this.fileUtil = fileUtil;
         this.voMapper = voMapper;
         this.categoryHierarchyResolver = categoryHierarchyResolver;
+        this.searchExcerptService = searchExcerptService;
     }
 
     @Override
@@ -74,6 +78,15 @@ public class ContentServiceImpl implements ContentService {
         List<Content> contents = contentMapper.search(q, query.getOffset(), query.getSize());
         long total = contentMapper.countSearch(q);
         List<ContentListVO> items = assembleListVO(contents);
+        if (!q.isBlank()) {
+            for (int index = 0; index < contents.size(); index++) {
+                Content content = contents.get(index);
+                items.get(index).setExcerpt(searchExcerptService.build(
+                        content.getSearchBody(),
+                        q,
+                        content.getSummary()));
+            }
+        }
         return new PageResult<>(items, query.getPage(), query.getSize(), total);
     }
 
