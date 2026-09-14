@@ -129,45 +129,47 @@ onBeforeUnmount(() => {
     />
   </nav>
 
-  <button
-    v-if="hasOutline"
-    ref="triggerRef"
-    class="post-toc-trigger"
-    type="button"
-    :aria-expanded="mobileOpen"
-    aria-controls="mobile-article-outline"
-    :aria-label="mobileOpen ? '关闭文章目录' : '打开文章目录'"
-    @click="toggleMobile"
-  >
-    目录
-  </button>
-
-  <Transition name="toc-panel">
-    <section
-      v-if="hasOutline && mobileOpen"
-      id="mobile-article-outline"
-      ref="panelRef"
-      class="post-toc-panel"
-      role="dialog"
-      aria-modal="false"
-      aria-label="文章目录"
+  <Teleport to="body">
+    <button
+      v-if="hasOutline"
+      ref="triggerRef"
+      class="post-toc-trigger"
+      type="button"
+      :aria-expanded="mobileOpen"
+      aria-controls="mobile-article-outline"
+      :aria-label="mobileOpen ? '关闭文章目录' : '打开文章目录'"
+      @click="toggleMobile"
     >
-      <header class="post-toc-panel__header">
-        <strong>文章目录</strong>
-        <button
-          ref="closeButtonRef"
-          type="button"
-          aria-label="关闭文章目录"
-          @click="closeMobile()"
-        >
-          <span aria-hidden="true" />
-        </button>
-      </header>
-      <ArticleOutlineList
-        :rows="visibleRows"
-        @select="selectRow"
-        @toggle="toggleBranch"
-      />
-    </section>
-  </Transition>
+      目录
+    </button>
+
+    <Transition name="toc-panel">
+      <section
+        v-if="hasOutline && mobileOpen"
+        id="mobile-article-outline"
+        ref="panelRef"
+        class="post-toc-panel"
+        role="dialog"
+        aria-modal="false"
+        aria-label="文章目录"
+      >
+        <header class="post-toc-panel__header">
+          <strong>文章目录</strong>
+          <button
+            ref="closeButtonRef"
+            type="button"
+            aria-label="关闭文章目录"
+            @click="closeMobile()"
+          >
+            <span aria-hidden="true" />
+          </button>
+        </header>
+        <ArticleOutlineList
+          :rows="visibleRows"
+          @select="selectRow"
+          @toggle="toggleBranch"
+        />
+      </section>
+    </Transition>
+  </Teleport>
 </template>
