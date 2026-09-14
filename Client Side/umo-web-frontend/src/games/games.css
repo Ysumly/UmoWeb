@@ -2,8 +2,9 @@
   --game-red: #b5343a;
   --game-blue: #3a5f8c;
   --game-green: #4a6b4a;
-  --game-ink: #2a1a0a;
+  --game-yellow: var(--gold);
   --game-black-key: #2a1a0a;
+  --game-black-outline: #c7b28d;
   --game-card-back: #3b2a1a;
   --game-card-back-ink: #f5f0e3;
 }
@@ -12,8 +13,8 @@
   --game-red: #d75c57;
   --game-blue: #6e92c0;
   --game-green: #7ea37e;
-  --game-ink: #efe2c9;
   --game-black-key: #343d37;
+  --game-black-outline: #526057;
   --game-card-back: #151b17;
   --game-card-back-ink: #ddd0b8;
 }
@@ -389,6 +390,11 @@
   transition: transform 100ms ease, filter 100ms ease;
 }
 
+.stroop-word.is-black {
+  -webkit-text-stroke: 2px var(--game-black-outline);
+  paint-order: stroke fill;
+}
+
 .stroop-word.is-correct {
   transform: scale(1.03);
   filter: drop-shadow(0 0 8px color-mix(in srgb, var(--secondary) 70%, transparent));
@@ -447,7 +453,7 @@
 }
 
 .stroop-color-button.is-yellow {
-  background: var(--gold);
+  background: var(--game-yellow);
   color: #2f2115;
 }
 

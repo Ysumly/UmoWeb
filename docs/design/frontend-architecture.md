@@ -274,7 +274,8 @@ token 来源和存储位置都是 `localStorage`。
 `GameResultDialog` 提供焦点、`aria-modal`、Escape 和结果结算；纯逻辑集中在
 `src/games/gameLogic.js`。
 
-Stroop 保留 84 试次和 25% 一致试次，使用 `stroop_84_parchment`；
+Stroop 保留 84 试次和 25% 一致试次，使用 `stroop_84_parchment`；五色文字直接使用对应
+按钮色，黑色刺激在亮暗主题分别使用略暗、略亮于背景的描边，并忽略键盘自动重复；
 倒背数字保留 4 位起步、每级三题答对两题升级，不保存成绩；扑克牌保留两张开局、
 三秒记忆和 `poker_memory_best_span`；舒尔特保留 3×3 至 10×10 和
 `schulte_parchment_best` 分尺寸最佳成绩。游戏路由即时进入，非规则反馈等待已压缩。
@@ -307,7 +308,7 @@ server: {
 搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 72 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
 Markdown front matter 导入、书库后代参数、游戏规则与旧成绩、Markdown 原始 HTML、
-危险 URL 协议和图片 alt 转义；Playwright 另含 41 个 functional 和 28 个视觉检查。
+危险 URL 协议和图片 alt 转义；Playwright 另含 43 个 functional 和 28 个视觉检查。
 书库选择分类时 URL 使用
 `category=<id>&includeDescendants=true`，显式 `false` 仍可请求精确匹配。
 

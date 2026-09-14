@@ -167,7 +167,7 @@ npm run test:e2e
 - 前端 72 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、
   API 错误解析、日期格式、书库后代参数和 Markdown 安全。
-- Playwright 69 个浏览器检查，其中 41 个 functional 用例覆盖公开端、隐私说明、在线编辑器、
+- Playwright 71 个浏览器检查，其中 43 个 functional 用例覆盖公开端、隐私说明、在线编辑器、
   四款游戏（含高密度网格、长数字、10 张牌、旧成绩和响应式场景）和管理端核心流程，
   28 个视觉断言覆盖 14 个核心页面状态的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
@@ -175,8 +175,8 @@ npm run test:e2e
 
 2026-09-14 已验证：
 
-- Windows 本机 Chrome 当前运行 69 个 Playwright 检查，28 张 `win32` 视觉快照通过。
-- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 69 个检查，
+- Windows 本机 Chrome 当前运行 71 个 Playwright 检查，28 张 `win32` 视觉快照通过。
+- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 71 个检查，
   通过独立的 `linux` 视觉快照验证。
 - `browser` job 失败时会保留 Playwright HTML 报告、trace 和失败截图 artifact。
 
@@ -231,6 +231,7 @@ npm run test:all
 
 - Node 测试覆盖试次生成、数字生成与倒序、升级阈值、牌组与目标选择、评级、格式化和三组旧存储。
 - Playwright 覆盖四款开始、作答、正确/错误、结果、重开和刷新恢复。
+- Stroop 额外覆盖五色与按钮同色、黑色刺激亮暗主题描边和键盘自动重复过滤。
 - 相同用例串行检查 320×568、390×844、844×390 横屏、768×1024 和 1440×900。
 - 高密度状态额外覆盖 10×10 舒尔特、10 位数字和 10 张牌。
 - 减少动态偏好下确认结果彩纸停用，规则计时不受影响。

@@ -13,6 +13,13 @@ async function useDeterministicRandom(page) {
   })
 }
 
+async function useStroopRandomSequence(page, values) {
+  await page.evaluate((sequence) => {
+    let index = 0
+    Math.random = () => sequence[Math.min(index++, sequence.length - 1)] ?? 0
+  }, values)
+}
+
 function relativeLuminance(color) {
   const channels = color.match(/\d+(?:\.\d+)?/g).slice(0, 3).map((value) => {
     const channel = Number(value) / 255
@@ -118,6 +125,79 @@ test('暗色主题下主按钮与 Stroop 黑色键保持清晰对比', async ({ 
     return { background: style.backgroundColor, foreground: style.color }
   })
   expect(contrastRatio(colors.foreground, colors.background)).toBeGreaterThanOrEqual(4.5)
+})
+
+test('Stroop 五色使用对应按钮色，黑色刺激在双主题下带描边', async ({ page, apiMock }) => {
+  void apiMock
+  const trials = [
+    { word: '红', buttonIndex: 0, random: [0, 0] },
+    { word: '蓝', buttonIndex: 1, random: [0.25, 0] },
+    { word: '绿', buttonIndex: 2, random: [0.45, 0] },
+    { word: '黄', buttonIndex: 3, random: [0.65, 0] },
+    { word: '黑', buttonIndex: 4, random: [0.85, 0] },
+  ]
+  const randomSequence = trials.flatMap((trial) => trial.random)
+
+  for (const theme of ['light', 'dark']) {
+    await page.goto('/games/stroop')
+    await page.evaluate((nextTheme) => {
+      if (nextTheme === 'dark') {
+        document.documentElement.dataset.theme = 'dark'
+      } else {
+        document.documentElement.removeAttribute('data-theme')
+      }
+    }, theme)
+    await useStroopRandomSequence(page, randomSequence)
+    await page.getByRole('button', { name: '开始挑战' }).click()
+
+    for (const trial of trials) {
+      const stimulus = page.locator('.stroop-word')
+      await expect(stimulus).toHaveText(trial.word)
+
+      const styles = await stimulus.evaluate((element, buttonIndex) => {
+        const wordStyle = getComputedStyle(element)
+        const buttonStyle = getComputedStyle(
+          document.querySelectorAll('.stroop-color-button')[buttonIndex],
+        )
+        return {
+          wordColor: wordStyle.color,
+          buttonColor: buttonStyle.backgroundColor,
+          strokeWidth: wordStyle.webkitTextStrokeWidth,
+          strokeColor: wordStyle.webkitTextStrokeColor,
+        }
+      }, trial.buttonIndex)
+
+      expect(styles.wordColor).toBe(styles.buttonColor)
+      if (trial.word === '黑') {
+        expect(Number.parseFloat(styles.strokeWidth)).toBeGreaterThan(0)
+        expect(styles.strokeColor).not.toBe('rgba(0, 0, 0, 0)')
+      }
+
+      await page.locator('.stroop-color-button').nth(trial.buttonIndex).click()
+    }
+  }
+})
+
+test('Stroop 忽略键盘自动重复，避免长按键连续消耗试次', async ({ page, apiMock }) => {
+  void apiMock
+  await useDeterministicRandom(page)
+  await page.goto('/games/stroop')
+  await page.getByRole('button', { name: '开始挑战' }).click()
+
+  await page.keyboard.press('1')
+  await expect(page.locator('.game-stats').getByText('1 / 84', { exact: true })).toBeVisible()
+
+  await page.evaluate(() => {
+    document.dispatchEvent(new KeyboardEvent('keydown', {
+      key: '1',
+      code: 'Digit1',
+      repeat: true,
+      bubbles: true,
+      cancelable: true,
+    }))
+  })
+
+  await expect(page.locator('.game-stats').getByText('1 / 84', { exact: true })).toBeVisible()
 })
 
 test('Stroop 完成 84 试次并保存正确率与反应时', async ({ page, apiMock }) => {

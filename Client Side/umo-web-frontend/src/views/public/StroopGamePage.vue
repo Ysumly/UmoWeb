@@ -19,8 +19,8 @@ const colorValues = {
   red: 'var(--game-red)',
   blue: 'var(--game-blue)',
   green: 'var(--game-green)',
-  yellow: 'var(--game-gold)',
-  black: 'var(--game-ink)',
+  yellow: 'var(--game-yellow)',
+  black: 'var(--game-black-key)',
 }
 
 const word = ref('红')
@@ -208,6 +208,10 @@ function resetGame() {
 }
 
 function handleKeydown(event) {
+  if (event.repeat) {
+    return
+  }
+
   if ((event.key === ' ' || event.code === 'Space') && !running.value && !finished.value) {
     event.preventDefault()
     startGame()
@@ -267,7 +271,11 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="stroop-stage">
-      <div class="stroop-word" :class="flash ? `is-${flash}` : ''" :style="{ color: colorValues[colorKey] }">
+      <div
+        class="stroop-word"
+        :class="[{ 'is-black': colorKey === 'black' }, flash ? `is-${flash}` : '']"
+        :style="{ color: colorValues[colorKey] }"
+      >
         {{ word }}
       </div>
       <p>{{ feedback }}</p>
