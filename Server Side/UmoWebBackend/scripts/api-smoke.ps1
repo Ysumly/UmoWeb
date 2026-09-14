@@ -9,6 +9,9 @@ $ErrorActionPreference = "Stop"
 $script:BaseUrl = $BaseUrl.TrimEnd("/")
 $script:StepCount = 0
 $script:LastResponse = $null
+$originalPassword = $Password
+$newPassword = $null
+$passwordChangePending = $false
 
 function Invoke-Checked {
     param(
@@ -175,6 +178,7 @@ try {
     Step 7 "POST /api/admin/login"
 
     $newPassword = "SmokePass$runId"
+    $passwordChangePending = $true
     Invoke-Checked -Method PUT -Path "/api/admin/change-password" -Headers $authHeaders `
         -Body @{ oldPassword = $Password; newPassword = $newPassword } -ExpectedStatus 204 | Out-Null
     Invoke-Checked -Method GET -Path "/api/admin/contents" -Headers $authHeaders -ExpectedStatus 401 | Out-Null
@@ -185,6 +189,7 @@ try {
     $newAuthHeaders = @{ Authorization = "Bearer $newToken" }
     Invoke-Checked -Method PUT -Path "/api/admin/change-password" -Headers $newAuthHeaders `
         -Body @{ oldPassword = $newPassword; newPassword = $Password } -ExpectedStatus 204 | Out-Null
+    $passwordChangePending = $false
 
     $restoredLogin = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/login" -Body $loginBody)
     $token = $restoredLogin.token
@@ -446,6 +451,34 @@ try {
     Write-Host "API smoke passed: 29/29 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, password invalidation, image lifecycle, and search rate limit."
 }
 finally {
+    if ($passwordChangePending) {
+        try {
+            $recoveryLogin = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/login" `
+                    -Body @{ username = $Username; password = $newPassword })
+            $recoveryToken = $recoveryLogin.token
+            Invoke-Checked -Method PUT -Path "/api/admin/change-password" `
+                -Headers @{ Authorization = "Bearer $recoveryToken" } `
+                -Body @{ oldPassword = $newPassword; newPassword = $originalPassword } `
+                -ExpectedStatus 204 | Out-Null
+        }
+        catch {
+            Write-Warning "Administrator password recovery request failed: $($_.Exception.Message)"
+        }
+
+        try {
+            $restoredLogin = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/login" `
+                    -Body @{ username = $Username; password = $originalPassword })
+            $token = $restoredLogin.token
+            $authHeaders = @{ Authorization = "Bearer $token" }
+            $passwordChangePending = $false
+        }
+        catch {
+            $token = $null
+            $authHeaders = @{}
+            Write-Warning "Original administrator password could not be confirmed after failure."
+        }
+    }
+
     Remove-TestResource -Path "/api/admin/contents/$contentId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/contents/$previousContentId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/tags/$tagId" -Headers $authHeaders

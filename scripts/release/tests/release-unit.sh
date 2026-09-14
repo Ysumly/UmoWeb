@@ -3,9 +3,14 @@ set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 script_path="$repo_root/scripts/release/remote-release.sh"
+python_bin="$(command -v python3 || command -v python || true)"
 
 if [[ ! -f "$script_path" ]]; then
     printf 'Missing remote release script: %s\n' "$script_path" >&2
+    exit 1
+fi
+if [[ -z "$python_bin" ]]; then
+    printf 'python3 or python is required for release tests\n' >&2
     exit 1
 fi
 
@@ -169,6 +174,91 @@ if (DOCKER_BIN="$fake_bin/docker" verify_image_ids "$wrong_manifest") >/dev/null
     printf 'ASSERTION FAILED: image ID mismatch was accepted\n' >&2
 fi
 
+migration_dir="$temp_root/migrations"
+mkdir -p "$migration_dir"
+printf "SELECT '001';\n" > "$migration_dir/001-first.sql"
+printf "SELECT '002';\n" > "$migration_dir/002-second.sql"
+migration_input="$temp_root/migration-input.log"
+compose_source() {
+    [[ "${1:-}" == "exec" ]] || return 1
+    cat | tee -a "$migration_input" >/dev/null
+    printf '\n--- migration boundary ---\n' >> "$migration_input"
+}
+if ! (
+    MIGRATIONS_ROOT="$migration_dir"
+    COMPOSE_ENV_FILE="$env_file"
+    apply_migrations
+) >/dev/null 2>&1; then
+    failures=$((failures + 1))
+    printf 'ASSERTION FAILED: ordered migrations were rejected\n' >&2
+fi
+assert_true "$(grep -n "SELECT '001';" "$migration_input" | cut -d: -f1 | head -n 1 | grep -q .; echo $?)" "first migration was not applied"
+assert_true "$(grep -n "SELECT '002';" "$migration_input" | cut -d: -f1 | head -n 1 | grep -q .; echo $?)" "second migration was not applied"
+assert_true "$([[ "$(grep -n 'SELECT' "$migration_input" | head -n 1)" == *"001"* ]]; echo $?)" "migrations were not applied in lexical order"
+
+migration_calls=0
+compose_source() {
+    migration_calls=$((migration_calls + 1))
+    cat >/dev/null
+    ((migration_calls < 2))
+}
+if (
+    MIGRATIONS_ROOT="$migration_dir"
+    COMPOSE_ENV_FILE="$env_file"
+    apply_migrations
+) >/dev/null 2>&1; then
+    failures=$((failures + 1))
+    printf 'ASSERTION FAILED: failed migration was accepted\n' >&2
+fi
+
+compose_source() {
+    if [[ "$*" == *content_search* ]]; then
+        printf '2\t1\n'
+        return 0
+    fi
+    return 1
+}
+if ! verify_migration_state >/dev/null 2>&1; then
+    failures=$((failures + 1))
+    printf 'ASSERTION FAILED: valid migration state was rejected\n' >&2
+fi
+compose_source() {
+    printf '1\t0\n'
+}
+if (verify_migration_state) >/dev/null 2>&1; then
+    failures=$((failures + 1))
+    printf 'ASSERTION FAILED: incomplete migration state was accepted\n' >&2
+fi
+
+compose_source() {
+    if [[ "$*" == *backend* ]]; then
+        return 0
+    fi
+    if [[ "$*" == *mysql* ]]; then
+        printf '28\t28\n'
+        return 0
+    fi
+    return 1
+}
+if ! backfill_search_index >/dev/null 2>&1; then
+    failures=$((failures + 1))
+    printf 'ASSERTION FAILED: matching search index counts were rejected\n' >&2
+fi
+compose_source() {
+    if [[ "$*" == *backend* ]]; then
+        return 0
+    fi
+    if [[ "$*" == *mysql* ]]; then
+        printf '28\t27\n'
+        return 0
+    fi
+    return 1
+}
+if (backfill_search_index) >/dev/null 2>&1; then
+    failures=$((failures + 1))
+    printf 'ASSERTION FAILED: mismatched search index counts were accepted\n' >&2
+fi
+
 healthy_stack='{"Service":"mysql","State":"running","Health":"healthy"}
 {"Service":"backend","State":"running","Health":"healthy"}
 {"Service":"frontend","State":"running","Health":""}'
@@ -232,6 +322,8 @@ assert_equal "$(find "$login_tmp" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" 
 
 rollback_root="$temp_root/rollback/releases"
 rollback_env="$temp_root/rollback/.env.docker"
+deploy_order="$temp_root/deploy-order.log"
+: > "$deploy_order"
 mkdir -p "$(dirname "$rollback_env")"
 cat > "$rollback_env" <<'EOF'
 APP_PORT=8080
@@ -276,6 +368,7 @@ cat > "$release_manifest" <<EOF
 EOF
 
 compose_source() {
+    printf 'compose:%s\n' "$*" >> "$deploy_order"
     return 0
 }
 
@@ -283,7 +376,23 @@ preflight_admin_login() {
     return 0
 }
 
+apply_migrations() {
+    printf 'migrations\n' >> "$deploy_order"
+    return 0
+}
+
+verify_migration_state() {
+    printf 'migration-verification\n' >> "$deploy_order"
+    return 0
+}
+
+backfill_search_index() {
+    printf 'backfill\n' >> "$deploy_order"
+    return 0
+}
+
 verify_runtime() {
+    printf 'runtime-verification\n' >> "$deploy_order"
     if grep -q '^BACKEND_IMAGE=umoweb-backend:v1.0.0-rc.1$' "$COMPOSE_ENV_FILE"; then
         return 1
     fi
@@ -302,6 +411,8 @@ fi
 
 assert_equal "$(sed -n 's/^BACKEND_IMAGE=//p' "$rollback_env")" "umoweb-backend:old" "failed deployment did not restore backend image"
 assert_equal "$(sed -n 's/^FRONTEND_IMAGE=//p' "$rollback_env")" "umoweb-frontend:old" "failed deployment did not restore frontend image"
+assert_true "$([[ "$(grep -n '^migrations$' "$deploy_order" | head -n 1 | cut -d: -f1)" -lt "$(grep -n 'compose:up' "$deploy_order" | head -n 1 | cut -d: -f1)" ]]; echo $?)" "migrations did not run before image switch"
+assert_true "$([[ "$(grep -n '^backfill$' "$deploy_order" | head -n 1 | cut -d: -f1)" -lt "$(grep -n '^runtime-verification$' "$deploy_order" | head -n 1 | cut -d: -f1)" ]]; echo $?)" "backfill did not run before runtime verification"
 
 success_incoming="$rollback_root/incoming/v1.0.0-rc.1"
 mkdir -p "$success_incoming"
@@ -322,11 +433,33 @@ if ! (
 fi
 
 assert_equal \
-    "$(python -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["releaseId"])' "$rollback_root/current.json")" \
+    "$("$python_bin" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["releaseId"])' "$rollback_root/current.json")" \
     "v1.0.0-rc.1" \
     "successful deployment did not record current state"
 assert_true "$([[ ! -f "$success_incoming/release-images.tar" ]]; echo $?)" "remote release archive was not removed after deployment"
 assert_true "$([[ ! -f "$success_incoming/manifest.json" ]]; echo $?)" "remote manifest was not removed after deployment"
+
+rollback_order="$temp_root/rollback-order.log"
+: > "$rollback_order"
+apply_migrations() {
+    printf 'migrations\n' >> "$rollback_order"
+}
+backfill_search_index() {
+    printf 'backfill\n' >> "$rollback_order"
+}
+verify_runtime() {
+    return 0
+}
+if ! (
+    RELEASE_ROOT="$rollback_root"
+    COMPOSE_ENV_FILE="$rollback_env"
+    DOCKER_BIN="$fake_bin/docker"
+    deploy_release "$release_archive" "$release_manifest" rollback
+) >/dev/null 2>&1; then
+    failures=$((failures + 1))
+    printf 'ASSERTION FAILED: rollback deployment was rejected\n' >&2
+fi
+assert_equal "$(wc -l < "$rollback_order" | tr -d ' ')" "0" "rollback unexpectedly applied migrations or backfilled search"
 
 capture_root="$temp_root/capture/releases"
 capture_env="$temp_root/capture/.env.docker"
@@ -377,15 +510,15 @@ capture_json="$(
     capture_current "baseline-test"
 )"
 assert_equal \
-    "$(python -c 'import json,sys; print(json.load(sys.stdin)["kind"])' <<<"$capture_json")" \
+    "$("$python_bin" -c 'import json,sys; print(json.load(sys.stdin)["kind"])' <<<"$capture_json")" \
     "baseline" \
     "baseline capture produced the wrong manifest kind"
 assert_equal \
-    "$(python -c 'import json,sys; print(json.load(sys.stdin)["backendImage"]["tag"])' <<<"$capture_json")" \
+    "$("$python_bin" -c 'import json,sys; print(json.load(sys.stdin)["backendImage"]["tag"])' <<<"$capture_json")" \
     "umoweb-backend:baseline-test" \
     "baseline capture produced the wrong backend tag"
 assert_equal \
-    "$(python -c 'import json,sys; print(json.load(sys.stdin)["adminPathSha256"])' <<<"$capture_json")" \
+    "$("$python_bin" -c 'import json,sys; print(json.load(sys.stdin)["adminPathSha256"])' <<<"$capture_json")" \
     "55b15c306754cf0b831e9d4ea80403c98b6bac5266597e9afc0121a35f475fce" \
     "baseline capture produced the wrong admin path hash"
 if [[ "$capture_json" == *"/private-admin"* ]]; then

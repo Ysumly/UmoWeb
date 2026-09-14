@@ -7,6 +7,7 @@ COMPOSE_FILE="${COMPOSE_FILE:-$UMOWEB_ROOT/compose.yaml}"
 COMPOSE_PROJECT="${COMPOSE_PROJECT:-umoweb}"
 RELEASE_ROOT="${RELEASE_ROOT:-$UMOWEB_ROOT/releases}"
 RELEASE_TMP_ROOT="${RELEASE_TMP_ROOT:-/tmp}"
+MIGRATIONS_ROOT="${MIGRATIONS_ROOT:-$UMOWEB_ROOT/docs/design/migrations}"
 RELEASE_LOCK_MAX_AGE_SECONDS="${RELEASE_LOCK_MAX_AGE_SECONDS:-3600}"
 RELEASE_PUBLIC_BASE_URL="${RELEASE_PUBLIC_BASE_URL:-}"
 DOCKER_BIN="${DOCKER_BIN:-docker}"
@@ -218,6 +219,87 @@ verify_admin_path_hash() {
     )"
     [[ "$actual" == "$expected" ]] ||
         die "frontend admin path hash does not match the release manifest"
+}
+
+apply_migrations() {
+    require_file "$COMPOSE_ENV_FILE"
+    [[ -d "$MIGRATIONS_ROOT" ]] ||
+        die "migration directory not found: $MIGRATIONS_ROOT"
+
+    local migration
+    local migrations=()
+    while IFS= read -r migration; do
+        migrations+=("$migration")
+    done < <(
+        find "$MIGRATIONS_ROOT" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' |
+            LC_ALL=C sort
+    )
+    ((${#migrations[@]} > 0)) ||
+        die "no SQL migrations found in $MIGRATIONS_ROOT"
+
+    for migration in "${migrations[@]}"; do
+        require_file "$MIGRATIONS_ROOT/$migration"
+        log "applying migration $migration"
+        if ! compose_source exec -T mysql sh -lc \
+            'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot --default-character-set=utf8mb4' \
+            < "$MIGRATIONS_ROOT/$migration"; then
+            die "migration failed: $migration"
+        fi
+    done
+}
+
+verify_migration_state() {
+    local actual
+    actual="$(
+        compose_source exec -T mysql sh -lc \
+            'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -B --default-character-set=utf8mb4 -D "${MYSQL_DATABASE:-umo_blog}" -e "
+                SELECT
+                    (SELECT COUNT(*) FROM information_schema.TABLES
+                     WHERE TABLE_SCHEMA = DATABASE()
+                       AND TABLE_NAME IN (\"image_cleanup_queue\", \"content_search\")),
+                    (SELECT COUNT(*) FROM information_schema.STATISTICS
+                     WHERE TABLE_SCHEMA = DATABASE()
+                       AND TABLE_NAME = \"content_search\"
+                       AND INDEX_NAME = \"ft_content_search_body\"
+                       AND INDEX_TYPE = \"FULLTEXT\");
+            "' | tr -d '\r'
+    )"
+    [[ "$actual" == $'2\t1' ]] ||
+        die "migration verification failed: expected tables/fulltext 2/1, got $actual"
+}
+
+backfill_search_index() {
+    local actual
+    log "rebuilding published content search index"
+    if ! compose_source exec -T backend java -jar /app/app.jar \
+        --spring.main.web-application-type=none \
+        --app.search.backfill-only=true; then
+        warn "content search backfill command failed"
+        return 1
+    fi
+
+    if ! actual="$(
+        compose_source exec -T mysql sh -lc \
+            'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N -B --default-character-set=utf8mb4 -D "${MYSQL_DATABASE:-umo_blog}" -e "
+                SELECT
+                    (SELECT COUNT(*) FROM contents WHERE status = \"PUBLISHED\"),
+                    (SELECT COUNT(*) FROM content_search);
+            "' | tr -d '\r'
+    )"; then
+        warn "content search index verification query failed"
+        return 1
+    fi
+    local published_count
+    local indexed_count
+    IFS=$'\t' read -r published_count indexed_count <<< "$actual"
+    if [[ ! "$published_count" =~ ^[0-9]+$ || ! "$indexed_count" =~ ^[0-9]+$ ]]; then
+        warn "content search index verification returned invalid counts: $actual"
+        return 1
+    fi
+    if [[ "$published_count" != "$indexed_count" ]]; then
+        warn "content search index mismatch: published=$published_count indexed=$indexed_count"
+        return 1
+    fi
 }
 
 verify_compose_health() {
@@ -578,6 +660,10 @@ deploy_release() {
     verify_archive "$archive" "$manifest"
     verify_admin_path_hash "$manifest"
     preflight_admin_login
+    if [[ "$operation" == "deploy" ]]; then
+        apply_migrations
+        verify_migration_state
+    fi
     "$DOCKER_BIN" load -i "$archive"
     verify_image_ids "$manifest"
 
@@ -596,6 +682,12 @@ deploy_release() {
     if ! compose_source up -d --no-build --wait backend frontend; then
         rollback_previous_config "$previous_backend" "$previous_frontend" || true
         die "release containers failed to start"
+    fi
+    if [[ "$operation" == "deploy" ]]; then
+        if ! backfill_search_index; then
+            rollback_previous_config "$previous_backend" "$previous_frontend" || true
+            die "content search backfill failed"
+        fi
     fi
     if ! verify_runtime "$manifest"; then
         rollback_previous_config "$previous_backend" "$previous_frontend" || true

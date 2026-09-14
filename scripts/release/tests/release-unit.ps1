@@ -62,6 +62,12 @@ if (-not (Test-Path -LiteralPath $entryPath -PathType Leaf)) {
 if ((Get-Content -Raw -LiteralPath $entryPath) -notmatch 'compose\.yaml') {
     throw "Release entry point does not synchronize compose.yaml"
 }
+if ((Get-Content -Raw -LiteralPath $entryPath) -notmatch 'docs/design/migrations') {
+    throw "Release entry point does not synchronize SQL migrations"
+}
+if ((Get-Content -Raw -LiteralPath $entryPath) -notmatch 'api-smoke\.py') {
+    throw "Release entry point does not synchronize the portable API smoke script"
+}
 
 . $commonPath
 
@@ -299,6 +305,9 @@ $(("e" * 40))`trefs/tags/v1.0.0-rc.1^{}
         $fakeWorkbench = Join-Path $tempRoot "fake-workbench.ps1"
         @'
 if ($args.Count -gt 0 -and $args[0] -eq "upload") {
+    if ($env:FAKE_UPLOAD_LOG) {
+        Add-Content -LiteralPath $env:FAKE_UPLOAD_LOG -Value ([string]$args[-1])
+    }
     Write-Output "uploaded"
     exit 0
 }
@@ -333,8 +342,11 @@ exit 1
 '@ | Set-Content -LiteralPath $fakeWorkbench
 
         $previousStateFile = $env:FAKE_STATE_FILE
+        $previousUploadLog = $env:FAKE_UPLOAD_LOG
         try {
             $env:FAKE_STATE_FILE = $stateFile
+            $env:FAKE_UPLOAD_LOG = Join-Path $tempRoot "upload.log"
+            Remove-Item -LiteralPath $env:FAKE_UPLOAD_LOG -Force -ErrorAction SilentlyContinue
             $missingPublicUrlOutput = & pwsh -NoProfile -File $entryPath `
                 -Action Verify `
                 -InstanceId "i-test" `
@@ -352,6 +364,7 @@ exit 1
             $verifyExitCode = $LASTEXITCODE
         } finally {
             $env:FAKE_STATE_FILE = $previousStateFile
+            $env:FAKE_UPLOAD_LOG = $previousUploadLog
         }
         Assert-True `
             -Condition ($missingPublicUrlExitCode -ne 0) `
@@ -362,6 +375,19 @@ exit 1
         Assert-True `
             -Condition (($verifyOutput | Out-String) -match "v1\.0\.0-rc\.1") `
             -Message "Verify entry point did not report the current release"
+        $uploadLog = Get-Content -Raw -LiteralPath (Join-Path $tempRoot "upload.log")
+        Assert-True `
+            -Condition ($uploadLog -match "api-smoke\.py") `
+            -Message "Verify entry point did not upload the portable API smoke script"
+        foreach ($migration in @(
+            "20260911_integrity_security.sql",
+            "20260913_content_search.sql",
+            "20260913_image_cleanup_queue.sql"
+        )) {
+            Assert-True `
+                -Condition ($uploadLog -match [regex]::Escape($migration)) `
+                -Message "Verify entry point did not upload $migration"
+        }
 
         $captureArchive = Join-Path $tempRoot "umoweb-images-baseline-test.tar"
         [System.IO.File]::WriteAllBytes($captureArchive, [byte[]](1..100))

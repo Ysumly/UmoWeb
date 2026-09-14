@@ -353,9 +353,10 @@ pwsh -NoProfile -File scripts\release\tests\release-unit.ps1
 bash scripts/release/tests/release-unit.sh
 ```
 
-PowerShell 测试覆盖版本和参数校验、CI run 选择、manifest 生成、敏感字段不泄露、归档保留和
-Workbench 调用入口。Bash 测试覆盖 env 原子更新、归档 SHA-256/大小、镜像 ID、发布锁、
-Compose 健康解析、失败自动回滚、成功后状态记录和远端归档清理。
+PowerShell 测试覆盖版本和参数校验、CI run 选择、manifest 生成、敏感字段不泄露、归档保留、
+Workbench 调用入口，以及迁移和便携冒烟脚本同步。Bash 测试覆盖 env 原子更新、归档
+SHA-256/大小、镜像 ID、发布锁、Compose 健康解析、迁移顺序与失败阻断、索引回填一致性、
+显式回滚不迁移、失败自动回滚、成功后状态记录和远端归档清理。
 
 真实发布与回滚演练按
 [docker-guide.md](docker-guide.md) 第 9 节执行。验收顺序为：
