@@ -65,8 +65,10 @@ test('舒尔特标题层级、操作按钮和数字保持清晰分工', async ({
 
   const back = await page.getByRole('link', { name: '返回游戏中心' }).boundingBox()
   const eyebrow = await page.locator('.game-heading .editorial-eyebrow').boundingBox()
+  const board = await page.locator('.game-board').boundingBox()
   expect(eyebrow.x).toBeLessThan(back.x)
   expect(Math.abs(back.y - eyebrow.y)).toBeLessThanOrEqual(3)
+  expect(Math.abs(back.x + back.width - (board.x + board.width))).toBeLessThanOrEqual(2)
 
   const reset = page.getByRole('button', { name: '重新洗牌' })
   const start = page.getByRole('button', { name: '开始挑战' })
@@ -137,7 +139,7 @@ test('Stroop 完成 84 试次并保存正确率与反应时', async ({ page, api
   expect(records.bestAvgRT).toBeGreaterThan(0)
 })
 
-test('倒背数字按规则显示、隐藏、判题并在反馈后继续', async ({ page, apiMock }) => {
+test('倒背数字按 Enter 提交并保留反馈直到继续', async ({ page, apiMock }) => {
   void apiMock
   await useDeterministicRandom(page)
   await page.clock.install()
@@ -150,7 +152,7 @@ test('倒背数字按规则显示、隐藏、判题并在反馈后继续', async
   const input = page.getByLabel('倒序答案')
   await expect(input).toBeEnabled()
   await input.fill('0001')
-  await page.getByRole('button', { name: '确认' }).click()
+  await input.press('Enter')
   await expect(page.getByText(/正确/).first()).toBeVisible()
   expect(await page.evaluate(() => localStorage.getItem('digit_span_best'))).toBeNull()
 
@@ -188,11 +190,14 @@ test('舒尔特完成顺序点击并保存分尺寸成绩', async ({ page, apiMo
 
   await page.getByRole('button', { name: '3 × 3' }).click()
   await page.getByRole('button', { name: '开始挑战' }).click()
+  await page.locator('[data-number="2"]').click()
   for (let number = 1; number <= 9; number += 1) {
     await page.locator(`[data-number="${number}"]`).click()
   }
 
-  await expect(page.getByRole('dialog', { name: '3 × 3 挑战完成' })).toBeVisible()
+  const result = page.getByRole('dialog', { name: '3 × 3 挑战完成' })
+  await expect(result).toBeVisible()
+  await expect(result.getByText('10', { exact: true })).toBeVisible()
   const best = await page.evaluate(() => JSON.parse(localStorage.getItem('schulte_parchment_best')))
   expect(best['3']).toBeGreaterThan(0)
 })
@@ -290,6 +295,10 @@ test('高密度与长序列状态在窄屏和横屏不溢出', async ({ page, ap
     }
   }
   await expect(page.locator('.poker-cards .playing-card')).toHaveCount(10)
+  const cardTops = await page.locator('.poker-cards .playing-card').evaluateAll((cards) => {
+    return cards.map((card) => Math.round(card.getBoundingClientRect().top))
+  })
+  expect(new Set(cardTops).size).toBe(1)
   await expectNoHorizontalOverflow(page)
 })
 

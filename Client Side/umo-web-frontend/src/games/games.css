@@ -141,7 +141,7 @@
 
 .game-heading {
   position: relative;
-  max-width: 820px;
+  max-width: none;
 }
 
 .game-heading__top {
@@ -561,34 +561,21 @@
 }
 
 .poker-cards {
-  display: grid;
+  display: flex;
   width: 100%;
+  flex-wrap: nowrap;
+  align-items: center;
   justify-content: center;
   gap: clamp(7px, 1.6vw, 14px);
-}
-
-.poker-cards.cards-2,
-.poker-cards.cards-3,
-.poker-cards.cards-4 {
-  grid-template-columns: repeat(2, minmax(0, 120px));
-}
-
-.poker-cards.cards-5,
-.poker-cards.cards-6 {
-  grid-template-columns: repeat(3, minmax(0, 110px));
-}
-
-.poker-cards.cards-7,
-.poker-cards.cards-8,
-.poker-cards.cards-9,
-.poker-cards.cards-10 {
-  grid-template-columns: repeat(5, minmax(0, 94px));
 }
 
 .playing-card {
   display: grid;
   aspect-ratio: 0.7;
   place-items: center;
+  flex: 1 1 0;
+  width: 100%;
+  max-width: 110px;
   min-width: 0;
   border: 1px solid var(--line-strong);
   border-radius: 7px;
@@ -600,7 +587,7 @@
 .playing-card span,
 .playing-card strong {
   font-family: var(--font-display);
-  font-size: clamp(1rem, 3vw, 1.8rem);
+  font-size: clamp(0.6rem, 2.5vw, 1.7rem);
 }
 
 .playing-card.is-red {
@@ -839,13 +826,8 @@
     min-height: 0;
   }
 
-  .poker-cards.cards-5,
-  .poker-cards.cards-6,
-  .poker-cards.cards-7,
-  .poker-cards.cards-8,
-  .poker-cards.cards-9,
-  .poker-cards.cards-10 {
-    grid-template-columns: repeat(4, minmax(0, 78px));
+  .poker-cards {
+    gap: clamp(3px, 1vw, 7px);
   }
 }
 
@@ -888,10 +870,8 @@
     padding: 9px 3px;
   }
 
-  .poker-cards.cards-2,
-  .poker-cards.cards-3,
-  .poker-cards.cards-4 {
-    grid-template-columns: repeat(2, minmax(0, 92px));
+  .poker-cards {
+    gap: 3px;
   }
 
   .game-result__stats {

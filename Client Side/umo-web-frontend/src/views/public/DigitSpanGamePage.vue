@@ -251,7 +251,7 @@ onBeforeUnmount(() => {
         autocomplete="off"
         maxlength="24"
         :disabled="phase !== 'input'"
-        @keydown.enter.prevent="submitAnswer"
+        @keydown.enter.stop.prevent="submitAnswer"
       >
     </div>
 
