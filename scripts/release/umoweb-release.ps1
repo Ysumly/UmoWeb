@@ -24,8 +24,11 @@ $ErrorActionPreference = "Stop"
 
 $RemoteReleaseScript = "$RemoteRoot/scripts/release/remote-release.sh"
 $RemoteAccessRoot = "$RemoteRoot/scripts/access"
+$RemoteMigrationsRoot = "$RemoteRoot/docs/design/migrations"
+$RemoteSmokeRoot = "$RemoteRoot/scripts/smoke"
 $RemoteIncomingRoot = "$RemoteRoot/releases/incoming"
 $LocalAccessRoot = Join-Path (Split-Path $PSScriptRoot -Parent) "access"
+$LocalMigrationsRoot = Join-Path $RepositoryRoot "docs/design/migrations"
 
 function Invoke-NativeCapture {
     param(
@@ -186,7 +189,7 @@ function requireLocalFile {
 
 function Sync-RemoteReleaseControl {
     Invoke-WorkbenchCommand `
-        -Command "mkdir -p '$RemoteRoot/scripts/release' '$RemoteIncomingRoot' && chmod 0700 '$RemoteRoot/releases' '$RemoteIncomingRoot'" |
+        -Command "mkdir -p '$RemoteRoot/scripts/release' '$RemoteSmokeRoot' '$RemoteMigrationsRoot' '$RemoteIncomingRoot' && chmod 0700 '$RemoteRoot/releases' '$RemoteIncomingRoot'" |
         Out-Null
     Invoke-WorkbenchUpload `
         -LocalPath (Join-Path $PSScriptRoot "remote-release.sh") `
@@ -194,6 +197,22 @@ function Sync-RemoteReleaseControl {
     Invoke-WorkbenchUpload `
         -LocalPath (Join-Path $RepositoryRoot "compose.yaml") `
         -RemotePath "$RemoteRoot/compose.yaml"
+    Invoke-WorkbenchUpload `
+        -LocalPath (Join-Path $RepositoryRoot "Server Side/UmoWebBackend/scripts/api-smoke.py") `
+        -RemotePath "$RemoteSmokeRoot/api-smoke.py"
+
+    $migrations = @(
+        Get-ChildItem -LiteralPath $LocalMigrationsRoot -File -Filter "*.sql" |
+            Sort-Object -Property Name
+    )
+    if ($migrations.Count -eq 0) {
+        throw "No SQL migrations found in $LocalMigrationsRoot"
+    }
+    foreach ($migration in $migrations) {
+        Invoke-WorkbenchUpload `
+            -LocalPath $migration.FullName `
+            -RemotePath "$RemoteMigrationsRoot/$($migration.Name)"
+    }
 }
 
 function Sync-RemoteAccessControl {

@@ -30,6 +30,9 @@ class Smoke:
         self.base_url = base_url.rstrip("/")
         self.username = username
         self.password = password
+        self.original_password = password
+        self.smoke_password: str | None = None
+        self.password_change_pending = False
         self.steps = 0
         self.token: str | None = None
         self.category_id: int | None = None
@@ -90,6 +93,8 @@ class Smoke:
             self.step(7, "POST /api/admin/login")
 
             smoke_password = f"SmokePass{run_id.replace('-', '')}"
+            self.smoke_password = smoke_password
+            self.password_change_pending = True
             self.request(
                 "PUT",
                 "/api/admin/change-password",
@@ -111,6 +116,7 @@ class Smoke:
                 token=new_token,
                 expected=204,
             )
+            self.password_change_pending = False
             restored_login = self.expect_json(
                 "POST",
                 "/api/admin/login",
@@ -643,7 +649,61 @@ class Smoke:
                 "and search rate limit."
             )
         finally:
-            self.cleanup()
+            try:
+                self.restore_password()
+            finally:
+                self.cleanup()
+
+    def restore_password(self) -> None:
+        if not self.password_change_pending or not self.smoke_password:
+            return
+
+        recovery_token: str | None = None
+        try:
+            recovery_login = self.expect_json(
+                "POST",
+                "/api/admin/login",
+                {
+                    "username": self.username,
+                    "password": self.smoke_password,
+                },
+            )
+            recovery_token = recovery_login.get("token")
+        except Exception:
+            recovery_token = None
+
+        if recovery_token:
+            try:
+                self.request(
+                    "PUT",
+                    "/api/admin/change-password",
+                    {
+                        "oldPassword": self.smoke_password,
+                        "newPassword": self.original_password,
+                    },
+                    token=recovery_token,
+                    expected=204,
+                )
+            except Exception:
+                pass
+
+        try:
+            restored_login = self.expect_json(
+                "POST",
+                "/api/admin/login",
+                {
+                    "username": self.username,
+                    "password": self.original_password,
+                },
+            )
+            self.token = restored_login.get("token")
+            self.password_change_pending = False
+        except Exception:
+            self.token = None
+            print(
+                "API smoke warning: original administrator password "
+                "could not be confirmed after failure."
+            )
 
     def cleanup(self) -> None:
         if not self.token:

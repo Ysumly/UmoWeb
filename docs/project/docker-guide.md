@@ -293,6 +293,7 @@ python scripts/content-import/build_content_backup.py `
 - `gh auth status` 正常，当前 commit 存在成功的 `CI` push 运行。
 - Workbench 凭据和目标 ECS 实例已配置；实例标识、管理路径和凭据只通过参数或服务器侧配置传入。
 - 当前分支为 `master`，工作区干净，目标版本标签在本地和远端均不存在。
+- 开发机保留至少一个可回滚版本；数据库迁移前应通过 ECS 备份入口完成并校验一份最新备份。
 
 首次接入新流程时，先保存 ECS 当前运行镜像作为回滚基线：
 
@@ -319,11 +320,14 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
 
 1. 校验 `master`、干净工作区、版本格式及当前 commit 的成功 push CI。
 2. 从 ECS 私密读取 `VITE_ADMIN_PATH` 构建前端；日志只显示该值的 SHA-256。
-3. 构建前后端镜像，同时写入版本标签和 `sha-<12位commit>` 标签。
-4. 保存镜像 tar、SHA-256 和 `manifest.json`，上传后再次校验 image ID。
-5. 原子更新 ECS `.env.docker` 中的 `BACKEND_IMAGE`、`FRONTEND_IMAGE` 并重建后端与前端。
-6. 验证 MySQL/backend healthy、frontend running、首页、公开站点信息和管理员登录。
-7. 成功后写入 `current.json`、删除 ECS 上传归档、创建并推送版本 Git 标签。
+3. 同步 `compose.yaml`、访问脚本、全部 `docs/design/migrations/*.sql` 和便携接口冒烟脚本。
+4. 构建前后端镜像，同时写入版本标签和 `sha-<12位commit>` 标签。
+5. 保存镜像 tar、SHA-256 和 `manifest.json`，上传后再次校验 image ID。
+6. 切换镜像前按文件名顺序执行全部幂等迁移，并校验两张新增表和正文 ngram 索引存在。
+7. 原子更新 ECS `.env.docker` 中的 `BACKEND_IMAGE`、`FRONTEND_IMAGE` 并重建后端与前端。
+8. 执行正文索引回填，要求 `content_search` 行数与 `PUBLISHED` 内容数一致，否则自动恢复旧镜像。
+9. 验证 MySQL/backend healthy、frontend running、首页、公开站点信息、管理员登录和访问服务。
+10. 成功后写入 `current.json`、删除 ECS 上传归档、创建并推送版本 Git 标签。
 
 验证当前 ECS 版本：
 
@@ -359,6 +363,9 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
   和该公网入口各验证一次首页与公开 API。
 - `.env.docker` 中的 `INIT_ADMIN_PASS` 必须与当前管理员密码一致；远端会在切换镜像前先验证
   管理员登录，凭据失效时在发布前终止。
+- 显式回滚只重新载入并切换历史镜像，不重复执行迁移；新增表和索引保持向后兼容。
+- 完整 ECS 验收使用 `/opt/umoweb/scripts/smoke/api-smoke.py`，目标为 29/29；脚本在失败路径
+  也会优先恢复原管理员密码，再清理临时内容。
 - Workbench 单文件上传上限为 1 GiB；发布脚本在归档超过 1,000,000,000 字节时停止上传。
 
 ### 9.5 2026-09-13 演练记录
