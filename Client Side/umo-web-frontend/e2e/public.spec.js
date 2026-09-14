@@ -135,7 +135,7 @@ test('书库接口失败时显示可重试错误态', async ({ page, apiMock }) 
 test('页脚隐私入口展示实际保留策略', async ({ page, apiMock }) => {
   void apiMock
   await page.goto('/')
-  await page.getByRole('navigation', { name: '页脚导航' }).getByRole('link', { name: '隐私' }).click()
+  await page.getByRole('navigation', { name: '页脚导航' }).getByRole('link', { name: '隐私收集' }).click()
 
   await expect(page).toHaveURL(/\/privacy$/)
   await expect(page.getByRole('heading', { name: /只保留维护安全/ })).toBeVisible()

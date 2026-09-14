@@ -27,7 +27,7 @@
 
 - 公开端阅读主路径、公开 Markdown 编辑器和全部管理端核心业务页。
 - 29 个真实接口和 29/29 冒烟验证。
-- 后端 128 个测试、前端 72 个 Node 测试和每个平台 64 个 Playwright 检查。
+- 后端 128 个测试、前端 72 个 Node 测试和每个平台 69 个 Playwright 检查。
 - Docker Compose 全栈和单台阿里云 ECS 无域名 HTTP 测试部署。
 - 隔离 MySQL 5.7 迁移演练和 Docker MySQL 8.4 持久化验证。
 
@@ -337,7 +337,7 @@ About/Project 引用；文件清理使用持久队列并在启动或后续图片
 ### Task 3.5: 四个训练游戏
 
 **状态:** 已完成实现（2026-09-14）。游戏中心、Stroop、倒背数字、扑克牌记忆和舒尔特
-已迁移为 Vue 路由，保留原规则和旧成绩键；Windows 完整套件与 Linux 24 张基线通过，
+已迁移为 Vue 路由，保留原规则和旧成绩键；Windows 完整套件与 Linux 28 张基线通过，
 并已通过 PR #16 合并 master。
 
 四个输入文件当前是独立静态 HTML，包含内联 CSS/JS 和 `localStorage` 成绩；除 Google Fonts 外没有外部服务调用。

@@ -64,7 +64,7 @@ function clearTimers() {
 
 function startNewAttempt() {
   clearTimers()
-  faceUp.value = true
+  faceUp.value = false
   countdown.value = 0
   feedback.value = ''
   question.value = ''
@@ -81,9 +81,9 @@ function startMemorize() {
   }
 
   phase.value = 'memorizing'
-  faceUp.value = false
+  faceUp.value = true
   countdown.value = 3
-  feedback.value = '记住牌面位置'
+  feedback.value = '观察牌面，记住每张牌的位置'
 
   const tick = () => {
     if (phase.value !== 'memorizing') {
@@ -92,13 +92,20 @@ function startMemorize() {
     countdown.value -= 1
     if (countdown.value <= 0) {
       countdown.value = 0
-      askQuestion()
+      concealCards()
       return
     }
     countdownTimer = window.setTimeout(tick, 1000)
   }
 
   countdownTimer = window.setTimeout(tick, 1000)
+}
+
+function concealCards() {
+  phase.value = 'concealing'
+  faceUp.value = false
+  feedback.value = '牌面已隐藏，准备作答'
+  countdownTimer = window.setTimeout(askQuestion, 1000)
 }
 
 function askQuestion() {
@@ -200,7 +207,7 @@ onBeforeUnmount(() => {
     eyebrow="Poker Memory"
     title="扑克牌记忆训练"
     subtitle="观察牌面三秒，牌背朝上后回答目标牌的位置。"
-    note="每轮三题答对两题升级；数字键可快速选择位置。"
+    note="先观察三秒，牌面翻回背面后等待一秒再作答；数字键可快速选择位置。"
   >
     <div class="game-stats">
       <div>
@@ -224,6 +231,7 @@ onBeforeUnmount(() => {
     <div class="poker-stage">
       <div class="poker-status" aria-live="polite">
         <span v-if="phase === 'memorizing'">记忆倒计时 {{ countdown }}</span>
+        <span v-else-if="phase === 'concealing'">{{ feedback }}</span>
         <span v-else-if="phase === 'question'">{{ question }}</span>
         <span v-else>{{ feedback || '牌面已就绪，点击开始记忆。' }}</span>
       </div>

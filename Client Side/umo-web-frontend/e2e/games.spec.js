@@ -13,6 +13,22 @@ async function useDeterministicRandom(page) {
   })
 }
 
+function relativeLuminance(color) {
+  const channels = color.match(/\d+(?:\.\d+)?/g).slice(0, 3).map((value) => {
+    const channel = Number(value) / 255
+    return channel <= 0.03928
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4
+  })
+  return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+}
+
+function contrastRatio(foreground, background) {
+  const light = Math.max(relativeLuminance(foreground), relativeLuminance(background))
+  const dark = Math.min(relativeLuminance(foreground), relativeLuminance(background))
+  return (light + 0.05) / (dark + 0.05)
+}
+
 test('游戏中心展示四款训练入口', async ({ page, apiMock }) => {
   void apiMock
   await page.goto('/games')
@@ -49,13 +65,15 @@ test('舒尔特标题层级、操作按钮和数字保持清晰分工', async ({
 
   const back = await page.getByRole('link', { name: '返回游戏中心' }).boundingBox()
   const eyebrow = await page.locator('.game-heading .editorial-eyebrow').boundingBox()
-  expect(back.y + back.height).toBeLessThanOrEqual(eyebrow.y)
+  expect(eyebrow.x).toBeLessThan(back.x)
+  expect(Math.abs(back.y - eyebrow.y)).toBeLessThanOrEqual(3)
 
   const reset = page.getByRole('button', { name: '重新洗牌' })
   const start = page.getByRole('button', { name: '开始挑战' })
   const resetBox = await reset.boundingBox()
   const startBox = await start.boundingBox()
   expect(Math.abs(resetBox.height - startBox.height)).toBeLessThanOrEqual(1)
+  expect(Math.abs(resetBox.width - startBox.width)).toBeLessThanOrEqual(1)
 
   const buttonStyles = await page.evaluate(() => {
     const read = (label) => {
@@ -78,6 +96,26 @@ test('舒尔特标题层级、操作按钮和数字保持清晰分工', async ({
     return Number.parseFloat(getComputedStyle(element).fontSize)
   })
   expect(numberSize).toBeGreaterThanOrEqual(18)
+})
+
+test('暗色主题下主按钮与 Stroop 黑色键保持清晰对比', async ({ page, apiMock }) => {
+  void apiMock
+  await page.addInitScript(() => {
+    localStorage.setItem('umo-theme', 'dark')
+  })
+
+  await page.goto('/')
+  const homeShadow = await page.getByRole('link', { name: '进入书库' }).evaluate((element) => {
+    return getComputedStyle(element).boxShadow
+  })
+  expect(homeShadow).toContain('rgba(0, 0, 0')
+
+  await page.goto('/games/stroop')
+  const colors = await page.locator('.stroop-color-button.is-black').evaluate((element) => {
+    const style = getComputedStyle(element)
+    return { background: style.backgroundColor, foreground: style.color }
+  })
+  expect(contrastRatio(colors.foreground, colors.background)).toBeGreaterThanOrEqual(4.5)
 })
 
 test('Stroop 完成 84 试次并保存正确率与反应时', async ({ page, apiMock }) => {
@@ -116,7 +154,10 @@ test('倒背数字按规则显示、隐藏、判题并在反馈后继续', async
   await expect(page.getByText(/正确/).first()).toBeVisible()
   expect(await page.evaluate(() => localStorage.getItem('digit_span_best'))).toBeNull()
 
-  await page.clock.fastForward(500)
+  await page.clock.fastForward(1500)
+  await expect(page.getByText(/正确/).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: '继续' })).toBeEnabled()
+  await page.getByRole('button', { name: '继续' }).click()
   await expect(page.getByRole('button', { name: '显示数字' })).toBeEnabled()
 })
 
@@ -126,8 +167,12 @@ test('扑克牌记忆保留 3 秒规则并快速进入下一题', async ({ page,
   await page.clock.install()
   await page.goto('/games/poker-memory')
 
+  await expect(page.locator('.playing-card.is-face-down')).toHaveCount(2)
   await page.getByRole('button', { name: '开始记忆' }).click()
-  await page.clock.runFor(4000)
+  await expect(page.locator('.playing-card.is-face-up')).toHaveCount(2)
+  await page.clock.runFor(3000)
+  await expect(page.locator('.playing-card.is-face-down')).toHaveCount(2)
+  await page.clock.runFor(1000)
   await expect(page.getByText(/在第几个位置/)).toBeVisible()
 
   await page.getByRole('button', { name: '位置 1' }).click()
@@ -227,7 +272,7 @@ test('高密度与长序列状态在窄屏和横屏不溢出', async ({ page, ap
       await page.clock.fastForward(2000 + digits.length * 700)
       await page.locator('#digit-answer').fill([...digits].reverse().join(''))
       await page.getByRole('button', { name: '确认' }).click()
-      await page.clock.fastForward(500)
+      await page.getByRole('button', { name: '继续' }).click()
     }
   }
   await page.getByRole('button', { name: '显示数字' }).click()

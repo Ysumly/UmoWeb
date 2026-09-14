@@ -109,6 +109,16 @@ test('Stroop 视觉基线', async ({ page, apiMock }) => {
   await expect(page).toHaveScreenshot('game-stroop.png', { fullPage: true })
 })
 
+test('Stroop 暗色视觉基线', async ({ page, apiMock }) => {
+  void apiMock
+  await prepareScreenshot(page, 'dark')
+  await page.goto('/games/stroop')
+  await expect(page.getByRole('heading', { name: '色词测试' })).toBeVisible()
+  await waitForStablePage(page)
+
+  await expect(page).toHaveScreenshot('game-stroop-dark.png', { fullPage: true })
+})
+
 test('倒背数字视觉基线', async ({ page, apiMock }) => {
   void apiMock
   await prepareScreenshot(page)
@@ -127,6 +137,17 @@ test('扑克牌记忆视觉基线', async ({ page, apiMock }) => {
   await waitForStablePage(page)
 
   await expect(page).toHaveScreenshot('game-poker-memory.png', { fullPage: true })
+})
+
+test('扑克牌记忆暗色视觉基线', async ({ page, apiMock }) => {
+  void apiMock
+  await prepareScreenshot(page, 'dark')
+  await page.goto('/games/poker-memory')
+  await expect(page.getByRole('heading', { name: '扑克牌记忆训练' })).toBeVisible()
+  await expect(page.locator('.playing-card.is-face-down')).toHaveCount(2)
+  await waitForStablePage(page)
+
+  await expect(page).toHaveScreenshot('game-poker-memory-dark.png', { fullPage: true })
 })
 
 test('舒尔特视觉基线', async ({ page, apiMock }) => {
