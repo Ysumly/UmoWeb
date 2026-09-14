@@ -2,7 +2,7 @@
 
 > 基线日期: 2026-09-14
 > 项目路径: `Client Side/umo-web-frontend/`
-> 状态: 公开端、在线编辑器、隐私说明、四款训练游戏和管理端核心业务页均已实现
+> 状态: 公开端阅读增强、在线编辑器、隐私说明、四款训练游戏和管理端核心业务页均已实现
 
 ---
 
@@ -69,6 +69,8 @@ umo-web-frontend/
     │   ├── accessPrivacy.js
     │   ├── adminContent.js
     │   ├── apiError.js
+    │   ├── articleOutline.js
+    │   ├── articleOutline.test.js
     │   ├── editor.js
     │   ├── format.js
     │   ├── markdownImport.js
@@ -87,6 +89,8 @@ umo-web-frontend/
     │   ├── common/
     │   │   └── ThemeToggle.vue
     │   ├── public/
+    │   │   ├── ArticleOutline.vue
+    │   │   ├── ArticleOutlineList.vue
     │   │   ├── ContentCard.vue
     │   │   ├── ContentState.vue
     │   │   ├── MarkdownArticle.vue
@@ -259,7 +263,8 @@ token 来源和存储位置都是 `localStorage`。
 - 首页：站点介绍、主推文章、最新内容、类型入口和 About 预览。
 - 书库：类型、分类、标签服务端筛选和分页；分类筛选默认包含全部后代。
 - 搜索：显式提交、URL 同步和 429 倒计时。
-- 文章详情：Markdown、代码高亮、分类标签和后端返回的前后文章。
+- 文章详情：Markdown、代码高亮、分类标签、后端返回的前后文章、自动目录、滚动章节高亮和
+  阅读进度；桌面端目录位于侧栏，980px 以下使用可关闭的悬浮目录。
 - About 与 Project：分别读取配置页 Markdown。
 
 主题由 `data-theme` 控制，亮暗偏好保存在 `localStorage`。公开端支持首页电影化动效、滚动揭示和减少动态偏好。
@@ -305,10 +310,11 @@ server: {
 ```
 
 2026-09-14 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
-搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 72 个 Node 测试覆盖路由、
+搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 82 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
-Markdown front matter 导入、书库后代参数、游戏规则与旧成绩、Markdown 原始 HTML、
-危险 URL 协议和图片 alt 转义；Playwright 另含 43 个 functional 和 28 个视觉检查。
+Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
+游戏规则与旧成绩、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；
+Playwright 另含 46 个 functional 和 28 个视觉检查。
 书库选择分类时 URL 使用
 `category=<id>&includeDescendants=true`，显式 `false` 仍可请求精确匹配。
 

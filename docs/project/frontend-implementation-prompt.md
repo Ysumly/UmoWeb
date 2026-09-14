@@ -1,6 +1,6 @@
 # UmoWeb 前端续作提示
 
-> 基线日期: 2026-09-13
+> 基线日期: 2026-09-14
 > 目标: 在不误改现有基础设施的前提下维护已完成的公开端、在线编辑器和管理端业务页面
 > 事实来源: `Client Side/umo-web-frontend/src`
 
@@ -54,6 +54,7 @@
 | `src/utils/adminContent.js` | 管理端查询、表单、metadata、分类顺序和图片插入规则 |
 | `src/utils/markdownImport.js` | Markdown 文件校验、YAML front matter 解析、字段回退和图片引用警告 |
 | `src/utils/adminManagement.js` | 分类父级、分类/标签/站点/改密校验和删除错误映射 |
+| `src/utils/articleOutline.js` | 目录路径、扁平化和展开行计算 |
 | `src/utils/editor.js` | 本地编辑器文件名、草稿序列化和 Markdown Blob |
 | `src/views/admin/LoginPage.vue` | 已实现 |
 | `src/components/admin/AdminLayout.vue` | 已实现响应式布局 |
@@ -76,7 +77,7 @@
 | `HomePage.vue` | 已接入站点信息、列表与类型统计 API |
 | `LibraryPage.vue` | 已接入服务端筛选和分页 |
 | `SearchPage.vue` | 已接入显式搜索、URL 同步和 429 倒计时 |
-| `PostDetailPage.vue` | 已接入详情、分类标签和前后文章 |
+| `PostDetailPage.vue` | 已接入详情、分类标签、前后文章、目录、章节高亮和阅读进度 |
 | `AboutPage.vue` | 已接入 About 页面 API |
 | `ProjectPage.vue` | 已接入 Project 页面 API |
 | `EditorPage.vue` | 已实现本地导入、编辑、预览、下载和草稿恢复 |
@@ -149,6 +150,7 @@
 3. 功能设计；Task 3.1 Markdown 导入、Task 3.2 子分类筛选、Task 3.3 图片删除、
    Task 3.4 正文全文搜索和 Task 3.5 四款训练游戏已完成并合并 master，第三阶段出口条件满足。
 4. 第四阶段实现非 AI 阅读体验、批量管理和定时发布，不包含文章修订历史。
+   Task 4.1 的目录与阅读进度已实现；正文内搜索和相关文章仍待实现。
 5. 第五阶段在需求、隐私和成本明确后评估管理端 AI；草稿和结果只保存在浏览器本地。
 6. 公开 AI 搜索、原文问答和知识图谱继续后置。
 
