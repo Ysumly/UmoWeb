@@ -117,6 +117,39 @@ class RelatedContentIntegrationTest {
         assertThat(related.get(3).getRelationScore()).isEqualTo(4);
     }
 
+    @Test
+    void sameTypeCandidatesUseOnePointAndSameTimeUsesIdDescending() {
+        LocalDateTime publishedAt = LocalDateTime.of(2026, 9, 10, 10, 0);
+        long currentId = insertContent(
+                "same-type-current",
+                "NOTE",
+                "PUBLISHED",
+                publishedAt);
+        long lowerId = insertContent(
+                "same-type-lower",
+                "NOTE",
+                "PUBLISHED",
+                publishedAt);
+        long higherId = insertContent(
+                "same-type-higher",
+                "NOTE",
+                "PUBLISHED",
+                publishedAt);
+
+        List<Content> related = contentMapper.findRelatedPublished(
+                currentId,
+                "NOTE",
+                List.of(),
+                2);
+
+        assertThat(related)
+                .extracting(Content::getId)
+                .containsExactly(higherId, lowerId);
+        assertThat(related)
+                .extracting(Content::getRelationScore)
+                .containsExactly(1, 1);
+    }
+
     private long insertTag(String prefix) {
         String slug = prefix + "-" + UUID.randomUUID();
         jdbcTemplate.update(

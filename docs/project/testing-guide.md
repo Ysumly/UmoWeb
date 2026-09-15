@@ -93,10 +93,10 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 131 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 132 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析、
 正文索引、摘要提取和图片清理测试。
-其中 8 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
+其中 9 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
 不连接 MySQL，`UmoWebBackendApplicationTests` 仍是一条空测试。
 
 ### 2.2 数据库迁移副本 + 全接口冒烟
@@ -143,7 +143,7 @@ cd "Server Side\UmoWebBackend"
 - 兼容迁移连续执行两次并要求幂等；校验 `token_version`、图片清理队列表、正文索引表、
   3 个既有索引、6 个外键、
   种子行数和迁移后孤儿关系为 0。
-- 在真实库执行 8 个分类、正文搜索、相关文章和图片管理集成测试，覆盖根/子/孙内容、精确/后代模式、
+- 在真实库执行 9 个分类、正文搜索、相关文章和图片管理集成测试，覆盖根/子/孙内容、精确/后代模式、
   管理端草稿、空结果、稳定排序、循环拒绝、中文 ngram 查询、索引幂等、
   相关文章权重与排除规则、图片排序和清理队列失败记录。
 - 复制演示 Markdown 后连续执行两次正文回填脚本，校验索引行数等于已发布内容数，
@@ -162,7 +162,7 @@ npm test
 npm run test:e2e
 ```
 
-2026-09-14 已验证：
+2026-09-15 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
 - 前端 82 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
@@ -176,7 +176,7 @@ npm run test:e2e
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
   MySQL 副本、`api-smoke.py`/`api-smoke.ps1` 和第 2.8 节的 CI 集成 job 验证。
 
-2026-09-14 已验证：
+2026-09-15 已验证：
 
 - Windows 本机 Chrome 当前运行 76 个 Playwright 检查，28 张 `win32` 视觉快照通过。
 - GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 76 个检查，

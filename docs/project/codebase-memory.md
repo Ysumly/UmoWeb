@@ -58,7 +58,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；131 个测试（8 个 MySQL 环境门控） |
+| 测试 | Spring Boot Test、Mockito、MockMvc；132 个测试（9 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
