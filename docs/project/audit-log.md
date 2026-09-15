@@ -26,6 +26,7 @@
 | MySQL 8.4 集成 | 10/10 门控测试与 30/30 API 冒烟通过 |
 | Node 测试 | 82/82 通过 |
 | Windows Playwright | 79/79 通过（51 functional + 28 visual） |
+| Linux Playwright | 79/79 通过，CI run `34978269471` |
 | 生产构建 | Vite 8.1.0 通过 |
 | Python/PowerShell 语法 | `api-smoke.py` 编译和 `api-smoke.ps1` 解析通过 |
 
