@@ -33,8 +33,8 @@
 | Windows Playwright | 81/81 通过（53 functional + 28 visual） |
 | 生产构建 | Vite 8.1.0 通过 |
 | 迁移幂等 | Schema、种子和全部迁移连续执行通过；调度字段与索引断言通过 |
-| 差异与安全检查 | 待提交前执行 |
-| Linux Playwright | 当前分支 workflow 生成并回填视觉基线 |
+| 差异与安全检查 | `git diff --check` 和敏感信息扫描通过 |
+| Linux Playwright | 81/81 通过，基线 workflow run `34992907506` |
 
 ### 剩余风险
 

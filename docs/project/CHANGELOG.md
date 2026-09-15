@@ -10,7 +10,7 @@
   记录原计划发布时间并同步正文索引，停机补发和重复轮询保持幂等。
 - `api-smoke.py`/`api-smoke.ps1` 升级为 31/31，覆盖待发布公开隔离、批量操作和既有完整链路。
 - 验证：后端 163/163（11 个 MySQL 环境门控）、MySQL 8.4 Mapper 11/11 与 31/31 冒烟、
-  89 个 Node 测试、Windows Playwright 81/81（53 functional + 28 visual）通过。
+  89 个 Node 测试、Windows/Linux Playwright 81/81（53 functional + 28 visual）通过。
 
 ## 2026-09-15 — Task 4.2 图片一致性检查
 
