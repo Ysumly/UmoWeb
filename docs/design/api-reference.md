@@ -1,9 +1,9 @@
 # UmoWeb API 接口参考
 
-> 基线日期: 2026-09-13
+> 基线日期: 2026-09-15
 > 事实来源: `controller/`、`model/dto/`、`model/vo/`、`GlobalExceptionHandler`、Mapper XML
 > 接口总数: 公开端 8 个，管理端 21 个，共 29 个
-> 实测状态: 2026-09-13 完成图片生命周期真实接口冒烟，公开与管理接口共 29/29
+> 实测状态: 2026-09-15 完成 MySQL 8.4 集成与公开/管理接口 29/29 冒烟
 
 ---
 
@@ -243,6 +243,20 @@ GET /api/public/contents/{slug}
     "slug": "newer-article",
     "publishedAt": "2026-06-21T10:00:00"
   },
+  "related": [
+    {
+      "id": 4,
+      "title": "相关文章",
+      "slug": "related-article",
+      "summary": "与当前文章共享标签或分类。",
+      "type": "NOTE",
+      "status": "PUBLISHED",
+      "categories": [],
+      "tags": [],
+      "metadata": {},
+      "publishedAt": "2026-06-18T10:00:00"
+    }
+  ],
   "body": "# Spring Boot\n\nMarkdown 原文..."
 }
 ```
@@ -254,6 +268,10 @@ GET /api/public/contents/{slug}
 - 详情和列表使用同一个共享 VO 组装组件，`categories`、`tags` 始终为数组。
 - `previous` 表示按发布时间更早的已发布文章，`next` 表示更晚的文章；对象仅含 `id`、`title`、`slug`、`publishedAt`，边界位置为 `null`。
 - 发布时间相同时，较小 ID 视为更早、较大 ID 视为更晚。
+- `related` 始终为数组，最多 4 篇；只返回 `PUBLISHED` 内容，并排除当前、`previous` 和 `next`。
+- 相关排序为共享标签数 × 3、共享分类数 × 2、同类型 1 分，再按 `publishedAt DESC, id DESC`；
+  分类按精确 ID 交集计算，不展开祖先或后代。查询失败时返回空数组，不影响正文和前后导航。
+- `related` 项结构等同列表项；管理端详情不包含该字段。
 - Markdown 文件读取失败时返回 200，`body` 为 `""`。
 
 ### 2.8 搜索已发布文章

@@ -205,6 +205,37 @@ function sortContents(contents, sort) {
   })
 }
 
+function relatedScore(candidate, current) {
+  const tagIds = new Set(current.tagIds || [])
+  const categoryIds = new Set(current.categoryIds || [])
+  const sharedTags = (candidate.tagIds || []).filter((id) => tagIds.has(id)).length
+  const sharedCategories = (candidate.categoryIds || [])
+    .filter((id) => categoryIds.has(id))
+    .length
+  return sharedTags * 3 + sharedCategories * 2 + (candidate.type === current.type ? 1 : 0)
+}
+
+function buildRelatedContents(content, state, excludedIds = []) {
+  const excluded = new Set(excludedIds.filter(Boolean))
+  return state.contents
+    .filter((candidate) => (
+      candidate.status === 'PUBLISHED'
+      && !excluded.has(candidate.id)
+    ))
+    .map((candidate) => ({
+      candidate,
+      score: relatedScore(candidate, content),
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((left, right) => (
+      right.score - left.score
+      || String(right.candidate.publishedAt).localeCompare(String(left.candidate.publishedAt))
+      || right.candidate.id - left.candidate.id
+    ))
+    .slice(0, 4)
+    .map(({ candidate }) => enrichContent(candidate, state))
+}
+
 function paginate(contents, searchParams) {
   const page = Number(searchParams.get('page') || 1)
   const size = Number(searchParams.get('size') || 10)
@@ -367,10 +398,17 @@ async function handlePublicApi(route, state, pathname, searchParams) {
     const neighbor = (item) => item
       ? { id: item.id, title: item.title, slug: item.slug, publishedAt: item.publishedAt }
       : null
+    const previous = ordered[index + 1]
+    const next = ordered[index - 1]
     return json(route, {
       ...enrichContent(content, state),
-      previous: neighbor(ordered[index + 1]),
-      next: neighbor(ordered[index - 1]),
+      previous: neighbor(previous),
+      next: neighbor(next),
+      related: buildRelatedContents(content, state, [
+        content.id,
+        previous?.id,
+        next?.id,
+      ]),
     })
   }
   return error(route, 404, `Mock endpoint not found: ${pathname}`)

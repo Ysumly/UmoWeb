@@ -143,6 +143,89 @@ class ContentServiceImplTest {
 
         assertThat(detail.getPrevious()).isNull();
         assertThat(detail.getNext()).isNull();
+        assertThat(detail.getRelated()).isEmpty();
+    }
+
+    @Test
+    void publicDetailIncludesRankedRelatedContentsAndExcludesNeighbors() throws Exception {
+        Content current = content(
+                2L,
+                "current",
+                LocalDateTime.of(2026, 6, 22, 10, 0));
+        Content older = content(
+                1L,
+                "older",
+                LocalDateTime.of(2026, 6, 20, 10, 0));
+        Content newer = content(
+                3L,
+                "newer",
+                LocalDateTime.of(2026, 6, 24, 10, 0));
+        Content relatedTag = content(
+                4L,
+                "related-tag",
+                LocalDateTime.of(2026, 6, 18, 10, 0));
+        Content relatedType = content(
+                5L,
+                "related-type",
+                LocalDateTime.of(2026, 6, 17, 10, 0));
+
+        when(contentMapper.findBySlug("current")).thenReturn(current);
+        when(contentMapper.findPreviousPublished(current.getPublishedAt(), current.getId()))
+                .thenReturn(older);
+        when(contentMapper.findNextPublished(current.getPublishedAt(), current.getId()))
+                .thenReturn(newer);
+        when(contentMapper.findRelatedPublished(
+                current.getId(),
+                current.getType(),
+                List.of(older.getId(), newer.getId()),
+                4)).thenReturn(List.of(relatedTag, relatedType));
+        when(fileUtil.readMarkdown(current.getBodyPath())).thenReturn("# Current");
+
+        var detail = service().getBySlug("current");
+
+        assertThat(detail.getRelated())
+                .extracting("slug")
+                .containsExactly("related-tag", "related-type");
+        verify(contentMapper).findRelatedPublished(
+                current.getId(),
+                current.getType(),
+                List.of(older.getId(), newer.getId()),
+                4);
+    }
+
+    @Test
+    void publicDetailKeepsArticleWhenRelatedLookupFails() throws Exception {
+        Content current = content(
+                2L,
+                "current",
+                LocalDateTime.of(2026, 6, 22, 10, 0));
+        Content older = content(
+                1L,
+                "older",
+                LocalDateTime.of(2026, 6, 20, 10, 0));
+        Content newer = content(
+                3L,
+                "newer",
+                LocalDateTime.of(2026, 6, 24, 10, 0));
+
+        when(contentMapper.findBySlug("current")).thenReturn(current);
+        when(contentMapper.findPreviousPublished(current.getPublishedAt(), current.getId()))
+                .thenReturn(older);
+        when(contentMapper.findNextPublished(current.getPublishedAt(), current.getId()))
+                .thenReturn(newer);
+        when(contentMapper.findRelatedPublished(
+                current.getId(),
+                current.getType(),
+                List.of(older.getId(), newer.getId()),
+                4)).thenThrow(new IllegalStateException("related lookup failed"));
+        when(fileUtil.readMarkdown(current.getBodyPath())).thenReturn("# Current");
+
+        var detail = service().getBySlug("current");
+
+        assertThat(detail.getBody()).isEqualTo("# Current");
+        assertThat(detail.getPrevious()).extracting("slug").isEqualTo("older");
+        assertThat(detail.getNext()).extracting("slug").isEqualTo("newer");
+        assertThat(detail.getRelated()).isEmpty();
     }
 
     @Test

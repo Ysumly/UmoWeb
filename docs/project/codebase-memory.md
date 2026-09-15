@@ -1,6 +1,6 @@
 # UmoWeb 代码基线记忆
 
-> 基线日期: 2026-09-14
+> 基线日期: 2026-09-15
 > 范围: 当前工作区中的前端、后端、数据库脚本和文档
 > 原则: 代码行为优先；计划能力与已实现能力必须分开记录
 
@@ -35,7 +35,7 @@ UmoWeb/
 └── .superpowers/
 ```
 
-后端主源码为 82 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
+后端主源码为 95 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
 游戏规则与页面、主题与 Markdown 工具和 Node 测试。`Downloads/`、
 `.superpowers/`、`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
@@ -58,7 +58,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；128 个测试（7 个 MySQL 环境门控） |
+| 测试 | Spring Boot Test、Mockito、MockMvc；131 个测试（8 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -273,6 +273,8 @@ HTTP 状态与返回：
 - `q` 为空或未传时，搜索等价于匹配全部已发布内容。
 - 搜索同 IP 10 秒内只允许一次；仅信任显式配置的代理，记录定期清理。
 - 公开文章列表和详情都组装 `categories` 和 `tags`，使用共享 `ContentVOMapper` 按 contentIds 批量查询。
+- 公开详情内联最多 4 篇 `related`，排除当前及前后篇，按共享标签 3 分、共享分类 2 分、
+  同类型 1 分排序；查询失败时返回空数组，不影响正文。
 - `ContentListVO` 返回 `status`；公开接口固定为 `PUBLISHED`，管理端返回 `DRAFT` 或 `PUBLISHED`。
 - 公开详情返回 `previous` 和 `next` 摘要；前者为更早内容，后者为更新内容，同时间以小 ID 为更早。
 
@@ -403,7 +405,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 2026-09-14 已完成 Task 4.1 的目录与阅读进度：文章详情从 Markdown 自动生成 H1-H3 目录，
   桌面侧栏和窄屏悬浮面板均支持分支展开与当前/祖先高亮，阅读进度按正文滚动范围计算；
   标题使用稳定 ID 和旧版兼容别名，旧内容迁移脚本支持 dry-run、备份和原子写入。
-  正文内搜索和相关文章仍未实施。
+  2026-09-15 已补齐相关阅读，正文内检索明确由浏览器原生查找承担，不提供站内搜索控件。
 
 ### 6.2 其他前端事实
 
@@ -504,7 +506,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 新增 Mapper XML 别名解析、`ClientIpResolver` 容器装配和 Jackson 3 自动配置回归测试。
 - `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，覆盖非法配置、可信代理链和未授权转发头。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
-- 新增正文索引 upsert/剔除、回填容错、摘要提取、正文命中搜索和空查询契约测试。
+- 新增正文索引 upsert/剔除、回填容错、摘要提取、正文命中搜索、空查询契约和相关文章排序测试。
 - 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成 29/29 接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
 - PowerShell 与 Bash 发布脚本自测已纳入 `repository` CI job，覆盖 CI 选择、manifest、归档校验、
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
@@ -515,8 +517,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
   管理端文章/分类/标签/图片/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、
   Markdown front matter 导入、日期格式、书库后代参数、目录树与展开状态、标题 ID/别名、
   Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- Playwright 每个平台运行 74 个浏览器检查：46 个 functional 用例覆盖公开端、正文摘要、
-  文章目录/阅读进度、隐私说明、在线编辑器、四款游戏的高密度/长序列/旧成绩兼容和管理端核心流程；
+- Playwright 每个平台运行 76 个浏览器检查：48 个 functional 用例覆盖公开端、正文摘要、
+  文章目录/阅读进度/相关阅读、隐私说明、在线编辑器、四款游戏的高密度/长序列/旧成绩兼容和管理端核心流程；
   28 个视觉断言覆盖 14 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
@@ -548,6 +550,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | 低 | 图片引用扫描 | 每次列表和删除请求读取全部文章正文；当前 28 篇规模可接受，内容量显著增长后应改为显式引用表。 |
 | 低 | 图片清理重试 | 清理队列只在启动和后续图片操作时重试；长期无图片操作时失败任务会等待下一次触发。 |
 | 低 | 正文索引 | 直接改动 Markdown 文件不会自动更新索引，需要执行可重复的回填脚本。 |
+| 低 | 相关文章排序 | 每次公开详情额外执行一次关联加权查询并读取相关文章分类/标签；当前规模可接受，内容量显著增长后应复评查询计划。 |
 | 低 | 爬虫控制 | `index.html` 有 `noindex`，但没有 `public/robots.txt`。 |
 
 ---

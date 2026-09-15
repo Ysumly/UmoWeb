@@ -13,13 +13,19 @@ import com.ysumly.umowebbackend.service.CategoryHierarchyResolver;
 import com.ysumly.umowebbackend.service.ContentVOMapper;
 import com.ysumly.umowebbackend.service.SearchExcerptService;
 import com.ysumly.umowebbackend.service.open.ContentService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class ContentServiceImpl implements ContentService {
+
+    private static final int RELATED_CONTENT_LIMIT = 4;
+    private static final Logger log = LoggerFactory.getLogger(ContentServiceImpl.class);
 
     private final ContentMapper contentMapper;
     private final FileUtil fileUtil;
@@ -61,13 +67,37 @@ public class ContentServiceImpl implements ContentService {
             body = "";
         }
         ContentDetailVO detail = voMapper.toDetailVO(content, body);
+        Content previous = null;
+        Content next = null;
         if (content.getPublishedAt() != null) {
-            detail.setPrevious(toNeighborVO(contentMapper.findPreviousPublished(
+            previous = contentMapper.findPreviousPublished(
                     content.getPublishedAt(),
-                    content.getId())));
-            detail.setNext(toNeighborVO(contentMapper.findNextPublished(
+                    content.getId());
+            next = contentMapper.findNextPublished(
                     content.getPublishedAt(),
-                    content.getId())));
+                    content.getId());
+            detail.setPrevious(toNeighborVO(previous));
+            detail.setNext(toNeighborVO(next));
+        }
+        List<Long> excludedIds = new ArrayList<>(2);
+        if (previous != null) {
+            excludedIds.add(previous.getId());
+        }
+        if (next != null) {
+            excludedIds.add(next.getId());
+        }
+        try {
+            detail.setRelated(voMapper.toListVOs(contentMapper.findRelatedPublished(
+                    content.getId(),
+                    content.getType(),
+                    excludedIds,
+                    RELATED_CONTENT_LIMIT)));
+        } catch (RuntimeException exception) {
+            log.warn(
+                    "Failed to load related contents for {}: {}",
+                    content.getSlug(),
+                    exception.toString());
+            detail.setRelated(List.of());
         }
         return detail;
     }

@@ -95,7 +95,7 @@ export DB_PASS="$mysql_password"
 export APP_STORAGE_PATH="$storage_dir"
 export MYSQL_INTEGRATION=true
 "$maven_bin" -B \
-  -Dtest=ContentCategoryFilterIntegrationTest,ImageManagementIntegrationTest,ContentSearchIntegrationTest \
+  -Dtest=ContentCategoryFilterIntegrationTest,ImageManagementIntegrationTest,ContentSearchIntegrationTest,RelatedContentIntegrationTest \
   test
 "$maven_bin" -B -DskipTests package
 
