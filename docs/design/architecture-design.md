@@ -97,7 +97,7 @@ site_options                   站点 KV 配置
 | `users` | 管理员登录 | `username`、`password_hash` |
 | `categories` | 分类层级 | `name`、`slug`、`parent_id`、`type`、`sort_order` |
 | `tags` | 标签 | `name`、`slug` |
-| `contents` | 内容元信息 | `title`、`slug`、`body_path`、`type`、`status`、`metadata` |
+| `contents` | 内容元信息 | `title`、`slug`、`body_path`、`type`、`status`、`metadata`、`published_at`、`scheduled_at` |
 | `content_category` | 内容-分类关联 | `content_id`、`category_id` |
 | `content_tag` | 内容-标签关联 | `content_id`、`tag_id` |
 | `images` | 图片元信息 | `original_name`、`stored_name`、`path`、`size`、`content_type` |
@@ -119,7 +119,13 @@ site_options                   站点 KV 配置
 | 状态 | 公开可见 |
 |---|---|
 | `DRAFT` | 否 |
+| `SCHEDULED` | 否，到点后由调度器转为 `PUBLISHED` |
 | `PUBLISHED` | 是 |
+| `ARCHIVED` | 否，保留正文和关联 |
+
+调度器默认每 30 秒扫描一次到期内容，在独立事务中条件更新状态、计划时间、实际发布时间
+并同步正文索引。重复轮询或多实例并发时以条件更新保证最多发布一次；应用重启后补发逾期内容。
+批量分类、标签、归档和恢复在同一事务内完成预检与提交。
 
 ---
 

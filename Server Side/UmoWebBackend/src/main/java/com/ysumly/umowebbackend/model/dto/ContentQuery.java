@@ -28,7 +28,8 @@ public class ContentQuery {
     private Boolean includeDescendants = false;
     private Long tagId;
 
-    @Pattern(regexp = "DRAFT|PUBLISHED", message = "status 必须是 DRAFT 或 PUBLISHED")
+    @Pattern(regexp = "DRAFT|SCHEDULED|PUBLISHED|ARCHIVED",
+            message = "status 必须是 DRAFT、SCHEDULED、PUBLISHED 或 ARCHIVED")
     private String status;
 
     private String sort = "published_at_desc";

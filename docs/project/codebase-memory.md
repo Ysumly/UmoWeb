@@ -1,6 +1,6 @@
 # UmoWeb 代码基线记忆
 
-> 基线日期: 2026-09-15
+> 基线日期: 2026-09-16
 > 范围: 当前工作区中的前端、后端、数据库脚本和文档
 > 原则: 代码行为优先；计划能力与已实现能力必须分开记录
 
@@ -35,7 +35,7 @@ UmoWeb/
 └── .superpowers/
 ```
 
-后端主源码为 103 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
+后端主源码为 111 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
 游戏规则与页面、主题与 Markdown 工具和 Node 测试。`Downloads/`、
 `.superpowers/`、`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
@@ -58,7 +58,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；145 个测试（10 个 MySQL 环境门控） |
+| 测试 | Spring Boot Test、Mockito、MockMvc；163 个测试（11 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -126,8 +126,8 @@ cd "Server Side\UmoWebBackend"
 .\scripts\api-smoke.ps1 -BaseUrl "http://127.0.0.1:8080" -Username "admin" -Password "<current-password>"
 ```
 
-脚本覆盖 30 个接口，并校验管理端 401、搜索 429、详情前后文章、改密后旧 token 失效、
-图片完整生命周期和图片一致性来源定位。
+脚本覆盖 31 个接口，并校验管理端 401、搜索 429、详情前后文章、改密后旧 token 失效、
+待发布隔离、批量文章操作、图片完整生命周期和图片一致性来源定位。
 
 Docker 全栈：
 
@@ -182,13 +182,13 @@ com.ysumly.umowebbackend/
 | 层 | 数量 |
 |---|---|
 | Controller | 10（公开 4、管理 6） |
-| Service 接口/实现 | 14/12（含两个无接口的内部辅助 Service） |
+| Service 接口/实现 | 14/14（含调度发布器和定时扫描器等内部辅助 Service） |
 | Mapper 接口/XML | 8/8 |
 | Entity | 7 |
-| DTO | 11 |
-| VO | 14 |
-| Config | 10 |
-| 边界测试 | 33 |
+| DTO | 12 |
+| VO | 16 |
+| Config | 11 |
+| 边界测试 | 35 |
 
 ### 4.2 正常与异常响应
 
@@ -241,7 +241,7 @@ HTTP 状态与返回：
 | GET | `/api/public/contents/{slug}` |
 | GET | `/api/public/contents/search` |
 
-管理端共 22 个：
+管理端共 23 个：
 
 | 方法 | 路径 |
 |---|---|
@@ -249,6 +249,7 @@ HTTP 状态与返回：
 | PUT | `/api/admin/change-password` |
 | GET/POST | `/api/admin/contents` |
 | GET/PUT/DELETE | `/api/admin/contents/{id}` |
+| POST | `/api/admin/contents/bulk` |
 | GET/POST | `/api/admin/categories` |
 | GET/PUT/DELETE | `/api/admin/categories/{id}` |
 | GET/POST | `/api/admin/tags` |
@@ -277,7 +278,8 @@ HTTP 状态与返回：
 - 公开文章列表和详情都组装 `categories` 和 `tags`，使用共享 `ContentVOMapper` 按 contentIds 批量查询。
 - 公开详情内联最多 4 篇 `related`，排除当前及前后篇，按共享标签 3 分、共享分类 2 分、
   同类型 1 分排序；查询失败时返回空数组，不影响正文。
-- `ContentListVO` 返回 `status`；公开接口固定为 `PUBLISHED`，管理端返回 `DRAFT` 或 `PUBLISHED`。
+- 内容生命周期为 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`；公开接口固定只返回
+  `PUBLISHED`，管理端返回全部状态和可选 `scheduledAt`。
 - 公开详情返回 `previous` 和 `next` 摘要；前者为更早内容，后者为更新内容，同时间以小 ID 为更早。
 
 ### 4.5 内容与文件
@@ -354,6 +356,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 旧库通过 `docs/design/migrations/20260911_integrity_security.sql` 兼容迁移。
 - 图片清理队列通过 `docs/design/migrations/20260913_image_cleanup_queue.sql` 幂等迁移。
 - 正文索引通过 `docs/design/migrations/20260913_content_search.sql` 幂等迁移。
+- 定时发布通过 `docs/design/migrations/20260915_content_schedule.sql` 幂等新增
+  `scheduled_at` 与 `(status, scheduled_at)` 索引。
 
 ---
 
@@ -369,11 +373,11 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `site` store 缓存站点标题、副标题和加载错误；About/Project 页面各自读取专用接口。
 - 管理端登录页。
 - 管理端响应式布局、主题切换和退出登录。
-- 管理端文章列表：类型、状态、分类、标签和排序筛选，分页、状态展示、编辑和删除。
+- 管理端文章列表：四状态筛选、分页、当前页批量分类/标签、归档/恢复、状态展示、编辑和删除。
 - 管理端文章列表与公开列表共享 `includeDescendants` 参数；书库选择分类时默认包含全部子分类，
   URL 同步 `category=<id>&includeDescendants=true`。
 - 管理端文章编辑器：新建/编辑、分类标签单行选项与分页、metadata 校验、Markdown 分屏预览、
-  可展开的 metadata 字段说明、图片选择/拖拽/粘贴和未保存离开保护。新建页支持单文件
+  可展开的 metadata 字段说明、图片选择/拖拽/粘贴、定时发布和未保存离开保护。新建页支持单文件
   `.md`/`.markdown` 导入，解析 YAML front matter，并在缺失时从 H1、文件名和默认值回退。
 - 管理端分类管理：按类型筛选树形结构，支持父级、排序值、增改删和关联/子分类 409 提示；
   分类名与 slug 统一左对齐，使用固定标记表达父子层级，编辑加载态保持文案和列宽稳定。
@@ -417,6 +421,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
   2026-09-15 已补齐相关阅读，正文内检索明确由浏览器原生查找承担，不提供站内搜索控件。
 - 2026-09-15 已完成 Task 4.2 图片一致性检查：图片管理页可按需展示三类异常、来源、计数和扫描时间，
   删除图片后旧报告失效；结果不写入 Pinia 或浏览器存储。
+- 2026-09-15 已完成 Task 4.3 批量管理与定时发布：新增四种内容状态、当前页批量分类/标签、
+  归档/恢复、未来的 `scheduledAt`、30 秒到期扫描、条件更新幂等保护和正文索引同步。
 
 ### 6.2 其他前端事实
 
@@ -518,18 +524,21 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，覆盖非法配置、可信代理链和未授权转发头。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
 - 新增正文索引 upsert/剔除、回填容错、摘要提取、正文命中搜索、空查询契约和相关文章排序测试。
+- 新增状态转换、定时时间校验、批量原子预检、分类/标签幂等更新、归档索引剔除和
+  调度条件更新/失败重试测试。
 - 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
 - PowerShell 与 Bash 发布脚本自测已纳入 `repository` CI job，覆盖 CI 选择、manifest、归档校验、
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
 - 内容导入与阅读锚点工具共有 10 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、
   图片重写、内容去重、Linux 文件所有权、缺失素材阻断，以及旧锚点 dry-run、备份、
-  原子写入、幂等和缺少目标阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 30 个接口。
-- 前端 82 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、游戏规则与旧成绩解析、
+  原子写入、幂等和缺少目标阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 31 个接口。
+- 前端 89 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、
   Markdown front matter 导入、日期格式、书库后代参数、目录树与展开状态、标题 ID/别名、
-  Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- Playwright 每个平台运行 79 个浏览器检查：51 个 functional 用例覆盖公开端、正文摘要、
-  文章目录/阅读进度/相关阅读、图片一致性报告与竞态、隐私说明、在线编辑器、四款游戏的高密度/长序列/旧成绩兼容和管理端核心流程；
+  Markdown 原始 HTML、危险 URL 协议、图片 alt 转义、定时状态和批量载荷规则。
+- Playwright 每个平台运行 81 个浏览器检查：53 个 functional 用例覆盖公开端、正文摘要、
+  文章目录/阅读进度/相关阅读、图片一致性报告与竞态、隐私说明、在线编辑器、批量文章操作、
+  定时发布、四款游戏的高密度/长序列/旧成绩兼容和管理端核心流程；
   28 个视觉断言覆盖 14 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
@@ -541,7 +550,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。
 - GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、MySQL 8.4 集成、
   前端测试、生产构建和 Linux Playwright；MySQL job 同时验证 Schema、种子、两次正文回填、
-  中文 ngram 查询和 30/30 冒烟。
+  中文 ngram 查询和 31/31 冒烟。
 
 ### 7.2 当前代码风险
 

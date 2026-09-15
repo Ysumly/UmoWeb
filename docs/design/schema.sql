@@ -65,15 +65,17 @@ CREATE TABLE contents (
     body_path    VARCHAR(500)  NOT NULL COMMENT 'MD 文件相对路径',
     summary      VARCHAR(2000) NULL,
     type         VARCHAR(30)   NOT NULL COMMENT 'NOTE / NOVEL / BOOK_REVIEW',
-    status       VARCHAR(20)   NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT / PUBLISHED',
+    status       VARCHAR(20)   NOT NULL DEFAULT 'DRAFT' COMMENT 'DRAFT / SCHEDULED / PUBLISHED / ARCHIVED',
     metadata     JSON          NULL COMMENT '各类型专属扩展字段',
     created_at   DATETIME      NOT NULL DEFAULT NOW(),
     updated_at   DATETIME      NOT NULL DEFAULT NOW() ON UPDATE NOW(),
     published_at DATETIME      NULL COMMENT '首次发布时间',
+    scheduled_at DATETIME(6)   NULL COMMENT '计划发布时间',
     INDEX idx_type (type),
     INDEX idx_status (status),
     INDEX idx_type_status (type, status),
-    INDEX idx_published_at (published_at)
+    INDEX idx_published_at (published_at),
+    INDEX idx_status_scheduled_at (status, scheduled_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -56,6 +57,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleBusiness(BusinessException e) {
         return ResponseEntity.status(e.getCode())
                 .body(Map.of("code", e.getCode(), "message", e.getMessage()));
+    }
+
+    @ExceptionHandler(BulkOperationException.class)
+    public ResponseEntity<Map<String, Object>> handleBulkOperation(BulkOperationException e) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("code", e.getCode());
+        body.put("message", e.getMessage());
+        body.put("failures", e.getFailures());
+        return ResponseEntity.status(e.getCode()).body(body);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

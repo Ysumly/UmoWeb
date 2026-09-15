@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-09-16 — Task 4.3 批量管理与定时发布
+
+- 内容状态扩展为 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`，新增 `scheduled_at`
+  字段与 `(status, scheduled_at)` 索引。
+- 管理端文章列表支持当前页批量添加/移除分类与标签、归档和恢复草稿；请求整批预检并在单事务提交，
+  失败返回逐项 `failures`，不产生部分更新。
+- 文章编辑器支持仅未发布草稿设置未来 `scheduledAt`；调度器默认每 30 秒扫描到期内容，
+  记录原计划发布时间并同步正文索引，停机补发和重复轮询保持幂等。
+- `api-smoke.py`/`api-smoke.ps1` 升级为 31/31，覆盖待发布公开隔离、批量操作和既有完整链路。
+- 验证：后端 163/163（11 个 MySQL 环境门控）、MySQL 8.4 Mapper 11/11 与 31/31 冒烟、
+  89 个 Node 测试、Windows Playwright 81/81（53 functional + 28 visual）通过。
+
 ## 2026-09-15 — Task 4.2 图片一致性检查
 
 - 新增管理端 `GET /api/admin/images/integrity`，按需检查断裂引用、数据库记录缺文件和磁盘孤立文件；

@@ -115,6 +115,36 @@ function createContentState() {
       tagIds: [],
       createdAt: '2026-08-31T07:00:00',
     },
+    {
+      id: 16,
+      title: '定时发布文章',
+      slug: 'scheduled-content',
+      summary: '到点后才会公开。',
+      type: 'NOTE',
+      status: 'SCHEDULED',
+      body: '# 定时发布',
+      metadata: {},
+      publishedAt: null,
+      scheduledAt: '2026-09-20T10:00:00',
+      categoryIds: [1],
+      tagIds: [1],
+      createdAt: '2026-09-09T08:00:00',
+    },
+    {
+      id: 17,
+      title: '已归档文章',
+      slug: 'archived-content',
+      summary: '保留内容但不在公开端展示。',
+      type: 'NOTE',
+      status: 'ARCHIVED',
+      body: '# 已归档',
+      metadata: {},
+      publishedAt: '2026-08-20T08:00:00',
+      scheduledAt: null,
+      categoryIds: [1],
+      tagIds: [1],
+      createdAt: '2026-08-19T08:00:00',
+    },
   )
 
   return contents
@@ -347,18 +377,20 @@ function nextId(items) {
 }
 
 function normalizeContentPayload(payload, existing = {}) {
+  const status = payload.status || existing.status || 'DRAFT'
   return {
     id: existing.id,
     title: payload.title,
     slug: payload.slug,
     summary: payload.summary || '',
     type: payload.type,
-    status: payload.status,
+    status,
     body: payload.body || '',
     metadata: payload.metadata ? JSON.parse(payload.metadata) : {},
-    publishedAt: payload.status === 'PUBLISHED'
+    publishedAt: status === 'PUBLISHED'
       ? existing.publishedAt || '2026-09-12T10:00:00'
-      : null,
+      : existing.publishedAt || null,
+    scheduledAt: status === 'SCHEDULED' ? payload.scheduledAt : null,
     categoryIds: payload.categoryIds || [],
     tagIds: payload.tagIds || [],
     createdAt: existing.createdAt || '2026-09-12T09:00:00',
@@ -606,6 +638,95 @@ async function handleAdminApi(route, state, pathname, searchParams) {
       state.contents.push(content)
       return json(route, enrichContent(content, state))
     }
+  }
+  if (pathname === '/api/admin/contents/bulk' && method === 'POST') {
+    const payload = route.request().postDataJSON()
+    const contentIds = [...new Set(payload.contentIds || [])]
+    const selected = state.contents.filter((content) => contentIds.includes(content.id))
+    if (selected.length !== contentIds.length) {
+      return error(route, 404, '批量操作包含不存在的内容')
+    }
+    if (['ADD_CATEGORIES', 'REMOVE_CATEGORIES'].includes(payload.action)
+        && !state.categories.some((category) => category.id === payload.categoryIds?.[0])) {
+      return error(route, 404, '批量操作包含不存在的分类')
+    }
+    if (['ADD_TAGS', 'REMOVE_TAGS'].includes(payload.action)
+        && !state.tags.some((tag) => tag.id === payload.tagIds?.[0])) {
+      return error(route, 404, '批量操作包含不存在的标签')
+    }
+    if (payload.action === 'REMOVE_CATEGORIES'
+        && selected.some((content) => content.type === 'NOVEL')) {
+      return json(route, {
+        code: 409,
+        message: '小说正文路径依赖目录，请通过编辑页调整分类',
+        failures: selected
+          .filter((content) => content.type === 'NOVEL')
+          .map((content) => ({
+            contentId: content.id,
+            targetId: null,
+            reason: 'NOVEL_CATEGORY_REMOVE_REQUIRES_EDIT',
+          })),
+      }, 409)
+    }
+    if (payload.action === 'RESTORE_DRAFT'
+        && selected.some((content) => content.status !== 'ARCHIVED')) {
+      return json(route, {
+        code: 409,
+        message: '只有已归档内容可以恢复为草稿',
+        failures: selected
+          .filter((content) => content.status !== 'ARCHIVED')
+          .map((content) => ({
+            contentId: content.id,
+            targetId: null,
+            reason: 'NOT_ARCHIVED',
+          })),
+      }, 409)
+    }
+
+    let updatedCount = 0
+    for (const content of selected) {
+      if (payload.action === 'ADD_CATEGORIES') {
+        const target = payload.categoryIds?.[0]
+        if (!content.categoryIds.includes(target)) {
+          content.categoryIds.push(target)
+          updatedCount += 1
+        }
+      } else if (payload.action === 'REMOVE_CATEGORIES') {
+        const target = payload.categoryIds?.[0]
+        const next = content.categoryIds.filter((id) => id !== target)
+        if (next.length !== content.categoryIds.length) {
+          content.categoryIds = next
+          updatedCount += 1
+        }
+      } else if (payload.action === 'ADD_TAGS') {
+        const target = payload.tagIds?.[0]
+        if (!content.tagIds.includes(target)) {
+          content.tagIds.push(target)
+          updatedCount += 1
+        }
+      } else if (payload.action === 'REMOVE_TAGS') {
+        const target = payload.tagIds?.[0]
+        const next = content.tagIds.filter((id) => id !== target)
+        if (next.length !== content.tagIds.length) {
+          content.tagIds = next
+          updatedCount += 1
+        }
+      } else if (payload.action === 'ARCHIVE' && content.status !== 'ARCHIVED') {
+        content.status = 'ARCHIVED'
+        content.scheduledAt = null
+        updatedCount += 1
+      } else if (payload.action === 'RESTORE_DRAFT' && content.status === 'ARCHIVED') {
+        content.status = 'DRAFT'
+        content.scheduledAt = null
+        updatedCount += 1
+      }
+    }
+    return json(route, {
+      action: payload.action,
+      requestedCount: contentIds.length,
+      updatedCount,
+      unchangedCount: contentIds.length - updatedCount,
+    })
   }
   if (pathname.match(/^\/api\/admin\/contents\/\d+$/)) {
     const id = Number(pathname.split('/').at(-1))

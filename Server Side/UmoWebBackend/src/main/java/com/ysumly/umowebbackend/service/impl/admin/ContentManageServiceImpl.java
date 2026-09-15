@@ -1,16 +1,23 @@
 package com.ysumly.umowebbackend.service.impl.admin;
 
+import com.ysumly.umowebbackend.common.constant.BulkContentAction;
 import com.ysumly.umowebbackend.common.constant.ContentStatus;
 import com.ysumly.umowebbackend.common.constant.ContentType;
+import com.ysumly.umowebbackend.common.exception.BulkOperationException;
 import com.ysumly.umowebbackend.common.exception.BusinessException;
 import com.ysumly.umowebbackend.common.exception.NotFoundException;
 import com.ysumly.umowebbackend.common.util.FileUtil;
 import com.ysumly.umowebbackend.mapper.*;
+import com.ysumly.umowebbackend.model.dto.BulkContentRequest;
+import com.ysumly.umowebbackend.model.dto.ContentCategoryLink;
 import com.ysumly.umowebbackend.model.dto.ContentQuery;
 import com.ysumly.umowebbackend.model.dto.ContentSaveRequest;
+import com.ysumly.umowebbackend.model.dto.ContentTagLink;
 import com.ysumly.umowebbackend.model.dto.PageResult;
 import com.ysumly.umowebbackend.model.entity.Category;
 import com.ysumly.umowebbackend.model.entity.Content;
+import com.ysumly.umowebbackend.model.vo.BulkContentFailureVO;
+import com.ysumly.umowebbackend.model.vo.BulkContentResultVO;
 import com.ysumly.umowebbackend.model.vo.ContentDetailVO;
 import com.ysumly.umowebbackend.model.vo.ContentListVO;
 import com.ysumly.umowebbackend.service.CategoryHierarchyResolver;
@@ -25,6 +32,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,6 +51,7 @@ public class ContentManageServiceImpl implements ContentManageService {
     private final ContentVOMapper voMapper;
     private final CategoryHierarchyResolver categoryHierarchyResolver;
     private final ContentSearchIndexService searchIndexService;
+    private final Clock clock;
 
     public ContentManageServiceImpl(ContentMapper contentMapper,
                                     ContentCategoryMapper contentCategoryMapper,
@@ -52,7 +61,8 @@ public class ContentManageServiceImpl implements ContentManageService {
                                     FileUtil fileUtil,
                                     ContentVOMapper voMapper,
                                     CategoryHierarchyResolver categoryHierarchyResolver,
-                                    ContentSearchIndexService searchIndexService) {
+                                    ContentSearchIndexService searchIndexService,
+                                    Clock clock) {
         this.contentMapper = contentMapper;
         this.contentCategoryMapper = contentCategoryMapper;
         this.contentTagMapper = contentTagMapper;
@@ -62,6 +72,7 @@ public class ContentManageServiceImpl implements ContentManageService {
         this.voMapper = voMapper;
         this.categoryHierarchyResolver = categoryHierarchyResolver;
         this.searchIndexService = searchIndexService;
+        this.clock = clock;
     }
 
     @Override
@@ -87,6 +98,10 @@ public class ContentManageServiceImpl implements ContentManageService {
     public ContentDetailVO create(ContentSaveRequest request) {
         ContentType type = parseContentType(request.getType());
         ContentStatus status = parseStatus(request.getStatus(), ContentStatus.DRAFT);
+        if (status == ContentStatus.ARCHIVED) {
+            throw new BusinessException(400, "新建文章不能直接归档");
+        }
+        validateScheduling(status, request.getScheduledAt(), null, null);
         validateAssociationIds(request.getCategoryIds(), request.getTagIds());
         ensureSlugAvailable(request.getSlug(), null);
 
@@ -110,8 +125,10 @@ public class ContentManageServiceImpl implements ContentManageService {
             content.setType(request.getType());
             content.setStatus(status.name());
             content.setMetadata(normalizeMetadata(request.getMetadata()));
+            content.setScheduledAt(status == ContentStatus.SCHEDULED
+                    ? request.getScheduledAt() : null);
             if (status == ContentStatus.PUBLISHED) {
-                content.setPublishedAt(LocalDateTime.now());
+                content.setPublishedAt(now());
             }
             contentMapper.insert(content);
             saveAssociations(content.getId(), request.getCategoryIds(), request.getTagIds());
@@ -145,6 +162,8 @@ public class ContentManageServiceImpl implements ContentManageService {
 
         ContentType type = parseContentType(request.getType());
         ContentStatus status = parseStatus(request.getStatus(), ContentStatus.valueOf(old.getStatus()));
+        String previousStatus = old.getStatus();
+        validateScheduling(status, request.getScheduledAt(), old.getStatus(), old.getPublishedAt());
         validateAssociationIds(request.getCategoryIds(), request.getTagIds());
         ensureSlugAvailable(request.getSlug(), id);
 
@@ -172,10 +191,12 @@ public class ContentManageServiceImpl implements ContentManageService {
             old.setType(request.getType());
             old.setStatus(status.name());
             old.setMetadata(normalizeMetadata(request.getMetadata()));
+            old.setScheduledAt(status == ContentStatus.SCHEDULED
+                    ? request.getScheduledAt() : null);
 
-            // 首次发布设 publishedAt
-            if (status == ContentStatus.PUBLISHED && old.getPublishedAt() == null) {
-                old.setPublishedAt(LocalDateTime.now());
+            if (status == ContentStatus.PUBLISHED
+                    && !ContentStatus.PUBLISHED.name().equals(previousStatus)) {
+                old.setPublishedAt(now());
             }
             contentMapper.update(old);
 
@@ -201,6 +222,46 @@ public class ContentManageServiceImpl implements ContentManageService {
                     old.getBodyPath(), newBodyPath, temporaryPath, backupPath, promoted, pathChanged);
             throw e;
         }
+    }
+
+    @Override
+    @Transactional
+    public BulkContentResultVO bulk(BulkContentRequest request) {
+        BulkContentAction action = parseBulkAction(request.getAction());
+        List<Long> contentIds = distinctIds(request.getContentIds());
+        if (contentIds.isEmpty()) {
+            throw new BusinessException(400, "contentIds 不能为空");
+        }
+
+        Map<Long, Content> contentsById = new LinkedHashMap<>();
+        for (Content content : contentMapper.findByIds(contentIds)) {
+            contentsById.put(content.getId(), content);
+        }
+        List<Long> missingContentIds = contentIds.stream()
+                .filter(id -> !contentsById.containsKey(id))
+                .toList();
+        if (!missingContentIds.isEmpty()) {
+            throw new BulkOperationException(
+                    404,
+                    "批量操作包含不存在的内容",
+                    missingContentIds.stream()
+                            .map(id -> new BulkContentFailureVO(
+                                    id, null, "CONTENT_NOT_FOUND"))
+                            .toList());
+        }
+
+        return switch (action) {
+            case ADD_CATEGORIES -> addLinks(
+                    action, contentIds, resolveCategoryIds(request), true);
+            case REMOVE_CATEGORIES -> removeCategories(
+                    action, contentIds, resolveCategoryIds(request), contentsById);
+            case ADD_TAGS -> addLinks(
+                    action, contentIds, resolveTagIds(request), false);
+            case REMOVE_TAGS -> removeTags(
+                    action, contentIds, resolveTagIds(request));
+            case ARCHIVE -> archive(action, contentIds, contentsById);
+            case RESTORE_DRAFT -> restoreDraft(action, contentIds, contentsById);
+        };
     }
 
     @Override
@@ -263,6 +324,224 @@ public class ContentManageServiceImpl implements ContentManageService {
         } catch (RuntimeException e) {
             throw new BusinessException(400, "非法内容状态: " + value);
         }
+    }
+
+    private BulkContentAction parseBulkAction(String value) {
+        try {
+            return BulkContentAction.valueOf(value);
+        } catch (RuntimeException e) {
+            throw new BusinessException(400, "非法批量操作: " + value);
+        }
+    }
+
+    private List<Long> resolveCategoryIds(BulkContentRequest request) {
+        List<Long> ids = distinctIds(request.getCategoryIds());
+        if (ids.isEmpty()) {
+            throw new BusinessException(400, "分类批量操作必须选择分类");
+        }
+        Set<Long> existingIds = categoryMapper.findByIds(ids).stream()
+                .map(Category::getId)
+                .collect(java.util.stream.Collectors.toSet());
+        List<Long> missingIds = ids.stream()
+                .filter(id -> !existingIds.contains(id))
+                .toList();
+        if (!missingIds.isEmpty()) {
+            throw new BulkOperationException(
+                    404,
+                    "批量操作包含不存在的分类",
+                    missingIds.stream()
+                            .map(id -> new BulkContentFailureVO(
+                                    null, id, "CATEGORY_NOT_FOUND"))
+                            .toList());
+        }
+        return ids;
+    }
+
+    private List<Long> resolveTagIds(BulkContentRequest request) {
+        List<Long> ids = distinctIds(request.getTagIds());
+        if (ids.isEmpty()) {
+            throw new BusinessException(400, "标签批量操作必须选择标签");
+        }
+        Set<Long> existingIds = tagMapper.findByIds(ids).stream()
+                .map(com.ysumly.umowebbackend.model.entity.Tag::getId)
+                .collect(java.util.stream.Collectors.toSet());
+        List<Long> missingIds = ids.stream()
+                .filter(id -> !existingIds.contains(id))
+                .toList();
+        if (!missingIds.isEmpty()) {
+            throw new BulkOperationException(
+                    404,
+                    "批量操作包含不存在的标签",
+                    missingIds.stream()
+                            .map(id -> new BulkContentFailureVO(
+                                    null, id, "TAG_NOT_FOUND"))
+                            .toList());
+        }
+        return ids;
+    }
+
+    private BulkContentResultVO addLinks(BulkContentAction action,
+                                         List<Long> contentIds,
+                                         List<Long> targetIds,
+                                         boolean category) {
+        Map<Long, Set<Long>> existing = category
+                ? categoryLinks(contentIds)
+                : tagLinks(contentIds);
+        Set<Long> changed = new LinkedHashSet<>();
+        for (Long contentId : contentIds) {
+            Set<Long> current = existing.getOrDefault(contentId, Set.of());
+            for (Long targetId : targetIds) {
+                if (current.contains(targetId)) {
+                    continue;
+                }
+                changed.add(contentId);
+                if (category) {
+                    contentCategoryMapper.insertIgnore(contentId, targetId);
+                } else {
+                    contentTagMapper.insertIgnore(contentId, targetId);
+                }
+            }
+        }
+        return bulkResult(action, contentIds.size(), changed.size());
+    }
+
+    private BulkContentResultVO removeCategories(BulkContentAction action,
+                                                 List<Long> contentIds,
+                                                 List<Long> categoryIds,
+                                                 Map<Long, Content> contentsById) {
+        List<BulkContentFailureVO> failures = contentIds.stream()
+                .map(contentsById::get)
+                .filter(content -> ContentType.NOVEL.name().equals(content.getType()))
+                .map(content -> new BulkContentFailureVO(
+                        content.getId(), null, "NOVEL_CATEGORY_REMOVE_REQUIRES_EDIT"))
+                .toList();
+        if (!failures.isEmpty()) {
+            throw new BulkOperationException(
+                    409, "小说正文路径依赖目录，请通过编辑页调整分类", failures);
+        }
+
+        Map<Long, Set<Long>> existing = categoryLinks(contentIds);
+        Set<Long> changed = changedForRemoval(contentIds, categoryIds, existing);
+        if (!changed.isEmpty()) {
+            contentCategoryMapper.deleteLinks(contentIds, categoryIds);
+        }
+        return bulkResult(action, contentIds.size(), changed.size());
+    }
+
+    private BulkContentResultVO removeTags(BulkContentAction action,
+                                           List<Long> contentIds,
+                                           List<Long> tagIds) {
+        Map<Long, Set<Long>> existing = tagLinks(contentIds);
+        Set<Long> changed = changedForRemoval(contentIds, tagIds, existing);
+        if (!changed.isEmpty()) {
+            contentTagMapper.deleteLinks(contentIds, tagIds);
+        }
+        return bulkResult(action, contentIds.size(), changed.size());
+    }
+
+    private BulkContentResultVO archive(BulkContentAction action,
+                                        List<Long> contentIds,
+                                        Map<Long, Content> contentsById) {
+        List<Content> changed = contentIds.stream()
+                .map(contentsById::get)
+                .filter(content -> !ContentStatus.ARCHIVED.name().equals(content.getStatus()))
+                .toList();
+        if (!changed.isEmpty()) {
+            contentMapper.archiveByIds(contentIds);
+            for (Content content : changed) {
+                content.setStatus(ContentStatus.ARCHIVED.name());
+                content.setScheduledAt(null);
+                searchIndexService.sync(content, null);
+            }
+        }
+        return bulkResult(action, contentIds.size(), changed.size());
+    }
+
+    private BulkContentResultVO restoreDraft(BulkContentAction action,
+                                             List<Long> contentIds,
+                                             Map<Long, Content> contentsById) {
+        List<BulkContentFailureVO> failures = contentIds.stream()
+                .map(contentsById::get)
+                .filter(content -> !ContentStatus.ARCHIVED.name().equals(content.getStatus()))
+                .map(content -> new BulkContentFailureVO(
+                        content.getId(), null, "NOT_ARCHIVED"))
+                .toList();
+        if (!failures.isEmpty()) {
+            throw new BulkOperationException(
+                    409, "只有已归档内容可以恢复为草稿", failures);
+        }
+        contentMapper.restoreDraftByIds(contentIds);
+        for (Long contentId : contentIds) {
+            Content content = contentsById.get(contentId);
+            content.setStatus(ContentStatus.DRAFT.name());
+            content.setScheduledAt(null);
+        }
+        return bulkResult(action, contentIds.size(), contentIds.size());
+    }
+
+    private BulkContentResultVO bulkResult(BulkContentAction action,
+                                           int requestedCount,
+                                           int updatedCount) {
+        return new BulkContentResultVO(
+                action.name(),
+                requestedCount,
+                updatedCount,
+                requestedCount - updatedCount);
+    }
+
+    private Map<Long, Set<Long>> categoryLinks(List<Long> contentIds) {
+        Map<Long, Set<Long>> result = new HashMap<>();
+        for (ContentCategoryLink link : contentCategoryMapper.findLinksByContentIds(contentIds)) {
+            result.computeIfAbsent(link.getContentId(), ignored -> new LinkedHashSet<>())
+                    .add(link.getCategoryId());
+        }
+        return result;
+    }
+
+    private Map<Long, Set<Long>> tagLinks(List<Long> contentIds) {
+        Map<Long, Set<Long>> result = new HashMap<>();
+        for (ContentTagLink link : contentTagMapper.findLinksByContentIds(contentIds)) {
+            result.computeIfAbsent(link.getContentId(), ignored -> new LinkedHashSet<>())
+                    .add(link.getTagId());
+        }
+        return result;
+    }
+
+    private Set<Long> changedForRemoval(List<Long> contentIds,
+                                        List<Long> targetIds,
+                                        Map<Long, Set<Long>> existing) {
+        Set<Long> changed = new LinkedHashSet<>();
+        Set<Long> targetSet = new HashSet<>(targetIds);
+        for (Long contentId : contentIds) {
+            if (existing.getOrDefault(contentId, Set.of()).stream()
+                    .anyMatch(targetSet::contains)) {
+                changed.add(contentId);
+            }
+        }
+        return changed;
+    }
+
+    private void validateScheduling(ContentStatus status,
+                                    LocalDateTime scheduledAt,
+                                    String existingStatus,
+                                    LocalDateTime publishedAt) {
+        if (status != ContentStatus.SCHEDULED) {
+            return;
+        }
+        if (scheduledAt == null || !scheduledAt.isAfter(now())) {
+            throw new BusinessException(400, "计划发布时间必须晚于当前时间");
+        }
+        boolean firstPublication = publishedAt == null
+                && (existingStatus == null
+                || ContentStatus.DRAFT.name().equals(existingStatus)
+                || ContentStatus.SCHEDULED.name().equals(existingStatus));
+        if (!firstPublication) {
+            throw new BusinessException(409, "只有未发布的草稿可以设置定时发布");
+        }
+    }
+
+    private LocalDateTime now() {
+        return LocalDateTime.now(clock);
     }
 
     private void ensureSlugAvailable(String slug, Long excludeId) {

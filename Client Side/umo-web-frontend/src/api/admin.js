@@ -6,6 +6,7 @@ export const getAdminContents= (p)    => client.get('/admin/contents', { params:
 export const getAdminContent = (id)   => client.get(`/admin/contents/${id}`)
 export const createContent   = (data) => client.post('/admin/contents', data)
 export const updateContent   = (id,d) => client.put(`/admin/contents/${id}`, d)
+export const bulkUpdateContents = (data) => client.post('/admin/contents/bulk', data)
 export const deleteContent   = (id)   => client.delete(`/admin/contents/${id}`)
 export const getAdminCats    = (type) => client.get('/admin/categories', { params: type ? { type } : {} })
 export const getAdminCat     = (id)   => client.get(`/admin/categories/${id}`)

@@ -37,6 +37,10 @@ app:
     login-max-failures: 5
     login-window-seconds: 900
     search-rate-limit-seconds: 10
+  scheduling:
+    zone: ${APP_SCHEDULING_ZONE:Asia/Shanghai}
+    poll-interval-ms: ${APP_SCHEDULING_POLL_INTERVAL_MS:30000}
+    initial-delay-ms: ${APP_SCHEDULING_INITIAL_DELAY_MS:30000}
   jwt:
     secret: ${JWT_SECRET:change-me-in-production-this-is-a-default-only}
     expiration-hours: 24

@@ -73,7 +73,7 @@ function Step {
     if ($script:StepCount -ne $Number) {
         throw "Smoke step ordering error: expected $Number but got $($script:StepCount)"
     }
-    Write-Host ("[{0}/30] PASS {1}" -f $Number, $Name)
+    Write-Host ("[{0}/31] PASS {1}" -f $Number, $Name)
 }
 
 function Invoke-ImageUpload {
@@ -140,6 +140,8 @@ $contentId = $null
 $previousContentId = $null
 $referenceContentId = $null
 $integrityContentId = $null
+$bulkContentId = $null
+$bulkTagId = $null
 $imageId = $null
 
 try {
@@ -491,10 +493,55 @@ try {
     $integrityContentId = $null
     Step 30 "GET /api/admin/images/integrity"
 
-    if ($script:StepCount -ne 30) {
-        throw "Expected 30 endpoints but covered $($script:StepCount)"
+    $bulkTag = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/tags" `
+            -Headers $authHeaders -Body @{
+                name = "Smoke Bulk Tag $runId"
+                slug = "smoke-bulk-tag-$runId"
+            })
+    Assert-True ($bulkTag.id -gt 0) "bulk tag must have id"
+    $bulkTagId = $bulkTag.id
+
+    $scheduledSlug = "smoke-scheduled-$runId"
+    $scheduledContent = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/contents" `
+            -Headers $authHeaders -Body @{
+                title = "Smoke Scheduled $runId"
+                slug = $scheduledSlug
+                body = "# Scheduled`n`nBulk and schedule smoke"
+                summary = "Temporary scheduled content"
+                type = "NOTE"
+                status = "SCHEDULED"
+                scheduledAt = "2099-09-20T10:00:00"
+                categoryIds = @()
+                tagIds = @()
+            })
+    $bulkContentId = $scheduledContent.id
+    Assert-True ($bulkContentId -gt 0) "scheduled content must have id"
+    Assert-True ($scheduledContent.status -eq "SCHEDULED") `
+        "scheduled content must keep SCHEDULED status"
+    Invoke-Checked -Method GET -Path "/api/public/contents/$scheduledSlug" `
+        -ExpectedStatus 404 | Out-Null
+
+    $bulkResult = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/contents/bulk" `
+            -Headers $authHeaders -Body @{
+                action = "ADD_TAGS"
+                contentIds = @($bulkContentId)
+                tagIds = @($bulkTagId)
+            })
+    Assert-True ($bulkResult.updatedCount -eq 1) `
+        "bulk tag update must report one changed content item"
+    $archivedResult = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/contents/bulk" `
+            -Headers $authHeaders -Body @{
+                action = "ARCHIVE"
+                contentIds = @($bulkContentId)
+            })
+    Assert-True ($archivedResult.updatedCount -eq 1) `
+        "bulk archive must report one changed content item"
+    Step 31 "POST /api/admin/contents/bulk"
+
+    if ($script:StepCount -ne 31) {
+        throw "Expected 31 endpoints but covered $($script:StepCount)"
     }
-    Write-Host "API smoke passed: 30/30 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, related contents, password invalidation, image lifecycle, image integrity, and search rate limit."
+    Write-Host "API smoke passed: 31/31 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, related contents, password invalidation, image lifecycle, image integrity, scheduled isolation, bulk operations, and search rate limit."
 }
 finally {
     if ($passwordChangePending) {
@@ -532,6 +579,8 @@ finally {
     Remove-TestResource -Path "/api/admin/categories/$categoryId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/contents/$referenceContentId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/contents/$integrityContentId" -Headers $authHeaders
+    Remove-TestResource -Path "/api/admin/contents/$bulkContentId" -Headers $authHeaders
+    Remove-TestResource -Path "/api/admin/tags/$bulkTagId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/images/$imageId" -Headers $authHeaders
     Remove-Item -LiteralPath $imagePath -Force -ErrorAction SilentlyContinue
 }

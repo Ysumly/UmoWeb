@@ -206,6 +206,39 @@ class BoundaryTest {
     }
 
     @Test
+    @DisplayName("15.1 批量文章: 空 contentIds → 400")
+    void bulkContentRequiresIds() throws Exception {
+        mvc.perform(post("/api/admin/contents/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"action":"ARCHIVE","contentIds":[]}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    @DisplayName("15.2 批量文章: 预检失败返回明细 → 409")
+    void bulkContentReturnsFailureDetails() throws Exception {
+        when(contentManageService.bulk(any()))
+                .thenThrow(new BulkOperationException(
+                        409,
+                        "只有已归档内容可以恢复为草稿",
+                        java.util.List.of(new com.ysumly.umowebbackend.model.vo.BulkContentFailureVO(
+                                7L, null, "NOT_ARCHIVED"))));
+
+        mvc.perform(post("/api/admin/contents/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"action":"RESTORE_DRAFT","contentIds":[7]}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(409))
+                .andExpect(jsonPath("$.failures[0].contentId").value(7))
+                .andExpect(jsonPath("$.failures[0].reason").value("NOT_ARCHIVED"));
+    }
+
+    @Test
     @DisplayName("16. 修改密码: 新密码不足6位 → 400")
     void changePasswordTooShort() throws Exception {
         mvc.perform(put("/api/admin/change-password")

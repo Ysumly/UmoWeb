@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -28,8 +29,11 @@ public class ContentSaveRequest {
     @Pattern(regexp = "NOTE|NOVEL|BOOK_REVIEW", message = "type 必须是 NOTE、NOVEL 或 BOOK_REVIEW")
     private String type;
 
-    @Pattern(regexp = "DRAFT|PUBLISHED", message = "status 必须是 DRAFT 或 PUBLISHED")
+    @Pattern(regexp = "DRAFT|SCHEDULED|PUBLISHED|ARCHIVED",
+            message = "status 必须是 DRAFT、SCHEDULED、PUBLISHED 或 ARCHIVED")
     private String status;
+
+    private LocalDateTime scheduledAt;
 
     private List<Long> categoryIds;
     private List<Long> tagIds;

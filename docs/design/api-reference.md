@@ -1,9 +1,9 @@
 # UmoWeb API 接口参考
 
-> 基线日期: 2026-09-15
+> 基线日期: 2026-09-16
 > 事实来源: `controller/`、`model/dto/`、`model/vo/`、`GlobalExceptionHandler`、Mapper XML
-> 接口总数: 公开端 8 个，管理端 22 个，共 30 个
-> 实测状态: 2026-09-15 完成 MySQL 8.4 集成与公开/管理接口 30/30 冒烟
+> 接口总数: 公开端 8 个，管理端 23 个，共 31 个
+> 实测状态: 2026-09-16 新增批量文章接口；真实 MySQL 集成与公开/管理接口执行 31/31 冒烟
 
 ---
 
@@ -369,11 +369,12 @@ Authorization: Bearer <token>
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `status` | string | `DRAFT` 或 `PUBLISHED`；不传返回全部 |
+| `status` | string | `DRAFT`、`SCHEDULED`、`PUBLISHED` 或 `ARCHIVED`；不传返回全部 |
 
 `includeDescendants` 同样适用于管理端列表。返回含草稿的分页 `PageResult<ContentListVO>`。
 
-`ContentListVO` 包含 `status` 字段：公开接口只会返回 `PUBLISHED`；管理端列表和详情会返回 `DRAFT` 或 `PUBLISHED`。
+`ContentListVO` 包含 `status` 与可选 `scheduledAt`：公开接口只会返回 `PUBLISHED`；
+管理端列表和详情可返回 `DRAFT`、`SCHEDULED`、`PUBLISHED` 或 `ARCHIVED`。
 
 ### 4.2 查询文章详情
 
@@ -415,7 +416,8 @@ Content-Type: application/json
 | `body` | string | 否 | `null` 时写入空字符串 |
 | `summary` | string | 否 | 最长 2000 |
 | `type` | string | 是 | 必须为 `NOTE`、`NOVEL`、`BOOK_REVIEW`，非法值返回 400 |
-| `status` | string | 否 | 默认 `DRAFT`；非空时必须是 `DRAFT` 或 `PUBLISHED` |
+| `scheduledAt` | string | 否 | `status=SCHEDULED` 时必填，必须是晚于当前时间的 ISO 本地时间 |
+| `status` | string | 否 | 默认 `DRAFT`；允许 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`；新建不能直接归档 |
 | `categoryIds` | long[] | 否 | 必须全部存在；重复 ID 会去重 |
 | `tagIds` | long[] | 否 | 必须全部存在；重复 ID 会去重 |
 | `metadata` | string | 否 | 非空时必须是合法 JSON 对象 |
@@ -447,8 +449,10 @@ Authorization: Bearer <token>
 - 路径变化时旧文件在事务成功提交后才清理。
 - 数据库回滚时，同路径更新会恢复旧文件内容；路径变化会删除新文件并保留旧文件。
 - 每次编辑会先删除全部分类/标签关联，再按请求重新插入。
-- 从非发布状态首次变为 `PUBLISHED` 时设置 `publishedAt`。
+- 仅 `publishedAt` 为空的草稿可设为 `SCHEDULED`；计划时间到点后由服务器发布。
+- 从非发布状态手动变为 `PUBLISHED` 时设置当前 `publishedAt`；调度发布使用原计划时间。
 - 已发布文章改回 `DRAFT` 时保留原 `publishedAt`。
+- `SCHEDULED` 改期必须提交新的未来时间；取消回 `DRAFT`、归档或提前发布都会清空 `scheduledAt`。
 - 成功返回 HTTP 200。
 
 ### 4.5 删除文章
@@ -462,6 +466,64 @@ Authorization: Bearer <token>
 数据库失败时文件和旧数据保留；提交后文件删除失败时记录错误日志并留下可清理的孤儿文件。
 
 成功返回 `204 No Content`。
+
+### 4.6 批量更新文章
+
+```http
+POST /api/admin/contents/bulk
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+```json
+{
+  "action": "ADD_TAGS",
+  "contentIds": [1, 2],
+  "tagIds": [3]
+}
+```
+
+`action` 支持：
+
+| action | 行为 | 必填目标 |
+|---|---|---|
+| `ADD_CATEGORIES` | 保留现有关联并添加分类 | `categoryIds` |
+| `REMOVE_CATEGORIES` | 移除指定分类 | `categoryIds` |
+| `ADD_TAGS` | 保留现有关联并添加标签 | `tagIds` |
+| `REMOVE_TAGS` | 移除指定标签 | `tagIds` |
+| `ARCHIVE` | 状态改为 `ARCHIVED`，清空计划时间 | - |
+| `RESTORE_DRAFT` | 已归档内容恢复为 `DRAFT`，保留 `publishedAt` | - |
+
+`contentIds` 必须为 1-100 个唯一存在的内容；分类或标签批量操作的目标 ID 也限制为
+最多 100 个且必须存在。整批操作先预检再在单个事务中提交，任一内容无效时不产生部分更新。
+小说内容的分类移除需要在编辑页处理，因为 `body_path` 依赖小说目录。
+
+成功响应：
+
+```json
+{
+  "action": "ADD_TAGS",
+  "requestedCount": 2,
+  "updatedCount": 2,
+  "unchangedCount": 0
+}
+```
+
+预检失败时返回对应 400/404/409，并保留通用 `code`、`message`，额外返回逐项 `failures`：
+
+```json
+{
+  "code": 409,
+  "message": "只有已归档内容可以恢复为草稿",
+  "failures": [
+    {
+      "contentId": 7,
+      "targetId": null,
+      "reason": "NOT_ARCHIVED"
+    }
+  ]
+}
+```
 
 ---
 
@@ -645,7 +707,8 @@ Authorization: Bearer <token>
 }
 ```
 
-引用状态扫描全部 `DRAFT`、`PUBLISHED` 文章 Markdown，以及 `about_page`、`project_page`；
+引用状态扫描全部文章状态（`DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`）的 Markdown，
+以及 `about_page`、`project_page`；
 只识别规范 `/images/...` 路径。Markdown 文件缺失只记录警告，不影响列表。
 
 ### 7.3 检查图片一致性

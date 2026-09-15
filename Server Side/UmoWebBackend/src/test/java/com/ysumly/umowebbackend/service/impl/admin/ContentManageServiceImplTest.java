@@ -27,6 +27,10 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,6 +53,9 @@ class ContentManageServiceImplTest {
             mock(CategoryHierarchyResolver.class);
     private final ContentSearchIndexService searchIndexService =
             mock(ContentSearchIndexService.class);
+    private final Clock clock = Clock.fixed(
+            Instant.parse("2026-09-15T12:00:00Z"),
+            ZoneId.of("Asia/Shanghai"));
 
     private FileUtil fileUtil;
     private ContentVOMapper voMapper;
@@ -72,7 +79,8 @@ class ContentManageServiceImplTest {
                 fileUtil,
                 voMapper,
                 categoryHierarchyResolver,
-                searchIndexService);
+                searchIndexService,
+                clock);
         when(contentCategoryMapper.findLinksByContentIds(anyList())).thenReturn(List.of());
         when(contentTagMapper.findLinksByContentIds(anyList())).thenReturn(List.of());
     }
@@ -260,7 +268,8 @@ class ContentManageServiceImplTest {
                 failingFileUtil,
                 voMapper,
                 categoryHierarchyResolver,
-                searchIndexService);
+                searchIndexService,
+                clock);
 
         assertThatThrownBy(() -> failingService.update(1L, noteRequest("article", "new")))
                 .isInstanceOf(RuntimeException.class);
@@ -310,6 +319,121 @@ class ContentManageServiceImplTest {
                 argThat(content -> content.getId().equals(3L)
                         && content.getStatus().equals("DRAFT")),
                 eq("new"));
+    }
+
+    @Test
+    void createScheduledContentRequiresFutureScheduleAndDoesNotPublishIt() throws IOException {
+        when(contentMapper.countBySlug("scheduled-note", null)).thenReturn(0L);
+        doAnswer(invocation -> {
+            Content content = invocation.getArgument(0);
+            content.setId(11L);
+            return null;
+        }).when(contentMapper).insert(any(Content.class));
+        ContentSaveRequest request = noteRequest("scheduled-note", "# 计划发布");
+        request.setStatus("SCHEDULED");
+        request.setScheduledAt(LocalDateTime.of(2026, 9, 15, 21, 0));
+
+        service.create(request);
+
+        ArgumentCaptor<Content> captor = ArgumentCaptor.forClass(Content.class);
+        verify(contentMapper).insert(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo("SCHEDULED");
+        assertThat(captor.getValue().getScheduledAt())
+                .isEqualTo(LocalDateTime.of(2026, 9, 15, 21, 0));
+        assertThat(captor.getValue().getPublishedAt()).isNull();
+        verify(searchIndexService).sync(
+                argThat(content -> content.getStatus().equals("SCHEDULED")),
+                eq("# 计划发布"));
+    }
+
+    @Test
+    void createScheduledContentRejectsPastSchedule() {
+        when(contentMapper.countBySlug("scheduled-note", null)).thenReturn(0L);
+        ContentSaveRequest request = noteRequest("scheduled-note", "body");
+        request.setStatus("SCHEDULED");
+        request.setScheduledAt(LocalDateTime.of(2026, 9, 15, 19, 59, 59));
+
+        assertThatThrownBy(() -> service.create(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("计划发布时间必须晚于当前时间")
+                .extracting("code")
+                .isEqualTo(400);
+
+        verify(contentMapper, never()).insert(any());
+    }
+
+    @Test
+    void createRejectsArchivedStatus() {
+        when(contentMapper.countBySlug("archived-note", null)).thenReturn(0L);
+        ContentSaveRequest request = noteRequest("archived-note", "body");
+        request.setStatus("ARCHIVED");
+
+        assertThatThrownBy(() -> service.create(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("新建文章不能直接归档")
+                .extracting("code")
+                .isEqualTo(400);
+
+        verify(contentMapper, never()).insert(any());
+    }
+
+    @Test
+    void publishedContentCannotBeMovedBackToScheduled() throws IOException {
+        Content old = existingContent(12L, "published", "contents/NOTE/published.md", "body");
+        old.setStatus("PUBLISHED");
+        old.setPublishedAt(LocalDateTime.of(2026, 9, 14, 10, 0));
+        when(contentMapper.findById(12L)).thenReturn(old);
+        when(contentMapper.countBySlug("published", 12L)).thenReturn(0L);
+        ContentSaveRequest request = noteRequest("published", "body");
+        request.setStatus("SCHEDULED");
+        request.setScheduledAt(LocalDateTime.of(2026, 9, 16, 10, 0));
+
+        assertThatThrownBy(() -> service.update(12L, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("只有未发布的草稿可以设置定时发布")
+                .extracting("code")
+                .isEqualTo(409);
+
+        verify(contentMapper, never()).update(any());
+    }
+
+    @Test
+    void archivingClearsScheduleAndRetainsPublishedTime() throws IOException {
+        LocalDateTime publishedAt = LocalDateTime.of(2026, 9, 14, 10, 0);
+        Content old = existingContent(13L, "archive-me", "contents/NOTE/archive-me.md", "body");
+        old.setStatus("SCHEDULED");
+        old.setPublishedAt(publishedAt);
+        old.setScheduledAt(LocalDateTime.of(2026, 9, 16, 10, 0));
+        when(contentMapper.findById(13L)).thenReturn(old);
+        when(contentMapper.countBySlug("archive-me", 13L)).thenReturn(0L);
+        ContentSaveRequest request = noteRequest("archive-me", "body");
+        request.setStatus("ARCHIVED");
+
+        service.update(13L, request);
+
+        assertThat(old.getStatus()).isEqualTo("ARCHIVED");
+        assertThat(old.getScheduledAt()).isNull();
+        assertThat(old.getPublishedAt()).isEqualTo(publishedAt);
+        verify(searchIndexService).sync(
+                argThat(content -> content.getStatus().equals("ARCHIVED")),
+                eq("body"));
+    }
+
+    @Test
+    void republishingArchivedContentUsesCurrentTime() throws IOException {
+        Content old = existingContent(14L, "republish", "contents/NOTE/republish.md", "body");
+        old.setStatus("ARCHIVED");
+        old.setPublishedAt(LocalDateTime.of(2025, 1, 1, 10, 0));
+        when(contentMapper.findById(14L)).thenReturn(old);
+        when(contentMapper.countBySlug("republish", 14L)).thenReturn(0L);
+        ContentSaveRequest request = noteRequest("republish", "body");
+        request.setStatus("PUBLISHED");
+
+        service.update(14L, request);
+
+        assertThat(old.getStatus()).isEqualTo("PUBLISHED");
+        assertThat(old.getScheduledAt()).isNull();
+        assertThat(old.getPublishedAt()).isEqualTo(LocalDateTime.of(2026, 9, 15, 20, 0));
     }
 
     private Content existingContent(Long id, String slug, String bodyPath, String body) throws IOException {

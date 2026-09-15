@@ -42,6 +42,8 @@ class Smoke:
         self.previous_content_id: int | None = None
         self.reference_content_id: int | None = None
         self.integrity_content_id: int | None = None
+        self.bulk_content_id: int | None = None
+        self.bulk_tag_id: int | None = None
         self.image_id: int | None = None
 
     def run(self) -> None:
@@ -721,11 +723,82 @@ class Smoke:
             self.integrity_content_id = None
             self.step(30, "GET /api/admin/images/integrity")
 
+            bulk_tag = self.expect_json(
+                "POST",
+                "/api/admin/tags",
+                {
+                    "name": f"Smoke Bulk Tag {run_id}",
+                    "slug": f"smoke-bulk-tag-{run_id}",
+                },
+                token=self.token,
+            )
+            self.bulk_tag_id = bulk_tag.get("id")
+            self.require(self.bulk_tag_id, "bulk tag must have id")
+
+            scheduled_slug = f"smoke-scheduled-{run_id}"
+            scheduled_content = self.expect_json(
+                "POST",
+                "/api/admin/contents",
+                {
+                    "title": f"Smoke Scheduled {run_id}",
+                    "slug": scheduled_slug,
+                    "body": "# Scheduled\n\nBulk and schedule smoke",
+                    "summary": "Temporary scheduled content",
+                    "type": "NOTE",
+                    "status": "SCHEDULED",
+                    "scheduledAt": "2099-09-20T10:00:00",
+                    "categoryIds": [],
+                    "tagIds": [],
+                },
+                token=self.token,
+            )
+            self.bulk_content_id = scheduled_content.get("id")
+            self.require(self.bulk_content_id, "scheduled content must have id")
+            self.require(
+                scheduled_content.get("status") == "SCHEDULED",
+                "scheduled content must keep SCHEDULED status",
+            )
+            self.request(
+                "GET",
+                f"/api/public/contents/{scheduled_slug}",
+                expected=404,
+            )
+
+            bulk_result = self.expect_json(
+                "POST",
+                "/api/admin/contents/bulk",
+                {
+                    "action": "ADD_TAGS",
+                    "contentIds": [self.bulk_content_id],
+                    "tagIds": [self.bulk_tag_id],
+                },
+                token=self.token,
+            )
+            self.require(
+                bulk_result.get("updatedCount") == 1,
+                "bulk tag update must report one changed content item",
+            )
+            archived_result = self.expect_json(
+                "POST",
+                "/api/admin/contents/bulk",
+                {
+                    "action": "ARCHIVE",
+                    "contentIds": [self.bulk_content_id],
+                },
+                token=self.token,
+            )
+            self.require(
+                archived_result.get("updatedCount") == 1,
+                "bulk archive must report one changed content item",
+            )
+            self.step(31, "POST /api/admin/contents/bulk")
+
             print(
-                "API smoke passed: 30/30 endpoints, authentication guard, "
+                "API smoke passed: 31/31 endpoints, authentication guard, "
                 "draft isolation, public filters, content associations, "
                 "previous/next navigation, related contents, password invalidation, "
-                "image lifecycle, image integrity, and search rate limit."
+                "image lifecycle, image integrity, scheduled isolation, bulk operations, "
+                "and search rate limit."
             )
         finally:
             try:
@@ -804,6 +877,12 @@ class Smoke:
                 if self.integrity_content_id
                 else None
             ),
+            (
+                f"/api/admin/contents/{self.bulk_content_id}"
+                if self.bulk_content_id
+                else None
+            ),
+            f"/api/admin/tags/{self.bulk_tag_id}" if self.bulk_tag_id else None,
             f"/api/admin/tags/{self.tag_id}" if self.tag_id else None,
             (
                 f"/api/admin/categories/{self.child_category_id}"
@@ -825,7 +904,7 @@ class Smoke:
             raise SmokeFailure(
                 f"Smoke step ordering error: expected {number}, got {self.steps}"
             )
-        print(f"[{number}/30] PASS {name}")
+        print(f"[{number}/31] PASS {name}")
 
     def require(self, condition: Any, message: str) -> None:
         if not condition:

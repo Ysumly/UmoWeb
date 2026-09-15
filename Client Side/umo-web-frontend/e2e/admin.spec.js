@@ -367,6 +367,53 @@ test('图片管理支持引用筛选、删除和 409 保护', async ({ page, api
   expect(apiMock.state.images).toHaveLength(1)
 })
 
+test('文章列表支持当前页批量标签、归档和恢复', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents')
+
+  await page.getByLabel('选择 第一篇公开文章').check()
+  await page.getByLabel('选择 公开文章 02').check()
+  await page.locator('.admin-bulk-bar').getByLabel('操作').selectOption('ADD_TAGS')
+  await page.locator('.admin-bulk-bar select').nth(1).selectOption('3')
+  await page.locator('.admin-bulk-bar').getByRole('button', { name: '添加标签' }).click()
+
+  await expect(page.getByText('批量操作完成：更新 2 篇，未变化 0 篇')).toBeVisible()
+  expect(apiMock.state.contents.find((content) => content.id === 1).tagIds).toContain(3)
+  expect(apiMock.state.contents.find((content) => content.id === 2).tagIds).toContain(3)
+
+  await page.getByLabel('选择 第一篇公开文章').check()
+  await page.locator('.admin-bulk-bar').getByLabel('操作').selectOption('ARCHIVE')
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.locator('.admin-bulk-bar').getByRole('button', { name: '归档' }).click()
+  await expect(page.getByRole('row', { name: /第一篇公开文章/ })).toContainText('已归档')
+
+  await page.locator('.admin-filters').getByLabel('状态').selectOption('ARCHIVED')
+  await expect(page.getByRole('row', { name: /第一篇公开文章/ })).toBeVisible()
+  await page.getByLabel('选择 第一篇公开文章').check()
+  await page.locator('.admin-bulk-bar').getByLabel('操作').selectOption('RESTORE_DRAFT')
+  await page.locator('.admin-bulk-bar').getByRole('button', { name: '恢复为草稿' }).click()
+  await expect(page.getByRole('row', { name: /第一篇公开文章/ })).toHaveCount(0)
+})
+
+test('编辑器支持未来定时发布且已发布文章不能反向排期', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  await page.getByLabel(/^标题/).fill('E2E 定时文章')
+  await page.getByLabel(/^slug/).fill('e2e-scheduled-content')
+  await page.getByLabel('Markdown 正文').fill('# 定时发布')
+  await page.getByLabel(/^状态/).selectOption('SCHEDULED')
+  await page.getByLabel(/计划发布时间/).fill('2099-09-20T10:00')
+  await page.getByRole('button', { name: '创建文章' }).click()
+
+  await expect(page).toHaveURL(/\/secret-admin\/contents\?saved=1/)
+  await page.locator('.admin-filters').getByLabel('状态').selectOption('SCHEDULED')
+  await expect(page.getByRole('row', { name: /E2E 定时文章/ })).toContainText('待发布')
+
+  await page.goto('/secret-admin/contents/1/edit')
+  await expect(page.getByLabel(/^状态/).locator('option[value="SCHEDULED"]')).toHaveCount(0)
+})
+
 test('图片一致性检查展示三类问题与来源，删除后报告失效', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/images')
