@@ -170,4 +170,4 @@ if [[ "$image_files" -ne 0 ]]; then
   exit 1
 fi
 
-echo "MySQL integration passed with schema, seed, migrations, and 29/29 API smoke."
+echo "MySQL integration passed with schema, seed, migrations, and 30/30 API smoke."

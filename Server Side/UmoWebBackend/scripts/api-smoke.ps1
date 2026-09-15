@@ -73,7 +73,7 @@ function Step {
     if ($script:StepCount -ne $Number) {
         throw "Smoke step ordering error: expected $Number but got $($script:StepCount)"
     }
-    Write-Host ("[{0}/29] PASS {1}" -f $Number, $Name)
+    Write-Host ("[{0}/30] PASS {1}" -f $Number, $Name)
 }
 
 function Invoke-ImageUpload {
@@ -139,6 +139,7 @@ $tagId = $null
 $contentId = $null
 $previousContentId = $null
 $referenceContentId = $null
+$integrityContentId = $null
 $imageId = $null
 
 try {
@@ -456,10 +457,44 @@ try {
         "deleted image must leave the list"
     Step 29 "DELETE /api/admin/images/{id}"
 
-    if ($script:StepCount -ne 29) {
-        throw "Expected 29 endpoints but covered $($script:StepCount)"
+    $missingImageUrl = "/images/2026/09/smoke-missing-$runId.png"
+    $integrityTitle = "Smoke Integrity Reference $runId"
+    $integrityContent = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/contents" `
+            -Headers $authHeaders -Body @{
+                title = $integrityTitle
+                slug = "smoke-integrity-reference-$runId"
+                body = "![missing]($missingImageUrl)"
+                summary = "Temporary broken image reference"
+                type = "NOTE"
+                status = "DRAFT"
+                categoryIds = @()
+                tagIds = @()
+            })
+    $integrityContentId = $integrityContent.id
+    Assert-True ($integrityContentId -gt 0) "integrity reference content must have id"
+
+    $integrity = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/images/integrity" `
+            -Headers $authHeaders)
+    Assert-True ($null -ne $integrity.brokenReferences) `
+        "image integrity report must contain brokenReferences"
+    $integrityMatch = $integrity.brokenReferences | Where-Object {
+        $_.url -eq $missingImageUrl -and
+        $_.sourceType -eq "CONTENT" -and
+        $_.sourceId -eq $integrityContentId -and
+        $_.sourceLabel -eq $integrityTitle
     }
-    Write-Host "API smoke passed: 29/29 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, related contents, password invalidation, image lifecycle, and search rate limit."
+    Assert-True ($integrityMatch.Count -eq 1) `
+        "image integrity report must locate the temporary broken reference"
+
+    Invoke-Checked -Method DELETE -Path "/api/admin/contents/$integrityContentId" `
+        -Headers $authHeaders -ExpectedStatus 204 | Out-Null
+    $integrityContentId = $null
+    Step 30 "GET /api/admin/images/integrity"
+
+    if ($script:StepCount -ne 30) {
+        throw "Expected 30 endpoints but covered $($script:StepCount)"
+    }
+    Write-Host "API smoke passed: 30/30 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, related contents, password invalidation, image lifecycle, image integrity, and search rate limit."
 }
 finally {
     if ($passwordChangePending) {
@@ -496,6 +531,7 @@ finally {
     Remove-TestResource -Path "/api/admin/categories/$childCategoryId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/categories/$categoryId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/contents/$referenceContentId" -Headers $authHeaders
+    Remove-TestResource -Path "/api/admin/contents/$integrityContentId" -Headers $authHeaders
     Remove-TestResource -Path "/api/admin/images/$imageId" -Headers $authHeaders
     Remove-Item -LiteralPath $imagePath -Force -ErrorAction SilentlyContinue
 }

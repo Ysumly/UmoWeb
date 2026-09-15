@@ -35,7 +35,7 @@ UmoWeb/
 └── .superpowers/
 ```
 
-后端主源码为 95 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
+后端主源码为 103 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
 游戏规则与页面、主题与 Markdown 工具和 Node 测试。`Downloads/`、
 `.superpowers/`、`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
@@ -58,7 +58,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；132 个测试（9 个 MySQL 环境门控） |
+| 测试 | Spring Boot Test、Mockito、MockMvc；145 个测试（10 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -126,7 +126,8 @@ cd "Server Side\UmoWebBackend"
 .\scripts\api-smoke.ps1 -BaseUrl "http://127.0.0.1:8080" -Username "admin" -Password "<current-password>"
 ```
 
-脚本覆盖 29 个接口，并校验管理端 401、搜索 429、详情前后文章、改密后旧 token 失效和图片完整生命周期。
+脚本覆盖 30 个接口，并校验管理端 401、搜索 429、详情前后文章、改密后旧 token 失效、
+图片完整生命周期和图片一致性来源定位。
 
 Docker 全栈：
 
@@ -181,13 +182,13 @@ com.ysumly.umowebbackend/
 | 层 | 数量 |
 |---|---|
 | Controller | 10（公开 4、管理 6） |
-| Service 接口/实现 | 9/9 |
+| Service 接口/实现 | 14/12（含两个无接口的内部辅助 Service） |
 | Mapper 接口/XML | 8/8 |
-| Entity | 6 |
-| DTO | 8 |
-| VO | 6 |
-| Config | 5 |
-| 边界测试 | 20 |
+| Entity | 7 |
+| DTO | 11 |
+| VO | 14 |
+| Config | 10 |
+| 边界测试 | 33 |
 
 ### 4.2 正常与异常响应
 
@@ -240,7 +241,7 @@ HTTP 状态与返回：
 | GET | `/api/public/contents/{slug}` |
 | GET | `/api/public/contents/search` |
 
-管理端共 21 个：
+管理端共 22 个：
 
 | 方法 | 路径 |
 |---|---|
@@ -254,6 +255,7 @@ HTTP 状态与返回：
 | PUT/DELETE | `/api/admin/tags/{id}` |
 | POST | `/api/admin/images/upload` |
 | GET | `/api/admin/images` |
+| GET | `/api/admin/images/integrity` |
 | DELETE | `/api/admin/images/{id}` |
 | GET | `/api/admin/options` |
 | PUT | `/api/admin/options/{key}` |
@@ -299,6 +301,13 @@ images/{YYYY}/{MM}/{uuid}.{ext}
 
 上传同时校验 MIME 和文件签名，并只根据 MIME 映射固定扩展名。原始文件名只作为安全化后的展示元信息。
 Spring Multipart 限制单文件和请求均为 50MB。
+
+图片一致性检查：
+
+- 严格扫描全部文章 Markdown 与 About/Project，返回内容 ID/标题或固定页来源。
+- 对比 `images` 记录和 `app.storage-path/images` 普通文件，分别报告断裂引用、记录缺文件和磁盘孤立文件。
+- 被内容引用但数据库无记录的磁盘文件只归入断裂引用；已有记录但未被引用仍保持 `ORPHANED`。
+- 扫描失败返回 500，不返回部分报告；不自动修复、不持久化历史、不新增 Schema。
 
 文章文件一致性：
 
@@ -406,6 +415,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
   桌面侧栏和窄屏悬浮面板均支持分支展开与当前/祖先高亮，阅读进度按正文滚动范围计算；
   标题使用稳定 ID 和旧版兼容别名，旧内容迁移脚本支持 dry-run、备份和原子写入。
   2026-09-15 已补齐相关阅读，正文内检索明确由浏览器原生查找承担，不提供站内搜索控件。
+- 2026-09-15 已完成 Task 4.2 图片一致性检查：图片管理页可按需展示三类异常、来源、计数和扫描时间，
+  删除图片后旧报告失效；结果不写入 Pinia 或浏览器存储。
 
 ### 6.2 其他前端事实
 
@@ -507,18 +518,18 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - `ClientIpResolver` 支持精确 IP 与 IPv4/IPv6 CIDR，覆盖非法配置、可信代理链和未授权转发头。
 - `UmoWebApplicationTests` 是空测试，不加载完整 Spring 上下文。
 - 新增正文索引 upsert/剔除、回填容错、摘要提取、正文命中搜索、空查询契约和相关文章排序测试。
-- 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成 29/29 接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
+- 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
 - PowerShell 与 Bash 发布脚本自测已纳入 `repository` CI job，覆盖 CI 选择、manifest、归档校验、
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
 - 内容导入与阅读锚点工具共有 10 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、
   图片重写、内容去重、Linux 文件所有权、缺失素材阻断，以及旧锚点 dry-run、备份、
-  原子写入、幂等和缺少目标阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 29 个接口。
+  原子写入、幂等和缺少目标阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 30 个接口。
 - 前端 82 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、
   Markdown front matter 导入、日期格式、书库后代参数、目录树与展开状态、标题 ID/别名、
   Markdown 原始 HTML、危险 URL 协议和图片 alt 转义。
-- Playwright 每个平台运行 76 个浏览器检查：48 个 functional 用例覆盖公开端、正文摘要、
-  文章目录/阅读进度/相关阅读、隐私说明、在线编辑器、四款游戏的高密度/长序列/旧成绩兼容和管理端核心流程；
+- Playwright 每个平台运行 79 个浏览器检查：51 个 functional 用例覆盖公开端、正文摘要、
+  文章目录/阅读进度/相关阅读、图片一致性报告与竞态、隐私说明、在线编辑器、四款游戏的高密度/长序列/旧成绩兼容和管理端核心流程；
   28 个视觉断言覆盖 14 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
@@ -530,7 +541,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。
 - GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、MySQL 8.4 集成、
   前端测试、生产构建和 Linux Playwright；MySQL job 同时验证 Schema、种子、两次正文回填、
-  中文 ngram 查询和 29/29 冒烟。
+  中文 ngram 查询和 30/30 冒烟。
 
 ### 7.2 当前代码风险
 
@@ -547,7 +558,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | 已修复 | 上下文启动 | MyBatis 同时扫描 entity/dto 别名；`ClientIpResolver` 显式构造注入；业务 JSON 统一使用 Jackson 3。 |
 | 已修复 | 内容导入 | 候选归档显式使用 `umo:umo` 文件所有权；恢复项目名限制为小写；管理员初始化完成后才轮换密码。 |
 | 已修复 | CI 合并门禁 | 私有仓库当前计划不支持分支保护或规则集，CI 失败只能报告；本地发布入口已强制要求当前 commit 的成功 push CI，并完成真实发布/回滚演练。 |
-| 低 | 图片引用扫描 | 每次列表和删除请求读取全部文章正文；当前 28 篇规模可接受，内容量显著增长后应改为显式引用表。 |
+| 低 | 图片引用扫描 | 列表、删除和一致性检查会读取全部文章正文与图片目录；当前规模可接受，内容量显著增长后应改为显式引用索引。 |
 | 低 | 图片清理重试 | 清理队列只在启动和后续图片操作时重试；长期无图片操作时失败任务会等待下一次触发。 |
 | 低 | 正文索引 | 直接改动 Markdown 文件不会自动更新索引，需要执行可重复的回填脚本。 |
 | 低 | 相关文章排序 | 每次公开详情额外执行一次关联加权查询并读取相关文章分类/标签；当前规模可接受，内容量显著增长后应复评查询计划。 |

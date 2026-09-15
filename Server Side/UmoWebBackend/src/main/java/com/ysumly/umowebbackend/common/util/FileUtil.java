@@ -11,14 +11,17 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 @Component
 public class FileUtil {
@@ -104,6 +107,24 @@ public class FileUtil {
 
     public boolean markdownExists(String relativePath) {
         return Files.exists(resolveStoredPath(relativePath));
+    }
+
+    /** 枚举存储目录内普通文件，返回相对 storageRoot 的稳定正斜杠路径。 */
+    public List<String> listStoredFiles(String relativeDirectory) throws IOException {
+        Path directory = resolveStoredPath(relativeDirectory);
+        if (Files.notExists(directory, LinkOption.NOFOLLOW_LINKS)) {
+            return List.of();
+        }
+        if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Stored path is not a directory: " + relativeDirectory);
+        }
+        try (Stream<Path> paths = Files.walk(directory)) {
+            return paths
+                    .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+                    .map(this::toRelativePath)
+                    .sorted()
+                    .toList();
+        }
     }
 
     /** 生成 MD 文件存储路径（相对于 storagePath）。 */

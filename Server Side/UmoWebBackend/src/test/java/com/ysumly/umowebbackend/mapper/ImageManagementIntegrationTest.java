@@ -1,5 +1,6 @@
 package com.ysumly.umowebbackend.mapper;
 
+import com.ysumly.umowebbackend.model.entity.Content;
 import com.ysumly.umowebbackend.model.entity.Image;
 import com.ysumly.umowebbackend.model.entity.ImageCleanupTask;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,9 @@ class ImageManagementIntegrationTest {
 
     @Autowired
     private ImageMapper imageMapper;
+
+    @Autowired
+    private ContentMapper contentMapper;
 
     @Autowired
     private ImageCleanupTaskMapper cleanupTaskMapper;
@@ -49,6 +53,25 @@ class ImageManagementIntegrationTest {
 
         cleanupTaskMapper.delete(task.getId());
         assertThat(cleanupTaskMapper.findAll()).isEmpty();
+    }
+
+    @Test
+    void referenceScanQueryReturnsContentSourceFields() {
+        String suffix = UUID.randomUUID().toString().replace("-", "");
+        Content content = new Content();
+        content.setTitle("Image reference source");
+        content.setSlug("image-reference-" + suffix);
+        content.setBodyPath("contents/NOTE/image-reference-" + suffix + ".md");
+        content.setType("NOTE");
+        content.setStatus("DRAFT");
+        contentMapper.insert(content);
+
+        assertThat(contentMapper.findAllForReferenceScan())
+                .filteredOn(item -> item.getId().equals(content.getId()))
+                .extracting(Content::getTitle, Content::getBodyPath)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(
+                        "Image reference source",
+                        content.getBodyPath()));
     }
 
     private Image image() {

@@ -18,6 +18,7 @@ export const updateTag       = (id,d) => client.put(`/admin/tags/${id}`, d)
 export const deleteTag       = (id)   => client.delete(`/admin/tags/${id}`)
 export const uploadImage     = (file) => { const fd = new FormData(); fd.append('file', file); return client.post('/admin/images/upload', fd) }
 export const getAdminImages  = (p)    => client.get('/admin/images', { params: p })
+export const getImageIntegrity = ()   => client.get('/admin/images/integrity')
 export const deleteImage     = (id)   => client.delete(`/admin/images/${id}`)
 export const getOptions      = ()     => client.get('/admin/options')
 export const updateOption    = (k,v)  => client.put(`/admin/options/${k}`, { value: v })

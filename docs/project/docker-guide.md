@@ -126,8 +126,8 @@ $password = ((Get-Content .env.docker |
   -Password $password
 ```
 
-该脚本覆盖公开 8 个和管理 21 个接口，并验证 401、改密旧 token 失效、搜索 429 和图片上传。
-脚本会临时修改管理员密码和 `site_title`，完成后恢复；上传的测试图片当前没有删除接口。
+该脚本覆盖公开 8 个和管理 22 个接口，并验证 401、改密旧 token 失效、搜索 429、图片完整生命周期
+和图片一致性来源定位。脚本会临时修改管理员密码和 `site_title`，完成后恢复并清理测试资源。
 
 ---
 
@@ -273,7 +273,7 @@ python scripts/content-import/build_content_backup.py `
 ```
 
 候选包先通过现有 `restore-backup.sh` 在 `umoweb-restore-*` 项目恢复，并执行
-`Server Side/UmoWebBackend/scripts/api-smoke.py`。只有 29/29 通过后，才允许使用提升脚本：
+`Server Side/UmoWebBackend/scripts/api-smoke.py`。只有 30/30 通过后，才允许使用提升脚本：
 
 ```bash
 /opt/umoweb/scripts/content-import/promote-content-backup.sh \
@@ -281,7 +281,7 @@ python scripts/content-import/build_content_backup.py `
 ```
 
 提升脚本会先创建生产备份，替换正式数据库与 `app_data`，轮换 MySQL/JWT/管理员凭据，最后再次
-执行 29/29。归档和 `.env.docker` 始终不进入仓库。
+执行 30/30。归档和 `.env.docker` 始终不进入仓库。
 
 ## 9. 本地版本化镜像发布与回滚
 
@@ -365,7 +365,7 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
 - `.env.docker` 中的 `INIT_ADMIN_PASS` 必须与当前管理员密码一致；远端会在切换镜像前先验证
   管理员登录，凭据失效时在发布前终止。
 - 显式回滚只重新载入并切换历史镜像，不重复执行迁移；新增表和索引保持向后兼容。
-- 完整 ECS 验收使用 `/opt/umoweb/scripts/smoke/api-smoke.py`，目标为 29/29；脚本在失败路径
+- 完整 ECS 验收使用 `/opt/umoweb/scripts/smoke/api-smoke.py`，目标为 30/30；脚本在失败路径
   也会优先恢复原管理员密码，再清理临时内容。
 - Workbench 单文件上传上限为 1 GiB；发布脚本在归档超过 1,000,000,000 字节时停止上传。
 

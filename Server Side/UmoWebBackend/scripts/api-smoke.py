@@ -41,6 +41,7 @@ class Smoke:
         self.content_id: int | None = None
         self.previous_content_id: int | None = None
         self.reference_content_id: int | None = None
+        self.integrity_content_id: int | None = None
         self.image_id: int | None = None
 
     def run(self) -> None:
@@ -668,11 +669,63 @@ class Smoke:
             )
             self.step(29, "DELETE /api/admin/images/{id}")
 
+            missing_image_url = f"/images/2026/09/smoke-missing-{run_id}.png"
+            integrity_title = f"Smoke Integrity Reference {run_id}"
+            integrity_content = self.expect_json(
+                "POST",
+                "/api/admin/contents",
+                {
+                    "title": integrity_title,
+                    "slug": f"smoke-integrity-reference-{run_id}",
+                    "body": f"![missing]({missing_image_url})",
+                    "summary": "Temporary broken image reference",
+                    "type": "NOTE",
+                    "status": "DRAFT",
+                    "categoryIds": [],
+                    "tagIds": [],
+                },
+                token=self.token,
+            )
+            self.integrity_content_id = integrity_content.get("id")
+            self.require(
+                self.integrity_content_id,
+                "integrity reference content must have id",
+            )
+
+            integrity = self.expect_json(
+                "GET",
+                "/api/admin/images/integrity",
+                token=self.token,
+            )
+            self.require(
+                isinstance(integrity.get("brokenReferences"), list),
+                "image integrity report must contain brokenReferences",
+            )
+            self.require(
+                any(
+                    item.get("url") == missing_image_url
+                    and item.get("sourceType") == "CONTENT"
+                    and item.get("sourceId") == self.integrity_content_id
+                    and item.get("sourceLabel") == integrity_title
+                    for item in integrity["brokenReferences"]
+                ),
+                "image integrity report must locate the temporary broken reference",
+            )
+
+            self.request(
+                "DELETE",
+                f"/api/admin/contents/{self.integrity_content_id}",
+                token=self.token,
+                expected=204,
+            )
+            self.integrity_content_id = None
+            self.step(30, "GET /api/admin/images/integrity")
+
             print(
-                "API smoke passed: 29/29 endpoints, authentication guard, "
+                "API smoke passed: 30/30 endpoints, authentication guard, "
                 "draft isolation, public filters, content associations, "
-                "previous/next navigation, related contents, password invalidation, image lifecycle, "
-                "and search rate limit."
+                "previous/next navigation, related contents, password invalidation, "
+                "image lifecycle, image integrity, and search rate limit."
             )
         finally:
             try:
@@ -746,6 +799,11 @@ class Smoke:
                 if self.reference_content_id
                 else None
             ),
+            (
+                f"/api/admin/contents/{self.integrity_content_id}"
+                if self.integrity_content_id
+                else None
+            ),
             f"/api/admin/tags/{self.tag_id}" if self.tag_id else None,
             (
                 f"/api/admin/categories/{self.child_category_id}"
@@ -767,7 +825,7 @@ class Smoke:
             raise SmokeFailure(
                 f"Smoke step ordering error: expected {number}, got {self.steps}"
             )
-        print(f"[{number}/29] PASS {name}")
+        print(f"[{number}/30] PASS {name}")
 
     def require(self, condition: Any, message: str) -> None:
         if not condition:
