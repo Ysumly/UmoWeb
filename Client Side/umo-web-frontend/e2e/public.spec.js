@@ -130,6 +130,20 @@ async function expectNoHorizontalOverflow(page) {
   expect(overflow).toBeLessThanOrEqual(1)
 }
 
+async function submitPublicSearch(page, input, value) {
+  await input.fill(value)
+  await expect(input).toHaveValue(value)
+  const response = page.waitForResponse((candidate) => {
+    const url = new URL(candidate.url())
+    return (
+      url.pathname === '/api/public/contents/search'
+      && url.searchParams.get('q') === value
+    )
+  })
+  await input.press('Enter')
+  await response
+}
+
 test('首页展示接口返回的公开内容', async ({ page, apiMock }) => {
   void apiMock
   await page.goto('/')
@@ -178,23 +192,19 @@ test('搜索支持成功、空结果和 429 倒计时', async ({ page, apiMock }
   await page.goto('/search')
   const input = page.getByLabel('搜索关键词')
 
-  await input.fill('公开')
-  await page.getByRole('button', { name: '搜索', exact: true }).click()
+  await submitPublicSearch(page, input, '公开')
   await expect(page).toHaveURL(/q=%E5%85%AC%E5%BC%80/)
   await expect(page.locator('.content-card')).toHaveCount(6)
 
-  await input.fill('E2E')
-  await page.getByRole('button', { name: '搜索', exact: true }).click()
+  await submitPublicSearch(page, input, 'E2E')
   await expect(page.locator('.content-card')).toHaveCount(1)
   await expect(page.locator('.content-card__summary')).toContainText('这是一篇 E2E 正文')
 
-  await input.fill('不存在')
-  await page.getByRole('button', { name: '搜索', exact: true }).click()
+  await submitPublicSearch(page, input, '不存在')
   await expect(page.getByRole('heading', { name: '没有找到匹配内容' })).toBeVisible()
 
   apiMock.rateLimitNextSearch()
-  await input.fill('限流')
-  await page.getByRole('button', { name: '搜索', exact: true }).click()
+  await submitPublicSearch(page, input, '限流')
   await expect(page.getByText(/请求过于频繁，请在 \d+ 秒后重试。/)).toBeVisible()
   await expect(page.getByRole('button', { name: /\d+ 秒后重试/ })).toBeDisabled()
 })
