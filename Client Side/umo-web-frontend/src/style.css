@@ -63,6 +63,7 @@
 html {
   min-width: 320px;
   min-height: 100%;
+  overflow-x: clip;
   scroll-behavior: smooth;
   background: var(--paper);
 }

@@ -18,6 +18,8 @@
   `SCHEDULED` 并记录单行警告，后续轮询重试。
 - 调度配置支持 `app.scheduling.enabled`；无 Web 的正文索引回填进程显式关闭调度，
   避免调度线程阻止 CLI 进程退出。健康检查增加 5 秒超时、代理绕过和进度日志。
+- 根元素使用 `overflow-x: clip`，消除 Linux Chromium 中 `documentElement.scrollWidth`
+  的 10px 溢出游标；不引入横向滚动容器或视觉变化。
 - 新增 `POST /api/admin/contents/bulk`，支持分类/标签添加与移除、归档和恢复草稿；
   整批预检后在单事务提交，失败返回 `failures`，不产生部分更新。
 - 管理端文章列表增加当前页勾选、批量操作和待发布/归档徽标；编辑器按状态显示
