@@ -109,6 +109,9 @@ export SPRING_PROFILES_ACTIVE=prod
 export JWT_SECRET="$(openssl rand -hex 32)"
 export INIT_ADMIN_USER="ci_admin_${GITHUB_RUN_ID:-local}_${GITHUB_RUN_ATTEMPT:-1}"
 export INIT_ADMIN_PASS="Ci$(openssl rand -hex 24)"
+export NO_PROXY="127.0.0.1,localhost,::1"
+export no_proxy="$NO_PROXY"
+export PYTHONUNBUFFERED=1
 
 "$repo_root/scripts/search/rebuild-content-search.sh" \
   "$backend_dir/target/UmoWebBackend-0.0.1-SNAPSHOT.jar"
@@ -133,8 +136,10 @@ java -jar target/UmoWebBackend-0.0.1-SNAPSHOT.jar >"$backend_log" 2>&1 &
 backend_pid=$!
 
 ready=false
-for _ in $(seq 1 60); do
-  if curl --fail --silent "http://127.0.0.1:8080/api/public/site-info" >/dev/null; then
+for attempt in $(seq 1 60); do
+  status="$(curl --noproxy '*' --max-time 5 --silent --output /dev/null \
+    --write-out "%{http_code}" "http://127.0.0.1:8080/api/public/site-info" || true)"
+  if [[ "$status" == "200" ]]; then
     ready=true
     break
   fi
@@ -142,6 +147,9 @@ for _ in $(seq 1 60); do
     echo "Backend exited before becoming healthy." >&2
     cat "$backend_log" >&2
     exit 1
+  fi
+  if (( attempt == 1 || attempt % 5 == 0 )); then
+    echo "Waiting for backend health: attempt ${attempt}/60, HTTP ${status:-unavailable}" >&2
   fi
   sleep 2
 done

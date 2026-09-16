@@ -358,7 +358,7 @@ PUT /api/admin/options/{key}
 `BoundaryTest` 仍使用 Mock Service 覆盖接口边界，另有 Service/Util 单元测试覆盖真实文件、
 路径、JWT、限流、可信代理 CIDR、容器装配和批量查询行为；MySQL 8.4 环境门控测试覆盖真实
 分类层级 SQL、正文全文索引、相关文章排序、调度发布、图片来源查询和图片清理队列。
-当前后端测试共 163 个，其中 11 个由 MySQL 8.4 环境门控，默认本地跳过。
+当前后端测试共 164 个，其中 11 个由 MySQL 8.4 环境门控，默认本地跳过。
 
 `BoundaryTest` 覆盖：
 

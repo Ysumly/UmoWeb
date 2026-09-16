@@ -35,7 +35,7 @@ UmoWeb/
 └── .superpowers/
 ```
 
-后端主源码为 111 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
+后端主源码为 112 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
 游戏规则与页面、主题与 Markdown 工具和 Node 测试。`Downloads/`、
 `.superpowers/`、`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
@@ -58,7 +58,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；163 个测试（11 个 MySQL 环境门控） |
+| 测试 | Spring Boot Test、Mockito、MockMvc；164 个测试（11 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -187,7 +187,7 @@ com.ysumly.umowebbackend/
 | Entity | 7 |
 | DTO | 12 |
 | VO | 16 |
-| Config | 11 |
+| Config | 12 |
 | 边界测试 | 35 |
 
 ### 4.2 正常与异常响应

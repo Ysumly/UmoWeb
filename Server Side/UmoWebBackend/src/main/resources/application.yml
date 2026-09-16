@@ -38,6 +38,7 @@ app:
     login-window-seconds: 900
     search-rate-limit-seconds: 10
   scheduling:
+    enabled: ${APP_SCHEDULING_ENABLED:true}
     zone: ${APP_SCHEDULING_ZONE:Asia/Shanghai}
     poll-interval-ms: ${APP_SCHEDULING_POLL_INTERVAL_MS:30000}
     initial-delay-ms: ${APP_SCHEDULING_INITIAL_DELAY_MS:30000}
