@@ -392,6 +392,32 @@ class Smoke:
                 public_detail.get("next") is None,
                 "public detail must have no next content at the latest boundary",
             )
+            related_items = public_detail.get("related")
+            self.require(
+                isinstance(related_items, list),
+                "public detail must expose related contents",
+            )
+            self.require(
+                len(related_items) <= 4,
+                "public related contents must contain at most four items",
+            )
+            self.require(
+                all(item.get("status") == "PUBLISHED" for item in related_items),
+                "public related contents must only expose PUBLISHED status",
+            )
+            related_slugs = {item.get("slug") for item in related_items}
+            self.require(
+                content_slug not in related_slugs,
+                "related contents must exclude the current content",
+            )
+            self.require(
+                previous_content_slug not in related_slugs,
+                "related contents must exclude the previous content",
+            )
+            self.require(
+                (public_detail.get("next") or {}).get("slug") not in related_slugs,
+                "related contents must exclude the next content",
+            )
 
             note_contents = self.expect_json(
                 "GET",
@@ -645,7 +671,7 @@ class Smoke:
             print(
                 "API smoke passed: 29/29 endpoints, authentication guard, "
                 "draft isolation, public filters, content associations, "
-                "previous/next navigation, password invalidation, image lifecycle, "
+                "previous/next navigation, related contents, password invalidation, image lifecycle, "
                 "and search rate limit."
             )
         finally:

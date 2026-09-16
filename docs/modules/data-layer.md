@@ -1,6 +1,6 @@
 # Data 层实现
 
-> 基线日期: 2026-09-13
+> 基线日期: 2026-09-15
 > 路径: `model/`、`mapper/`、`resources/mapper/`
 
 ---
@@ -72,10 +72,11 @@ LocalDateTime createdAt;
 LocalDateTime updatedAt;
 LocalDateTime publishedAt;
 String searchBody;
+Integer relationScore;
 ```
 
 `type` 和 `status` 在 Entity 中仍是字符串；`searchBody` 只承接搜索查询的索引正文，
-不是 `contents` 表字段。
+`relationScore` 只承接相关文章查询的排序分，二者都不是 `contents` 表字段。
 
 ### 2.5 Image
 
@@ -152,7 +153,7 @@ Controller 的 `@Valid` 会在进入 Service 前拒绝非法 page/size。
 | VO | 字段 |
 |---|---|
 | `ContentListVO` | `id`、`title`、`slug`、`summary`、`excerpt`、`type`、`status`、`categories`、`tags`、`metadata`、`publishedAt` |
-| `ContentDetailVO` | 继承列表 VO，增加 `body`、`previous`、`next` |
+| `ContentDetailVO` | 继承列表 VO，增加 `body`、`previous`、`next`、`related`；`related` 为 null 时省略 |
 | `ContentNeighborVO` | `id`、`title`、`slug`、`publishedAt` |
 | `CategoryTreeVO` | `id`、`name`、`slug`、`type`、`children` |
 | `CategoryVO` | `id`、`name`、`slug`、`parentId`、`type`、`sortOrder` |
@@ -209,6 +210,8 @@ long countPublished(ContentQuery query, List<Long> categoryIds);
 Content findBySlug(String slug);
 Content findPreviousPublished(LocalDateTime publishedAt, Long id);
 Content findNextPublished(LocalDateTime publishedAt, Long id);
+List<Content> findRelatedPublished(Long contentId, String currentType,
+                                   List<Long> excludedIds, int limit);
 List<Content> findAll(ContentQuery query, List<Long> categoryIds);
 long countAll(ContentQuery query, List<Long> categoryIds);
 Content findById(Long id);
@@ -355,7 +358,19 @@ LIMIT 1
 
 `findNextPublished` 使用相反方向和排序，同时间以大 ID 为更晚。
 
-### 6.6 站点配置更新
+### 6.6 相关文章
+
+`findRelatedPublished` 只查询 `PUBLISHED` 内容，并排除当前及传入的前后篇 ID。
+每位候选的排序分为：
+
+```text
+共享标签数 * 3 + 共享分类数 * 2 + 同类型 1 分
+```
+
+只保留得分大于 0 的候选，按得分、`published_at`、`id` 倒序稳定排序并限制为 4 篇。
+分类使用精确 ID 交集，不展开层级；查询复用 `content_category` 与 `content_tag` 的现有索引。
+
+### 6.7 站点配置更新
 
 ```sql
 INSERT INTO site_options (option_key, option_value)
@@ -424,7 +439,7 @@ GitHub Actions 的 MySQL 8.4 job 另行启动真实后端并验证 Mapper SQL：
 - 没有 SQL 注入和分页边界测试。
 
 2026-09-13 起 CI 会从空库执行 Schema、种子数据和全部兼容迁移，再执行 29/29 接口冒烟；
-覆盖 Mapper 查询、分类/标签关联、详情前后文章、图片生命周期与清理队列；
+覆盖 Mapper 查询、分类/标签关联、详情前后文章、相关文章排序与排除、图片生命周期与清理队列；
 2026-09-11 隔离 MySQL 5.7 副本记录继续保留。
 
 构建和测试命令见 [codebase-memory.md](../project/codebase-memory.md)。

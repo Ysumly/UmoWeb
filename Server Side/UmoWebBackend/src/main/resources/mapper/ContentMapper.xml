@@ -120,6 +120,48 @@
         LIMIT 1
     </select>
 
+    <select id="findRelatedPublished" resultType="Content">
+        SELECT <include refid="baseColumns"/>,
+               (
+                   (
+                       SELECT COUNT(*)
+                       FROM content_tag ct
+                       WHERE ct.content_id = c.id
+                         AND ct.tag_id IN (
+                             SELECT tag_id
+                             FROM content_tag
+                             WHERE content_id = #{contentId}
+                         )
+                   ) * 3
+                   +
+                   (
+                       SELECT COUNT(*)
+                       FROM content_category cc
+                       WHERE cc.content_id = c.id
+                         AND cc.category_id IN (
+                             SELECT category_id
+                             FROM content_category
+                             WHERE content_id = #{contentId}
+                         )
+                   ) * 2
+                   +
+                   CASE WHEN c.type = #{currentType} THEN 1 ELSE 0 END
+               ) AS relation_score
+        FROM contents c
+        WHERE c.status = 'PUBLISHED'
+          AND c.id != #{contentId}
+        <if test="excludedIds != null and excludedIds.size() > 0">
+          AND c.id NOT IN
+          <foreach collection="excludedIds" item="excludedId"
+                   open="(" separator="," close=")">
+              #{excludedId}
+          </foreach>
+        </if>
+        HAVING relation_score > 0
+        ORDER BY relation_score DESC, c.published_at DESC, c.id DESC
+        LIMIT #{limit}
+    </select>
+
     <!-- =========================== 管理端 =========================== -->
 
     <select id="findAll" resultType="Content">

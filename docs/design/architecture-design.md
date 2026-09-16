@@ -186,6 +186,7 @@ API 分两组：
   -> ContentServiceImpl
   -> ContentMapper 查询 PUBLISHED
   -> 列表和详情批量组装分类/标签
+  -> 详情查询相关文章并批量组装
   -> 从磁盘读取 Markdown
   -> 返回 ContentListVO / ContentDetailVO
 ```

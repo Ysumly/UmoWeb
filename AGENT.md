@@ -41,7 +41,7 @@
   层级循环或超过 32 层返回 409。
 - Markdown 正文保存在 `app.storage-path`，数据库只存 `body_path`；创建/更新使用临时文件和回滚恢复策略，图片限制 50MB。
 - 管理端前端路径由 `VITE_ADMIN_PATH` 控制，默认 `/secret-admin`。
-- 后端当前有 128 个单元/边界/容器装配与真实 MySQL 环境门控测试；默认测试不连接真实 MySQL。
+- 后端当前有 132 个单元/边界/容器装配与真实 MySQL 环境门控测试；默认测试不连接真实 MySQL。
 - 2026-09-11 已用隔离 MySQL 5.7 副本完成旧库迁移演练和 27/27 接口冒烟，脚本位于
   `Server Side/UmoWebBackend/scripts/api-smoke.ps1`。
 - 2026-09-12 已建立 Docker Compose 全栈，MySQL 8.4 首次启动导入演示数据，前端由 Nginx

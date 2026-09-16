@@ -54,11 +54,94 @@ async function mockOutlineArticle(page) {
   )
 }
 
+async function mockRelatedArticle(page) {
+  const related = [
+    {
+      id: 201,
+      slug: 'related-one',
+      title: '相关阅读一',
+      summary: '与当前文章共享标签的第一篇内容。',
+      type: 'NOTE',
+      status: 'PUBLISHED',
+      metadata: { readingTime: 6 },
+      publishedAt: '2026-09-10T10:00:00',
+      categories: [{ id: 1, name: '技术笔记', slug: 'notes', type: 'NOTE' }],
+      tags: [{ id: 1, name: 'Vue', slug: 'vue' }],
+    },
+    {
+      id: 202,
+      slug: 'related-two',
+      title: '相关阅读二',
+      summary: '与当前文章共享分类的第二篇内容。',
+      type: 'NOTE',
+      status: 'PUBLISHED',
+      metadata: { readingTime: 8 },
+      publishedAt: '2026-09-09T10:00:00',
+      categories: [{ id: 1, name: '技术笔记', slug: 'notes', type: 'NOTE' }],
+      tags: [],
+    },
+    {
+      id: 203,
+      slug: 'related-three',
+      title: '相关阅读三',
+      summary: '与当前文章同类型的第三篇内容。',
+      type: 'NOTE',
+      status: 'PUBLISHED',
+      metadata: { readingTime: 4 },
+      publishedAt: '2026-09-08T10:00:00',
+      categories: [],
+      tags: [],
+    },
+  ]
+
+  await page.route('**/api/public/contents/related-public', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 200,
+        slug: 'related-public',
+        title: '相关文章主篇',
+        summary: '用于验证详情页相关阅读和前后篇去重。',
+        type: 'NOTE',
+        status: 'PUBLISHED',
+        body: '# 相关文章主篇\n\n正文内容。',
+        metadata: {},
+        publishedAt: '2026-09-12T10:00:00',
+        categories: [],
+        tags: [],
+        previous: {
+          id: 204,
+          slug: 'related-previous',
+          title: '上一篇文章',
+          publishedAt: '2026-09-11T10:00:00',
+        },
+        next: null,
+        related,
+      }),
+    }),
+  )
+}
+
 async function expectNoHorizontalOverflow(page) {
   const overflow = await page.evaluate(() => {
     return document.documentElement.scrollWidth - document.documentElement.clientWidth
   })
   expect(overflow).toBeLessThanOrEqual(1)
+}
+
+async function submitPublicSearch(page, input, value) {
+  await input.fill(value)
+  await expect(input).toHaveValue(value)
+  const response = page.waitForResponse((candidate) => {
+    const url = new URL(candidate.url())
+    return (
+      url.pathname === '/api/public/contents/search'
+      && url.searchParams.get('q') === value
+    )
+  })
+  await input.press('Enter')
+  await response
 }
 
 test('首页展示接口返回的公开内容', async ({ page, apiMock }) => {
@@ -109,23 +192,19 @@ test('搜索支持成功、空结果和 429 倒计时', async ({ page, apiMock }
   await page.goto('/search')
   const input = page.getByLabel('搜索关键词')
 
-  await input.fill('公开')
-  await page.getByRole('button', { name: '搜索', exact: true }).click()
+  await submitPublicSearch(page, input, '公开')
   await expect(page).toHaveURL(/q=%E5%85%AC%E5%BC%80/)
   await expect(page.locator('.content-card')).toHaveCount(6)
 
-  await input.fill('E2E')
-  await page.getByRole('button', { name: '搜索', exact: true }).click()
+  await submitPublicSearch(page, input, 'E2E')
   await expect(page.locator('.content-card')).toHaveCount(1)
   await expect(page.locator('.content-card__summary')).toContainText('这是一篇 E2E 正文')
 
-  await input.fill('不存在')
-  await page.getByRole('button', { name: '搜索', exact: true }).click()
+  await submitPublicSearch(page, input, '不存在')
   await expect(page.getByRole('heading', { name: '没有找到匹配内容' })).toBeVisible()
 
   apiMock.rateLimitNextSearch()
-  await input.fill('限流')
-  await page.getByRole('button', { name: '搜索', exact: true }).click()
+  await submitPublicSearch(page, input, '限流')
   await expect(page.getByText(/请求过于频繁，请在 \d+ 秒后重试。/)).toBeVisible()
   await expect(page.getByRole('button', { name: /\d+ 秒后重试/ })).toBeDisabled()
 })
@@ -139,6 +218,37 @@ test('文章详情展示正文、分类标签和前后文章', async ({ page, ap
   await expect(page.locator('.post-header__taxonomy').getByText('# Vue')).toBeVisible()
   await expect(page.getByRole('navigation', { name: '前后文章' }).getByText('公开文章 02')).toBeVisible()
   await expect(page.locator('.markdown-body')).toContainText('这是一篇 E2E 正文。')
+})
+
+test('文章详情展示相关阅读并排除前后篇重复链接', async ({ page, apiMock }) => {
+  void apiMock
+  await mockRelatedArticle(page)
+  await page.goto('/post/related-public')
+
+  const related = page.getByRole('region', { name: '相关阅读' })
+  await expect(related).toBeVisible()
+  await expect(related.locator('.content-card')).toHaveCount(3)
+  await expect(related.getByText('相关阅读一')).toBeVisible()
+  await expect(related.getByText('相关阅读二')).toBeVisible()
+  await expect(related.getByText('相关阅读三')).toBeVisible()
+  await expect(related.getByText('上一篇文章')).toHaveCount(0)
+
+  await related.getByText('相关阅读一').click()
+  await expect(page).toHaveURL(/\/post\/related-one$/)
+})
+
+test('文章详情相关阅读在移动端保持单列且无横向溢出', async ({ page, apiMock }) => {
+  void apiMock
+  await mockRelatedArticle(page)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/post/related-public')
+
+  const cards = page.getByRole('region', { name: '相关阅读' }).locator('.content-card')
+  await expect(cards).toHaveCount(3)
+  const firstBox = await cards.nth(0).boundingBox()
+  const secondBox = await cards.nth(1).boundingBox()
+  expect(secondBox.y).toBeGreaterThan(firstBox.y + firstBox.height - 1)
+  await expectNoHorizontalOverflow(page)
 })
 
 test('文章详情目录按层级展开并同步滚动高亮和阅读进度', async ({
@@ -229,6 +339,7 @@ test('文章详情没有足够章节时不显示目录入口', async ({ page }) 
         tags: [],
         previous: null,
         next: null,
+        related: [],
       }),
     }),
   )
@@ -240,6 +351,7 @@ test('文章详情没有足够章节时不显示目录入口', async ({ page }) 
     page.getByRole('button', { name: '打开文章目录' }),
   ).toHaveCount(0)
   await expect(page.locator('.reading-progress')).toHaveCount(0)
+  await expect(page.getByRole('region', { name: '相关阅读' })).toHaveCount(0)
 })
 
 test('Markdown 标题在公开页和管理端预览使用相同排版', async ({ page, apiMock }) => {

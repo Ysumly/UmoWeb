@@ -97,9 +97,12 @@ class ContentVOMapperTest {
         when(contentTagMapper.findLinksByContentIds(anyList())).thenReturn(List.of());
 
         ContentListVO listItem = mapper.toListVO(content);
+        var detail = mapper.toDetailVO(content, "body");
 
         assertThat(listItem.getStatus()).isEqualTo("DRAFT");
-        assertThat(mapper.toDetailVO(content, "body").getStatus()).isEqualTo("DRAFT");
+        assertThat(detail.getStatus()).isEqualTo("DRAFT");
+        assertThat(detail.getRelated()).isNull();
+        assertThat(new ObjectMapper().writeValueAsString(detail)).doesNotContain("related");
     }
 
     private Content content(Long id, String slug) {

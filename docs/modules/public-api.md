@@ -1,6 +1,6 @@
 # 公开端 API 实现
 
-> 基线日期: 2026-09-13
+> 基线日期: 2026-09-15
 > 前缀: `/api/public`
 > 接口数: 8
 
@@ -120,12 +120,18 @@ ContentMapper.findBySlug(slug)
 -> FileUtil.readMarkdown(bodyPath)
 -> ContentMapper.findPreviousPublished(publishedAt, id)
 -> ContentMapper.findNextPublished(publishedAt, id)
+-> ContentMapper.findRelatedPublished(contentId, type, excludedIds, 4)
+-> 批量查询相关文章分类/标签
 ```
 
 详情与列表使用同一个 `ContentVOMapper`，分类和标签按 contentIds 批量查询后组装为数组。
 资源不存在时抛 `NotFoundException`。文件不存在或读取失败时，`body` 设置为空字符串，接口仍返回 200。
 邻居对象只暴露 `id/title/slug/publishedAt`；`previous` 为更早内容，`next` 为更晚内容，
 同时间以较小 ID 为更早，边界返回 `null`。
+
+`related` 始终为数组，最多 4 篇，只包含 `PUBLISHED` 内容，并排除当前、`previous` 和 `next`。
+得分固定为共享标签数 × 3 + 共享分类数 × 2 + 同类型 1 分，按得分、发布时间和 ID 倒序稳定排序。
+相关查询异常会记录警告并返回空数组，不影响正文和前后导航。
 
 #### search
 
@@ -208,10 +214,12 @@ ContentMapper.countSearch(q)
 - 搜索无参数返回 200。
 - 详情不存在返回 404。
 - 详情分类/标签数组已由 MockMvc 断言覆盖。
-- Service 测试覆盖详情前后文章与边界 `null`。
+- Service 测试覆盖详情前后文章、边界 `null`、相关文章组装与查询异常降级。
 - 空分类和标签返回 `[]`。
 - `type` 过滤调用路径。
 - 分类子分类筛选语义由单元测试、真实 MySQL 环境门控测试和双冒烟脚本覆盖。
+- 真实 MySQL 集成测试覆盖相关文章权重、稳定排序、草稿淘汰、前后篇排除和数量上限；
+  双冒烟脚本断言 `related` 契约。
 
 分类后代由共享 `CategoryHierarchyResolver` 读取一次分类快照后展开，按访问路径检测循环，
 深度上限为 32；解析后的 ID 集合传给 Mapper。不存在的内容仍返回 200 空结果，内容按原有时间排序，

@@ -342,6 +342,17 @@ try {
     Assert-True ($publicDetail.tags[0].id -eq $tagId) "public detail must include the smoke tag"
     Assert-True ($publicDetail.previous.slug -eq $previousContentSlug) "public detail must include the previous smoke content"
     Assert-True ($null -eq $publicDetail.next) "public detail must have no next content at the latest boundary"
+    Assert-True ($publicDetail.PSObject.Properties.Name -contains "related") "public detail must expose related contents"
+    $relatedItems = @($publicDetail.related)
+    Assert-True ($relatedItems.Count -le 4) "public related contents must contain at most four items"
+    Assert-True (($relatedItems | Where-Object status -ne "PUBLISHED").Count -eq 0) `
+        "public related contents must only expose PUBLISHED status"
+    $relatedSlugs = @($relatedItems | ForEach-Object slug)
+    Assert-True ($relatedSlugs -notcontains $contentSlug) "related contents must exclude the current content"
+    Assert-True ($relatedSlugs -notcontains $previousContentSlug) `
+        "related contents must exclude the previous content"
+    Assert-True ($relatedSlugs -notcontains $publicDetail.next.slug) `
+        "related contents must exclude the next content"
 
     $noteContents = Get-Json (Invoke-Checked -Method GET -Path "/api/public/contents?type=NOTE&page=1&size=100")
     Assert-True (($noteContents.items | Where-Object type -ne "NOTE").Count -eq 0) "public type filter must only return NOTE content"
@@ -448,7 +459,7 @@ try {
     if ($script:StepCount -ne 29) {
         throw "Expected 29 endpoints but covered $($script:StepCount)"
     }
-    Write-Host "API smoke passed: 29/29 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, password invalidation, image lifecycle, and search rate limit."
+    Write-Host "API smoke passed: 29/29 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, related contents, password invalidation, image lifecycle, and search rate limit."
 }
 finally {
     if ($passwordChangePending) {

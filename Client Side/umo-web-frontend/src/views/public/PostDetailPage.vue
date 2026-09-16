@@ -11,6 +11,7 @@ import { useRoute } from 'vue-router'
 
 import { getContent } from '@/api/public'
 import ArticleOutline from '@/components/public/ArticleOutline.vue'
+import ContentCard from '@/components/public/ContentCard.vue'
 import ContentState from '@/components/public/ContentState.vue'
 import MarkdownArticle from '@/components/public/MarkdownArticle.vue'
 import { flattenOutline } from '@/utils/articleOutline'
@@ -41,6 +42,7 @@ const tags = computed(() => article.value?.tags || [])
 const metadata = computed(() => article.value?.metadata || {})
 const previousArticle = computed(() => article.value?.previous || null)
 const nextArticle = computed(() => article.value?.next || null)
+const relatedArticles = computed(() => article.value?.related || [])
 const outline = computed(() =>
   article.value?.body ? extractMarkdownOutline(article.value.body) : [],
 )
@@ -274,6 +276,27 @@ onBeforeUnmount(() => {
             <strong>{{ nextArticle.title }}</strong>
           </router-link>
         </nav>
+
+        <section
+          v-if="relatedArticles.length"
+          class="related-content"
+          role="region"
+          aria-labelledby="related-content-title"
+        >
+          <header class="related-content__header">
+            <span>Related</span>
+            <h2 id="related-content-title">相关阅读</h2>
+          </header>
+          <div class="content-grid content-grid--related">
+            <ContentCard
+              v-for="(content, index) in relatedArticles"
+              :key="content.id"
+              v-reveal
+              :content="content"
+              :index="index"
+            />
+          </div>
+        </section>
       </div>
     </div>
   </article>

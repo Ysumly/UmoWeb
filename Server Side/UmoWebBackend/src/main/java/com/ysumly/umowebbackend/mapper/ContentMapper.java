@@ -20,6 +20,10 @@ public interface ContentMapper {
                                   @Param("id") Long id);
     Content findNextPublished(@Param("publishedAt") LocalDateTime publishedAt,
                               @Param("id") Long id);
+    List<Content> findRelatedPublished(@Param("contentId") Long contentId,
+                                       @Param("currentType") String currentType,
+                                       @Param("excludedIds") List<Long> excludedIds,
+                                       @Param("limit") int limit);
 
     // 管理端
     List<Content> findAll(@Param("query") ContentQuery query,
