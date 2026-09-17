@@ -245,9 +245,22 @@ test('文章详情相关阅读在移动端保持单列且无横向溢出', async
 
   const cards = page.getByRole('region', { name: '相关阅读' }).locator('.content-card')
   await expect(cards).toHaveCount(3)
-  const firstBox = await cards.nth(0).boundingBox()
-  const secondBox = await cards.nth(1).boundingBox()
-  expect(secondBox.y).toBeGreaterThan(firstBox.y + firstBox.height - 1)
+  const layout = await cards.evaluateAll((items) =>
+    items.map(({ offsetLeft, offsetTop, offsetHeight }) => ({
+      left: offsetLeft,
+      top: offsetTop,
+      height: offsetHeight,
+    })),
+  )
+  expect(new Set(layout.map(({ left }) => left)).size).toBe(1)
+  expect(
+    layout
+      .slice(1)
+      .every(
+        (card, index) =>
+          card.top >= layout[index].top + layout[index].height,
+      ),
+  ).toBe(true)
   await expectNoHorizontalOverflow(page)
 })
 

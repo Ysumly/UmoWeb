@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2026-09-17 — 稳定相关阅读移动端布局回归
+
+- 相关阅读移动端测试改用不受入场动画影响的布局坐标，消除 Linux Chromium 上 1px 时序抖动。
+- 验证：目标用例 20/20、Node 89/89、Windows Playwright 81/81 通过。
+
 ## 2026-09-16 — Task 4.3 批量管理与定时发布
 
 - 内容状态扩展为 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`，新增 `scheduled_at`
