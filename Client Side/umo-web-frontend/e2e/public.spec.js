@@ -435,7 +435,7 @@ for (const viewport of [
   })
 }
 
-test('超高文章目录在桌面自动切换为半屏抽屉', async ({ page }) => {
+test('超高文章目录在桌面始终保留侧栏并在半屏高度内滚动', async ({ page }) => {
   await mockTallOutlineArticle(page)
 
   for (const viewport of [
@@ -447,18 +447,21 @@ test('超高文章目录在桌面自动切换为半屏抽屉', async ({ page }) 
     await page.goto('/post/tall-outline-public')
 
     const aside = page.locator('.post-aside')
-    await expect(aside).toHaveClass(/post-aside--drawer/)
-    await expect(page.getByRole('navigation', { name: '文章目录' })).toBeHidden()
+    const toc = page.getByRole('navigation', { name: '文章目录' })
+    const trigger = page.getByRole('button', { name: '打开文章目录' })
+    await expect(aside).not.toHaveClass(/post-aside--drawer/)
+    await expect(toc).toBeVisible()
+    await expect(trigger).toBeHidden()
 
-    const drawerLayout = await aside.evaluate((element) => {
-      const hiddenOutline = element.querySelector('.post-toc--drawer')
+    const sidebarLayout = await aside.evaluate((element) => {
       return {
         height: element.getBoundingClientRect().height,
-        hiddenOutlineHeight: hiddenOutline?.getBoundingClientRect().height ?? 0,
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
       }
     })
-    expect(drawerLayout.hiddenOutlineHeight).toBe(0)
-    expect(drawerLayout.height).toBeLessThan(viewport.height / 2)
+    expect(sidebarLayout.height).toBeLessThanOrEqual(viewport.height / 2 + 1)
+    expect(sidebarLayout.scrollHeight).toBeGreaterThan(sidebarLayout.clientHeight)
 
     await page.evaluate(() => window.scrollTo(0, 600))
     await expect
@@ -470,21 +473,9 @@ test('超高文章目录在桌面自动切换为半屏抽屉', async ({ page }) 
     })
     expect(stickyLayout.top).toBeLessThanOrEqual(120)
     expect(stickyLayout.bottom).toBeLessThanOrEqual(viewport.height)
-
-    const trigger = page.getByRole('button', { name: '打开文章目录' })
-    await expect(trigger).toBeVisible()
-    await trigger.click()
-
-    const panel = page.getByRole('dialog', { name: '文章目录' })
-    await expect(panel).toBeVisible()
-    const panelHeight = await panel.evaluate((element) => {
-      return element.getBoundingClientRect().height
-    })
-    expect(panelHeight).toBeLessThanOrEqual(viewport.height / 2 + 1)
+    await expect(toc).toBeVisible()
+    await expect(trigger).toBeHidden()
     await expectNoHorizontalOverflow(page)
-
-    await page.keyboard.press('Escape')
-    await expect(panel).toBeHidden()
   }
 })
 
@@ -493,11 +484,10 @@ test('文章目录在 981px 与 980px 断点保持正确模式', async ({ page }
   await page.setViewportSize({ width: 981, height: 800 })
   await page.goto('/post/tall-outline-public')
 
-  await expect(page.locator('.post-aside')).toHaveClass(/post-aside--drawer/)
-  await expect(page.getByRole('button', { name: '打开文章目录' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: '文章目录' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '打开文章目录' })).toBeHidden()
 
   await page.setViewportSize({ width: 980, height: 800 })
-  await expect(page.locator('.post-aside')).toHaveClass(/post-aside--drawer/)
   await expect(page.getByRole('navigation', { name: '文章目录' })).toBeHidden()
   await expect(page.getByRole('button', { name: '打开文章目录' })).toBeVisible()
   await expectNoHorizontalOverflow(page)

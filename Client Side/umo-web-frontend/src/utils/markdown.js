@@ -11,6 +11,32 @@ hljs.registerLanguage('javascript', javascript)
 hljs.registerLanguage('js', javascript)
 hljs.registerLanguage('sql', sql)
 
+marked.use({
+  extensions: [
+    {
+      name: 'adjacentStrong',
+      level: 'inline',
+      start(source) {
+        const index = source.indexOf('**')
+        return index === -1 ? undefined : index
+      },
+      tokenizer(source) {
+        const match = /^\*\*(?!\s)([^\n]*?[^\s*])\*\*(?=[^\s*])/.exec(source)
+        if (!match) {
+          return undefined
+        }
+
+        return {
+          type: 'strong',
+          raw: match[0],
+          text: match[1],
+          tokens: this.lexer.inlineTokens(match[1]),
+        }
+      },
+    },
+  ],
+})
+
 function escapeHtml(value) {
   return value
     .replaceAll('&', '&amp;')

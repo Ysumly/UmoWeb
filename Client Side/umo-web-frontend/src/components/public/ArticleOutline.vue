@@ -16,10 +16,6 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  drawerMode: {
-    type: Boolean,
-    default: false,
-  },
 })
 
 const emit = defineEmits(['select'])
@@ -123,7 +119,6 @@ onBeforeUnmount(() => {
   <nav
     v-if="hasOutline"
     class="post-toc post-toc--desktop"
-    :class="{ 'post-toc--drawer': drawerMode }"
     aria-label="文章目录"
   >
     <span class="post-toc__label">文章目录</span>
@@ -139,7 +134,6 @@ onBeforeUnmount(() => {
       v-if="hasOutline"
       ref="triggerRef"
       class="post-toc-trigger"
-      :class="{ 'post-toc-trigger--drawer': drawerMode }"
       type="button"
       :aria-expanded="mobileOpen"
       aria-controls="mobile-article-outline"
@@ -155,7 +149,6 @@ onBeforeUnmount(() => {
         id="mobile-article-outline"
         ref="panelRef"
         class="post-toc-panel"
-        :class="{ 'post-toc-panel--drawer': drawerMode }"
         role="dialog"
         aria-modal="false"
         aria-label="文章目录"

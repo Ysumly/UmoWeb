@@ -1325,11 +1325,6 @@ svg {
   min-width: 0;
 }
 
-.post-aside--drawer {
-  max-height: none;
-  overflow: visible;
-}
-
 .post-aside__label {
   color: var(--gold);
   font-size: 9px;
@@ -1460,48 +1455,6 @@ svg {
 .post-toc-trigger,
 .post-toc-panel {
   display: none;
-}
-
-.post-toc--drawer {
-  display: none;
-}
-
-.post-toc-trigger--drawer {
-  position: fixed;
-  right: 18px;
-  bottom: max(18px, env(safe-area-inset-bottom));
-  z-index: 60;
-  display: inline-flex;
-  min-width: 58px;
-  min-height: 44px;
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  padding: 0 13px;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--paper) 94%, transparent);
-  box-shadow: 4px 5px 0 color-mix(in srgb, var(--gold) 26%, transparent);
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  backdrop-filter: blur(12px);
-}
-
-.post-toc-panel--drawer {
-  position: fixed;
-  right: 14px;
-  bottom: calc(max(18px, env(safe-area-inset-bottom)) + 56px);
-  z-index: 61;
-  display: flex;
-  width: min(340px, calc(100vw - 28px));
-  max-height: 50vh;
-  border: 1px solid var(--line);
-  border-top: 2px solid var(--accent);
-  border-radius: 4px;
-  flex-direction: column;
-  background: var(--paper);
-  box-shadow: 8px 9px 0 color-mix(in srgb, var(--gold) 20%, transparent);
 }
 
 .post-toc-panel__header {

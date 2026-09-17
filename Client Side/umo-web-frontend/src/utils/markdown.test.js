@@ -12,6 +12,18 @@ test('escapes raw HTML while preserving Markdown output', () => {
   assert.match(html, /<strong>正文<\/strong>/)
 })
 
+test('renders strong text followed immediately by body text', () => {
+  const html = renderMarkdown(
+    '- **根据访问模式选择数据表示，**然后编写与它匹配的算法。',
+  )
+
+  assert.match(
+    html,
+    /<li><strong>根据访问模式选择数据表示，<\/strong>然后编写与它匹配的算法。<\/li>/,
+  )
+  assert.doesNotMatch(html, /\*\*/)
+})
+
 test('rejects executable Markdown link and image protocols', () => {
   const html = renderMarkdown(
     '[危险链接](javascript:alert(1))\n\n![危险图片](data:text/html;base64,PHNjcmlwdD4=)\n\n[安全链接](https://example.com)',
