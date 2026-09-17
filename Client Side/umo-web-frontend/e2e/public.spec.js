@@ -54,6 +54,41 @@ async function mockOutlineArticle(page) {
   )
 }
 
+async function mockTallOutlineArticle(page) {
+  const body = ['# 超高目录测试', '', '用于验证目录超过半屏后的抽屉降级。', '']
+
+  for (let index = 1; index <= 24; index += 1) {
+    body.push(
+      `## 第 ${index} 节`,
+      '',
+      `第 ${index} 节正文。`.repeat(16),
+      '',
+    )
+  }
+
+  await page.route('**/api/public/contents/tall-outline-public', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 97,
+        slug: 'tall-outline-public',
+        title: '超高目录测试',
+        summary: '用于验证目录超过半屏后的抽屉降级。',
+        type: 'NOTE',
+        status: 'PUBLISHED',
+        body: body.join('\n'),
+        metadata: {},
+        publishedAt: '2026-09-12T10:00:00',
+        categories: [],
+        tags: [],
+        previous: null,
+        next: null,
+      }),
+    }),
+  )
+}
+
 async function mockRelatedArticle(page) {
   const related = [
     {
@@ -303,6 +338,90 @@ test('文章详情目录按层级展开并同步滚动高亮和阅读进度', as
     .not.toBe(beforeProgress)
 })
 
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 1219, height: 958 },
+]) {
+  test(`文章目录在 ${viewport.width}px 滚动后保持粘性且不超过半屏`, async ({
+    page,
+  }) => {
+    await mockOutlineArticle(page)
+    await page.setViewportSize(viewport)
+    await page.goto('/post/outline-public')
+    await expect(page.locator('.post-aside')).toBeVisible()
+
+    const scrollTarget = await page.evaluate(() => {
+      const maximum = document.documentElement.scrollHeight - window.innerHeight
+      return Math.max(0, Math.min(600, maximum - 50))
+    })
+    expect(scrollTarget).toBeGreaterThan(250)
+    await page.evaluate((target) => window.scrollTo(0, target), scrollTarget)
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(scrollTarget - 5)
+
+    const metrics = await page.locator('.post-aside').evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      return {
+        top: bounds.top,
+        height: bounds.height,
+        viewportHeight: window.innerHeight,
+      }
+    })
+
+    expect(metrics.top).toBeLessThanOrEqual(120)
+    expect(metrics.height).toBeLessThanOrEqual(metrics.viewportHeight / 2 + 1)
+    await expectNoHorizontalOverflow(page)
+  })
+}
+
+test('超高文章目录在桌面自动切换为半屏抽屉', async ({ page }) => {
+  await mockTallOutlineArticle(page)
+
+  for (const viewport of [
+    { width: 1219, height: 958 },
+    { width: 1024, height: 768 },
+    { width: 981, height: 800 },
+  ]) {
+    await page.setViewportSize(viewport)
+    await page.goto('/post/tall-outline-public')
+
+    const aside = page.locator('.post-aside')
+    await expect(aside).toHaveClass(/post-aside--drawer/)
+    await expect(page.getByRole('navigation', { name: '文章目录' })).toBeHidden()
+
+    const trigger = page.getByRole('button', { name: '打开文章目录' })
+    await expect(trigger).toBeVisible()
+    await trigger.click()
+
+    const panel = page.getByRole('dialog', { name: '文章目录' })
+    await expect(panel).toBeVisible()
+    const panelHeight = await panel.evaluate((element) => {
+      return element.getBoundingClientRect().height
+    })
+    expect(panelHeight).toBeLessThanOrEqual(viewport.height / 2 + 1)
+    await expectNoHorizontalOverflow(page)
+
+    await page.keyboard.press('Escape')
+    await expect(panel).toBeHidden()
+  }
+})
+
+test('文章目录在 981px 与 980px 断点保持正确模式', async ({ page }) => {
+  await mockTallOutlineArticle(page)
+  await page.setViewportSize({ width: 981, height: 800 })
+  await page.goto('/post/tall-outline-public')
+
+  await expect(page.locator('.post-aside')).toHaveClass(/post-aside--drawer/)
+  await expect(page.getByRole('button', { name: '打开文章目录' })).toBeVisible()
+
+  await page.setViewportSize({ width: 980, height: 800 })
+  await expect(page.locator('.post-aside')).toHaveClass(/post-aside--drawer/)
+  await expect(page.getByRole('navigation', { name: '文章目录' })).toBeHidden()
+  await expect(page.getByRole('button', { name: '打开文章目录' })).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+})
+
 test('文章详情移动端使用悬浮目录并在跳转后关闭', async ({
   page,
 }) => {
@@ -316,6 +435,10 @@ test('文章详情移动端使用悬浮目录并在跳转后关闭', async ({
 
   const panel = page.getByRole('dialog', { name: '文章目录' })
   await expect(panel).toBeVisible()
+  const panelHeight = await panel.evaluate((element) => {
+    return element.getBoundingClientRect().height
+  })
+  expect(panelHeight).toBeLessThanOrEqual(844 / 2 + 1)
   await panel.getByRole('button', { name: '展开 第一节' }).click()
   await panel.getByRole('link', { name: '子节一' }).click()
 

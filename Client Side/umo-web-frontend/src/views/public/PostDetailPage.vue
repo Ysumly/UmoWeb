@@ -15,6 +15,7 @@ import ContentCard from '@/components/public/ContentCard.vue'
 import ContentState from '@/components/public/ContentState.vue'
 import MarkdownArticle from '@/components/public/MarkdownArticle.vue'
 import { flattenOutline } from '@/utils/articleOutline'
+import { shouldUseOutlineDrawer } from '@/utils/articleOutlineLayout'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatPublishedDate } from '@/utils/format'
 import { extractMarkdownOutline } from '@/utils/markdown'
@@ -24,12 +25,18 @@ const status = ref('loading')
 const errorMessage = ref('')
 const article = ref(null)
 const articleRef = ref(null)
+const postAsideRef = ref(null)
+const postAsideContentRef = ref(null)
 const activeHeadingId = ref('')
 const readingProgress = ref(0)
 const readingProgressVisible = ref(false)
+const outlineDrawerMode = ref(false)
 let requestId = 0
 let animationFrame = 0
 let resizeObserver = null
+let outlineResizeObserver = null
+let outlineLayoutFrame = 0
+let outlineDrawerLocked = false
 
 const typeLabels = {
   NOTE: '技术笔记',
@@ -95,6 +102,38 @@ function scheduleReadingUpdate() {
   animationFrame = window.requestAnimationFrame(updateReadingState)
 }
 
+function measureOutlineLayout() {
+  outlineLayoutFrame = 0
+  const aside = postAsideRef.value
+  const content = postAsideContentRef.value
+  if (!aside || !content || outlineDrawerLocked) {
+    return
+  }
+
+  const useDrawer = shouldUseOutlineDrawer({
+    contentHeight: Math.max(aside.scrollHeight, content.scrollHeight),
+    viewportHeight: window.innerHeight,
+    narrow: window.matchMedia('(max-width: 980px)').matches,
+  })
+  outlineDrawerMode.value = useDrawer
+  outlineDrawerLocked = useDrawer
+}
+
+function scheduleOutlineLayoutMeasure({ reset = false } = {}) {
+  if (reset) {
+    outlineDrawerLocked = false
+  }
+  if (outlineLayoutFrame) {
+    return
+  }
+  outlineLayoutFrame = window.requestAnimationFrame(measureOutlineLayout)
+}
+
+function handleWindowResize() {
+  scheduleReadingUpdate()
+  scheduleOutlineLayoutMeasure({ reset: true })
+}
+
 function scrollToHeading(heading) {
   const element = document.getElementById(heading.id)
   if (!element) {
@@ -119,6 +158,8 @@ async function load() {
   const currentRequest = ++requestId
   status.value = 'loading'
   errorMessage.value = ''
+  outlineDrawerMode.value = false
+  outlineDrawerLocked = false
 
   try {
     const response = await getContent(route.params.slug)
@@ -133,6 +174,7 @@ async function load() {
       const targetId = decodeURIComponent(route.hash.slice(1))
       document.getElementById(targetId)?.scrollIntoView({ block: 'start' })
     }
+    scheduleOutlineLayoutMeasure()
     updateReadingState()
   } catch (error) {
     if (currentRequest !== requestId) {
@@ -154,18 +196,33 @@ watch(articleRef, (element) => {
   }
 })
 
+watch(postAsideContentRef, (element) => {
+  outlineResizeObserver?.disconnect()
+  if (element) {
+    outlineResizeObserver = new ResizeObserver(() => {
+      scheduleOutlineLayoutMeasure()
+    })
+    outlineResizeObserver.observe(element)
+    scheduleOutlineLayoutMeasure({ reset: true })
+  }
+})
+
 onMounted(() => {
   window.addEventListener('scroll', scheduleReadingUpdate, { passive: true })
-  window.addEventListener('resize', scheduleReadingUpdate)
+  window.addEventListener('resize', handleWindowResize)
 })
 
 onBeforeUnmount(() => {
   if (animationFrame) {
     window.cancelAnimationFrame(animationFrame)
   }
+  if (outlineLayoutFrame) {
+    window.cancelAnimationFrame(outlineLayoutFrame)
+  }
   resizeObserver?.disconnect()
+  outlineResizeObserver?.disconnect()
   window.removeEventListener('scroll', scheduleReadingUpdate)
-  window.removeEventListener('resize', scheduleReadingUpdate)
+  window.removeEventListener('resize', handleWindowResize)
 })
 </script>
 
@@ -225,31 +282,38 @@ onBeforeUnmount(() => {
     </header>
 
     <div class="post-layout">
-      <aside class="post-aside">
-        <span class="post-aside__label">篇章信息</span>
-        <dl>
-          <div v-if="metadata.difficulty">
-            <dt>难度</dt>
-            <dd>{{ metadata.difficulty }}</dd>
-          </div>
-          <div v-if="metadata.chapter">
-            <dt>章节</dt>
-            <dd>第 {{ metadata.chapter }} 章</dd>
-          </div>
-          <div v-if="metadata.bookTitle">
-            <dt>书目</dt>
-            <dd>{{ metadata.bookTitle }}</dd>
-          </div>
-          <div v-if="categories.length">
-            <dt>分类</dt>
-            <dd>{{ categories.map((item) => item.name).join(' / ') }}</dd>
-          </div>
-        </dl>
-        <ArticleOutline
-          :headings="outline"
-          :active-id="activeHeadingId"
-          @select="scrollToHeading"
-        />
+      <aside
+        ref="postAsideRef"
+        class="post-aside"
+        :class="{ 'post-aside--drawer': outlineDrawerMode }"
+      >
+        <div ref="postAsideContentRef" class="post-aside__content">
+          <span class="post-aside__label">篇章信息</span>
+          <dl>
+            <div v-if="metadata.difficulty">
+              <dt>难度</dt>
+              <dd>{{ metadata.difficulty }}</dd>
+            </div>
+            <div v-if="metadata.chapter">
+              <dt>章节</dt>
+              <dd>第 {{ metadata.chapter }} 章</dd>
+            </div>
+            <div v-if="metadata.bookTitle">
+              <dt>书目</dt>
+              <dd>{{ metadata.bookTitle }}</dd>
+            </div>
+            <div v-if="categories.length">
+              <dt>分类</dt>
+              <dd>{{ categories.map((item) => item.name).join(' / ') }}</dd>
+            </div>
+          </dl>
+          <ArticleOutline
+            :headings="outline"
+            :active-id="activeHeadingId"
+            :drawer-mode="outlineDrawerMode"
+            @select="scrollToHeading"
+          />
+        </div>
       </aside>
 
       <div class="post-body-wrap">
