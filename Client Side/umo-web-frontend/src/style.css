@@ -1463,8 +1463,7 @@ svg {
 }
 
 .post-toc--drawer {
-  visibility: hidden;
-  pointer-events: none;
+  display: none;
 }
 
 .post-toc-trigger--drawer {
