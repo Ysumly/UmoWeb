@@ -7,6 +7,7 @@ $script:Failures = 0
 $scriptRoot = Split-Path -Parent $PSScriptRoot
 $commonPath = Join-Path $scriptRoot "lib/release-common.ps1"
 $entryPath = Join-Path $scriptRoot "umoweb-release.ps1"
+$remoteReleasePath = Join-Path $scriptRoot "remote-release.sh"
 
 function Assert-Equal {
     param(
@@ -67,6 +68,9 @@ if ((Get-Content -Raw -LiteralPath $entryPath) -notmatch 'docs/design/migrations
 }
 if ((Get-Content -Raw -LiteralPath $entryPath) -notmatch 'api-smoke\.py') {
     throw "Release entry point does not synchronize the portable API smoke script"
+}
+if ((Get-Content -Raw -LiteralPath $remoteReleasePath) -notmatch '--app\.scheduling\.enabled=false') {
+    throw "Remote release script does not disable scheduling for the search backfill"
 }
 
 . $commonPath

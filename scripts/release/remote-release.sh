@@ -273,6 +273,7 @@ backfill_search_index() {
     log "rebuilding published content search index"
     if ! compose_source exec -T backend java -jar /app/app.jar \
         --spring.main.web-application-type=none \
+        --app.scheduling.enabled=false \
         --app.search.backfill-only=true; then
         warn "content search backfill command failed"
         return 1
