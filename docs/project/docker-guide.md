@@ -440,6 +440,25 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
   和 ECS `api-smoke.py` 31/31 通过。
 - 当前生产版本为 `v1.0.0-rc.6`；开发机保留 rc.5 与 rc.6 归档，rc.5 为正式回滚目标。
 
+### 9.10 Task 4.4 滚动协同发布
+
+- `v1.0.0-rc.7` 从提交 `eace1351adc8` 构建，发布 CI run `35225558649`；annotated tag
+  `v1.0.0-rc.7` 已推送并确认指向合并提交。
+- 发布前备份 `umoweb-backup-20260917T131428Z-unknown.tar.gz` 通过 SHA-256 和内层清单校验，
+  归档 SHA-256 为
+  `f12d88eb33e180ca7a23449a1d1b1eca541ddf167a77ca758e3573b602869de6`。
+- 后端 image ID 为
+  `sha256:d12137c905e8568cd8140fed9c37dab7faf6d72418776cf7a2915bd999ed70ca`，前端 image ID 为
+  `sha256:acd2618cfd95a8ab76aadf1cc87e09f03c3232676e6772109a563683bb432d38`。
+- 发布归档 SHA-256 为
+  `1d5b474d3154958722aefc6c1452abf4fa6e61de06393014f89781f1a5778382`，
+  大小 175685632 字节。
+- 独立 `Verify` 返回 rc.7、manifest 双镜像 ID 和 `operation=deploy`；ECS `api-smoke.py`
+  31/31 通过。
+- 首页、书库、搜索、About、Project、工具中心、在线编辑器、隐私说明、游戏中心及四条游戏路由
+  均返回 200。
+- 当前生产版本为 `v1.0.0-rc.7`；开发机保留 rc.7 与 rc.6 归档，rc.6 为正式回滚目标。
+
 ## 10. 访问安全日志与报表
 
 ### 10.1 日志边界

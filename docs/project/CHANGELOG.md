@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 2026-09-17 — ECS 发布 `v1.0.0-rc.7`
+
+- `v1.0.0-rc.7` 从提交 `eace1351adc8` 构建，发布 CI run `35225558649`；annotated tag
+  `v1.0.0-rc.7` 已推送并确认指向合并提交。
+- 发布前备份 `umoweb-backup-20260917T131428Z-unknown.tar.gz` 通过外层 SHA-256
+  `f12d88eb33e180ca7a23449a1d1b1eca541ddf167a77ca758e3573b602869de6`
+  和内层清单校验，归档大小 8029102 字节。
+- 后端 image ID 为
+  `sha256:d12137c905e8568cd8140fed9c37dab7faf6d72418776cf7a2915bd999ed70ca`，前端 image ID 为
+  `sha256:acd2618cfd95a8ab76aadf1cc87e09f03c3232676e6772109a563683bb432d38`。
+- 发布归档 SHA-256 为
+  `1d5b474d3154958722aefc6c1452abf4fa6e61de06393014f89781f1a5778382`，
+  大小 175685632 字节。
+- 独立 `Verify` 返回 rc.7、manifest 双镜像 ID 和 `operation=deploy`；ECS `api-smoke.py`
+  31/31 通过，公开端、工具中心、游戏中心与四条游戏路由均返回 200。
+- 当前生产版本为 `v1.0.0-rc.7`；开发机保留 rc.7 与 rc.6 归档，rc.6 为正式回滚目标。
+  本次没有 API、数据库、Markdown 存储或认证契约变更。
+
 ## 2026-09-17 — 抽屉模式隐藏目录占位修复
 
 - 桌面文章进入目录抽屉模式后，隐藏目录改为不参与布局，侧栏高度只保留可见篇章信息；

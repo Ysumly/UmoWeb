@@ -417,6 +417,18 @@ SHA-256/大小、镜像 ID、发布锁、Compose 健康解析、迁移顺序与�
 - ECS `api-smoke.py` 31/31，exit code 0；容器健康、管理员登录和公开入口检查通过。
 - 开发机保留 rc.5 与 rc.6 归档，rc.5 为当前回滚目标。
 
+2026-09-17 Task 4.4 滚动协同发布：
+
+- `v1.0.0-rc.7` 从提交 `eace1351adc8` 构建，发布 CI run 为 `35225558649`。
+- 发布前备份 `umoweb-backup-20260917T131428Z-unknown.tar.gz` 通过外层 SHA-256
+  `f12d88eb33e180ca7a23449a1d1b1eca541ddf167a77ca758e3573b602869de6`
+  和内层 `SHA256SUMS` 校验。
+- 发布归档 SHA-256 为
+  `1d5b474d3154958722aefc6c1452abf4fa6e61de06393014f89781f1a5778382`，
+  大小 175685632 字节；独立 `Verify` 返回 rc.7 和 manifest image ID。
+- ECS `api-smoke.py` 31/31，exit code 0；公开端、工具中心、游戏中心与四条游戏路由均返回 200。
+- 开发机保留 rc.7 与 rc.6 归档，rc.6 为当前回滚目标。
+
 ### 2.10 访问安全日志
 
 本机单元与安装渲染测试：
