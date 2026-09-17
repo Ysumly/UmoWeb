@@ -10,6 +10,7 @@ import {
 import { onBeforeRouteLeave } from 'vue-router'
 
 import MarkdownArticle from '@/components/public/MarkdownArticle.vue'
+import { useSyncedScroll } from '@/composables/useSyncedScroll'
 import {
   createEditorDraft,
   createMarkdownBlob,
@@ -30,9 +31,14 @@ const notice = ref({ tone: '', message: '' })
 const importing = ref(false)
 const fileInputRef = ref(null)
 const textareaRef = ref(null)
+const previewRef = ref(null)
 
 let saveTimer = null
 let mounted = false
+
+useSyncedScroll(textareaRef, previewRef, {
+  mediaQuery: '(min-width: 981px)',
+})
 
 const lineCount = computed(() => {
   return content.value ? content.value.split(/\r?\n/).length : 0
@@ -393,6 +399,7 @@ onBeforeUnmount(() => {
       </section>
 
       <section
+        ref="previewRef"
         class="editor-pane editor-pane--preview"
         :class="{ 'is-mobile-active': mobilePane === 'preview' }"
         role="tabpanel"

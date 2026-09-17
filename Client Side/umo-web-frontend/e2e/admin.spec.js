@@ -1,5 +1,61 @@
 import { expect, test } from './support/apiMock.js'
 
+function longMarkdown() {
+  return Array.from({ length: 80 }, (_, index) => {
+    return `## 章节 ${index + 1}\n\n这是用于验证编辑器和预览滚动协同的第 ${index + 1} 段正文。`
+  }).join('\n\n')
+}
+
+async function waitForAnimationFrames(page) {
+  await page.evaluate(() => new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  }))
+}
+
+async function readScrollRatio(locator) {
+  return locator.evaluate((element) => {
+    const maxScroll = Math.max(0, element.scrollHeight - element.clientHeight)
+    return maxScroll ? element.scrollTop / maxScroll : 0
+  })
+}
+
+async function expectSyncedWorkspace(page, workspace, editor) {
+  const previewPane = workspace.locator('.admin-editor-pane--preview')
+  await editor.fill(longMarkdown())
+  await expect(previewPane.getByRole('heading', { name: '章节 80' })).toBeAttached()
+
+  const [editorBox, previewBox] = await Promise.all([
+    editor.boundingBox(),
+    previewPane.boundingBox(),
+  ])
+  expect(Math.abs(editorBox.y + editorBox.height - previewBox.y - previewBox.height))
+    .toBeLessThanOrEqual(1)
+
+  await editor.evaluate((element) => {
+    element.scrollTop = (element.scrollHeight - element.clientHeight) * 0.4
+  })
+  await waitForAnimationFrames(page)
+  expect(Math.abs(await readScrollRatio(previewPane) - 0.4)).toBeLessThanOrEqual(0.02)
+
+  await previewPane.evaluate((element) => {
+    element.scrollTop = (element.scrollHeight - element.clientHeight) * 0.2
+  })
+  await waitForAnimationFrames(page)
+  expect(Math.abs(await readScrollRatio(editor) - 0.2)).toBeLessThanOrEqual(0.02)
+
+  const settled = [
+    await readScrollRatio(editor),
+    await readScrollRatio(previewPane),
+  ]
+  await waitForAnimationFrames(page)
+  const stable = [
+    await readScrollRatio(editor),
+    await readScrollRatio(previewPane),
+  ]
+  expect(Math.abs(settled[0] - stable[0])).toBeLessThanOrEqual(0.001)
+  expect(Math.abs(settled[1] - stable[1])).toBeLessThanOrEqual(0.001)
+}
+
 test('未登录时重定向登录页，登录后可退出', async ({ page, apiMock }) => {
   void apiMock
   await page.goto('/secret-admin/contents')
@@ -186,6 +242,15 @@ test('metadata 更多说明可以展开常用字段', async ({ page, apiMock }) 
   await expect(details.getByText('JSON 不支持注释')).toBeVisible()
 })
 
+test('文章编辑器在桌面保持等高并按比例双向同步滚动', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  const workspace = page.locator('.admin-editor-workspace')
+  const editor = workspace.getByLabel('Markdown 正文')
+  await expectSyncedWorkspace(page, workspace, editor)
+})
+
 test('从 Markdown front matter 预填并创建文章', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/contents/new')
@@ -326,6 +391,19 @@ test('站点设置保存后刷新公开站点缓存', async ({ page, apiMock }) 
 
   await page.goto('/')
   await expect(page.getByRole('banner').getByText('Umo 已更新站')).toBeVisible()
+})
+
+test('About 和 Project 设置编辑器在桌面保持等高并双向同步滚动', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/options')
+
+  const workspaces = page.locator('.admin-option-workspace')
+  await expect(workspaces).toHaveCount(2)
+
+  for (const [index, label] of ['About 页面 Markdown', 'Project 页面 Markdown'].entries()) {
+    const workspace = workspaces.nth(index)
+    await expectSyncedWorkspace(page, workspace, workspace.getByLabel(label))
+  }
 })
 
 test('修改密码成功后清理 token 并要求重新登录', async ({ page, apiMock }) => {

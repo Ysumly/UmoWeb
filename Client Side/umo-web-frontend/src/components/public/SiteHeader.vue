@@ -3,20 +3,12 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
+import { publicNavigation } from '@/config/publicNavigation'
 import { useSiteStore } from '@/stores/site'
 
 const route = useRoute()
 const siteStore = useSiteStore()
 const menuOpen = ref(false)
-
-const navigation = [
-  { to: '/', label: '首页', name: 'home' },
-  { to: '/library', label: '书库', name: 'library' },
-  { to: '/search', label: '搜索', name: 'search' },
-  { to: '/project', label: '项目', name: 'project' },
-  { to: '/games', label: '游戏', name: 'games' },
-  { to: '/about', label: '关于', name: 'about' },
-]
 
 const currentSection = computed(() => route.meta.section || route.name)
 const siteTitle = computed(() => siteStore.siteTitle || 'Umo')
@@ -43,7 +35,7 @@ watch(
 
       <nav class="site-nav" aria-label="公开端主导航">
         <router-link
-          v-for="item in navigation"
+          v-for="item in publicNavigation"
           :key="item.to"
           :to="item.to"
           :class="{ 'is-active': currentSection === item.name }"
@@ -70,9 +62,10 @@ watch(
     <transition name="menu-reveal">
       <nav v-if="menuOpen" class="mobile-nav" aria-label="移动端主导航">
         <router-link
-          v-for="(item, index) in navigation"
+          v-for="(item, index) in publicNavigation"
           :key="item.to"
           :to="item.to"
+          :class="{ 'is-active': currentSection === item.name }"
           :style="{ '--nav-index': index }"
         >
           <span>{{ String(index + 1).padStart(2, '0') }}</span>

@@ -163,17 +163,17 @@ npm test
 npm run test:e2e
 ```
 
-2026-09-15 已验证：
+2026-09-17 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
-- 前端 89 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
+- 前端 99 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、
   API 错误解析、日期格式、书库后代参数、文章目录树/展开状态、标题 ID 与旧锚点兼容和
-  Markdown 安全。
-- Playwright 81 个浏览器检查，其中 53 个 functional 用例覆盖公开端、文章目录、阅读进度与相关阅读、
-  图片一致性检查、隐私说明、在线编辑器、
+  Markdown 安全、目录半屏抽屉判定和编辑器双向滚动比例。
+- Playwright 95 个浏览器检查，其中 65 个 functional 用例覆盖公开端、文章目录、阅读进度与相关阅读、
+  图片一致性检查、隐私说明、工具中心、在线编辑器与三处编辑工作区滚动协同、
   四款游戏（含高密度网格、长数字、10 张牌、旧成绩和响应式场景）和管理端核心流程，
-  28 个视觉断言覆盖 14 个核心页面状态的桌面与 390px 基线。
+  30 个视觉断言覆盖 15 个核心页面状态的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
   MySQL 副本、`api-smoke.py`/`api-smoke.ps1` 和第 2.8 节的 CI 集成 job 验证。
 
@@ -203,7 +203,7 @@ npm run test:e2e
    Chromium；可通过 `PLAYWRIGHT_CHANNEL` 显式覆盖。
 4. 浏览器级路由拦截 `/api/**`，每个测试使用独立的状态化 Mock API。
 5. functional 项目覆盖公开阅读、在线编辑器、管理端认证、Markdown 导入与 CRUD，以及 390px 布局。
-6. visual-desktop 和 visual-mobile 项目比较 28 张页面截图。
+6. visual-desktop 和 visual-mobile 项目比较 30 张页面截图。
 
 更新 Windows 视觉基线：
 
@@ -216,7 +216,7 @@ npm run test:e2e:update
 1. 在 GitHub Actions 手动运行 `Playwright Linux Baselines` 工作流。
 2. 工作流执行 `npm run test:e2e:update`，只上传 `playwright-linux-visual-baselines` artifact。
 3. 使用 `gh run download <run-id> --name playwright-linux-visual-baselines --dir <临时目录>`
-   下载 artifact，人工审查 28 张 `*-linux.png`，确认页面布局差异符合预期。
+   下载 artifact，人工审查 30 张 `*-linux.png`，确认页面布局差异符合预期。
 4. 将快照提交到 `e2e/visual.spec.js-snapshots/`，随后运行常规 CI 连续验证两次。
 
 Linux 工作流不会自动提交或推送文件。浏览器或 Playwright 升级后必须走同一流程，
@@ -228,7 +228,7 @@ Linux 工作流不会自动提交或推送文件。浏览器或 Playwright 升�
 npm run test:all
 ```
 
-视觉基线位于 `e2e/visual.spec.js-snapshots/`，当前包含 28 张 `win32` 和 28 张 `linux`
+视觉基线位于 `e2e/visual.spec.js-snapshots/`，当前包含 30 张 `win32` 和 30 张 `linux`
 文件。平台后缀由 Playwright 自动选择，不互相覆盖。
 
 游戏专项验证：
@@ -604,6 +604,9 @@ GET {{baseUrl}}/api/public/contents/no-such-slug
 4. 标题重复时按出现顺序生成稳定后缀，旧版标题锚点通过兼容别名继续可达。
 5. 章节不足时目录入口和阅读进度条均不显示，移动端没有横向溢出。
 6. 相关阅读在移动端保持同列顺序时使用布局坐标断言，不读取入场动画中的 transform。
+7. 桌面短目录在 `1440×900` 和 `1219×958` 滚动后保持 sticky 且不超过 `50vh`。
+8. 超高目录在 `981px` 以上的桌面宽度自动切换为 trigger/panel，`980px` 继续使用窄屏行为；
+   panel、目录和抽屉均不超过视口一半，各断点没有横向溢出。
 
 ### 4.8 搜索
 

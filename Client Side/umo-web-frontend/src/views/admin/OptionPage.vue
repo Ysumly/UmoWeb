@@ -5,6 +5,7 @@ import { onBeforeRouteLeave } from 'vue-router'
 import { getOptions, updateOption } from '@/api/admin'
 import MarkdownArticle from '@/components/public/MarkdownArticle.vue'
 import ContentState from '@/components/public/ContentState.vue'
+import { useSyncedScroll } from '@/composables/useSyncedScroll'
 import { useSiteStore } from '@/stores/site'
 import {
   SITE_OPTION_FIELDS,
@@ -23,6 +24,17 @@ const errors = ref({})
 const original = ref({})
 const aboutPane = ref('editor')
 const projectPane = ref('editor')
+const aboutTextareaRef = ref(null)
+const aboutPreviewRef = ref(null)
+const projectTextareaRef = ref(null)
+const projectPreviewRef = ref(null)
+
+useSyncedScroll(aboutTextareaRef, aboutPreviewRef, {
+  mediaQuery: '(min-width: 701px)',
+})
+useSyncedScroll(projectTextareaRef, projectPreviewRef, {
+  mediaQuery: '(min-width: 701px)',
+})
 
 const form = reactive(Object.fromEntries(
   SITE_OPTION_FIELDS.map(({ key }) => [key, '']),
@@ -226,6 +238,7 @@ onBeforeUnmount(() => {
             :class="{ 'is-mobile-active': aboutPane === 'editor' }"
           >
             <textarea
+              ref="aboutTextareaRef"
               v-model="form.about_page"
               spellcheck="false"
               aria-label="About 页面 Markdown"
@@ -233,6 +246,7 @@ onBeforeUnmount(() => {
             />
           </div>
           <div
+            ref="aboutPreviewRef"
             class="admin-editor-pane admin-editor-pane--preview"
             :class="{ 'is-mobile-active': aboutPane === 'preview' }"
           >
@@ -275,6 +289,7 @@ onBeforeUnmount(() => {
             :class="{ 'is-mobile-active': projectPane === 'editor' }"
           >
             <textarea
+              ref="projectTextareaRef"
               v-model="form.project_page"
               spellcheck="false"
               aria-label="Project 页面 Markdown"
@@ -282,6 +297,7 @@ onBeforeUnmount(() => {
             />
           </div>
           <div
+            ref="projectPreviewRef"
             class="admin-editor-pane admin-editor-pane--preview"
             :class="{ 'is-mobile-active': projectPane === 'preview' }"
           >
