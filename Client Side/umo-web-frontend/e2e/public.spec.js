@@ -450,6 +450,27 @@ test('超高文章目录在桌面自动切换为半屏抽屉', async ({ page }) 
     await expect(aside).toHaveClass(/post-aside--drawer/)
     await expect(page.getByRole('navigation', { name: '文章目录' })).toBeHidden()
 
+    const drawerLayout = await aside.evaluate((element) => {
+      const hiddenOutline = element.querySelector('.post-toc--drawer')
+      return {
+        height: element.getBoundingClientRect().height,
+        hiddenOutlineHeight: hiddenOutline?.getBoundingClientRect().height ?? 0,
+      }
+    })
+    expect(drawerLayout.hiddenOutlineHeight).toBe(0)
+    expect(drawerLayout.height).toBeLessThan(viewport.height / 2)
+
+    await page.evaluate(() => window.scrollTo(0, 600))
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(550)
+    const stickyLayout = await aside.evaluate((element) => {
+      const bounds = element.getBoundingClientRect()
+      return { top: bounds.top, bottom: bounds.bottom }
+    })
+    expect(stickyLayout.top).toBeLessThanOrEqual(120)
+    expect(stickyLayout.bottom).toBeLessThanOrEqual(viewport.height)
+
     const trigger = page.getByRole('button', { name: '打开文章目录' })
     await expect(trigger).toBeVisible()
     await trigger.click()
