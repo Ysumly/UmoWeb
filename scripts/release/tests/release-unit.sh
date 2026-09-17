@@ -230,8 +230,10 @@ if (verify_migration_state) >/dev/null 2>&1; then
     printf 'ASSERTION FAILED: incomplete migration state was accepted\n' >&2
 fi
 
+backfill_command=""
 compose_source() {
     if [[ "$*" == *backend* ]]; then
+        backfill_command="$*"
         return 0
     fi
     if [[ "$*" == *mysql* ]]; then
@@ -244,6 +246,9 @@ if ! backfill_search_index >/dev/null 2>&1; then
     failures=$((failures + 1))
     printf 'ASSERTION FAILED: matching search index counts were rejected\n' >&2
 fi
+assert_true \
+    "$([[ "$backfill_command" == *"--app.scheduling.enabled=false"* ]]; echo $?)" \
+    "search backfill did not disable scheduling"
 compose_source() {
     if [[ "$*" == *backend* ]]; then
         return 0
