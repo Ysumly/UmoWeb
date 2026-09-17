@@ -9,6 +9,10 @@ import java.util.List;
 public interface ContentCategoryMapper {
     void insert(@Param("contentId") Long contentId,
                 @Param("categoryId") Long categoryId);
+    void insertIgnore(@Param("contentId") Long contentId,
+                      @Param("categoryId") Long categoryId);
+    void deleteLinks(@Param("contentIds") List<Long> contentIds,
+                     @Param("categoryIds") List<Long> categoryIds);
     void deleteByContentId(Long contentId);
     List<Long> findCategoryIdsByContentId(Long contentId);
     List<ContentCategoryLink> findLinksByContentIds(@Param("contentIds") List<Long> contentIds);

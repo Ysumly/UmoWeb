@@ -22,6 +22,7 @@ import ContentState from '@/components/public/ContentState.vue'
 import { adminPath } from '@/config/adminPath'
 import {
   buildContentPayload,
+  canScheduleContent,
   contentToForm,
   insertImageMarkdown,
   validateContentForm,
@@ -59,6 +60,7 @@ const tagPage = ref(1)
 const importMessage = ref('')
 const importWarnings = ref([])
 const importErrors = ref({})
+const originalContent = ref(null)
 
 const form = reactive({
   title: '',
@@ -66,6 +68,7 @@ const form = reactive({
   summary: '',
   type: 'NOTE',
   status: 'DRAFT',
+  scheduledAt: '',
   body: '',
   metadata: '',
   categoryIds: [],
@@ -97,6 +100,17 @@ const selectedNovelCategory = computed(() => {
   return form.categoryIds
     .map((id) => categoryMap.value.get(id))
     .find((category) => category?.type === 'NOVEL')
+})
+const scheduleAllowed = computed(() => {
+  return !isEdit.value || canScheduleContent(originalContent.value || {})
+})
+const statusOptions = computed(() => {
+  return [
+    { value: 'DRAFT', label: '草稿' },
+    ...(scheduleAllowed.value ? [{ value: 'SCHEDULED', label: '待发布' }] : []),
+    { value: 'PUBLISHED', label: '已发布' },
+    ...(isEdit.value ? [{ value: 'ARCHIVED', label: '已归档' }] : []),
+  ]
 })
 const importErrorMessages = computed(() => {
   return [...new Set(Object.values(importErrors.value).filter(Boolean))]
@@ -173,7 +187,7 @@ async function handleMarkdownFileInput(event) {
       return
     }
 
-    Object.assign(form, result.form)
+    Object.assign(form, { scheduledAt: '' }, result.form)
     importErrors.value = { ...result.errors }
     errors.value = { ...result.errors }
     importWarnings.value = result.warnings
@@ -219,7 +233,10 @@ async function load() {
     categories.value = categoryResponse.data || []
     tags.value = tagResponse.data || []
     if (contentResponse) {
+      originalContent.value = contentResponse.data
       Object.assign(form, contentToForm(contentResponse.data))
+    } else {
+      originalContent.value = null
     }
     snapshotForm()
   } catch (error) {
@@ -231,7 +248,9 @@ async function load() {
 
 async function handleSubmit() {
   errors.value = {
-    ...validateContentForm(form, allCategories.value),
+    ...validateContentForm(form, allCategories.value, {
+      canSchedule: scheduleAllowed.value,
+    }),
     ...importErrors.value,
   }
   generalError.value = ''
@@ -504,12 +523,28 @@ onBeforeUnmount(() => {
             <label class="admin-field">
               <span>状态 <b>*</b></span>
               <select v-model="form.status" @change="clearImportError('status')">
-                <option value="DRAFT">草稿</option>
-                <option value="PUBLISHED">已发布</option>
+                <option
+                  v-for="option in statusOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
               </select>
               <small v-if="errors.status">{{ errors.status }}</small>
             </label>
           </div>
+
+          <label v-if="form.status === 'SCHEDULED'" class="admin-field">
+            <span>计划发布时间 <b>*</b></span>
+            <input
+              v-model="form.scheduledAt"
+              type="datetime-local"
+              @input="clearImportError('scheduledAt', 'status')"
+            />
+            <small v-if="errors.scheduledAt">{{ errors.scheduledAt }}</small>
+            <small v-else>到点后由服务器自动发布，停机期间到期内容会在恢复后补发。</small>
+          </label>
 
           <fieldset class="admin-field">
             <legend>分类</legend>

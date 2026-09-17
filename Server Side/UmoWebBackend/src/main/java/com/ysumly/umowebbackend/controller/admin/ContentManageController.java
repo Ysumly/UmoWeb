@@ -2,7 +2,9 @@ package com.ysumly.umowebbackend.controller.admin;
 
 import com.ysumly.umowebbackend.model.dto.ContentQuery;
 import com.ysumly.umowebbackend.model.dto.ContentSaveRequest;
+import com.ysumly.umowebbackend.model.dto.BulkContentRequest;
 import com.ysumly.umowebbackend.model.dto.PageResult;
+import com.ysumly.umowebbackend.model.vo.BulkContentResultVO;
 import com.ysumly.umowebbackend.model.vo.ContentDetailVO;
 import com.ysumly.umowebbackend.model.vo.ContentListVO;
 import com.ysumly.umowebbackend.service.admin.ContentManageService;
@@ -39,6 +41,11 @@ public class ContentManageController {
     public ResponseEntity<ContentDetailVO> update(@PathVariable Long id,
                                                    @Valid @RequestBody ContentSaveRequest request) {
         return ResponseEntity.ok(contentManageService.update(id, request));
+    }
+
+    @PostMapping("/contents/bulk")
+    public ResponseEntity<BulkContentResultVO> bulk(@Valid @RequestBody BulkContentRequest request) {
+        return ResponseEntity.ok(contentManageService.bulk(request));
     }
 
     @DeleteMapping("/contents/{id}")

@@ -61,9 +61,9 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 | 页面 | 路由 | 目标能力 | 当前状态 |
 |---|---|---|---|
 | 登录 | `/secret-admin/login` | 登录、存储 token、跳转 | 已实现 |
-| 文章列表 | `/secret-admin/contents` | 筛选、分页、编辑、删除 | 已接入真实 API |
+| 文章列表 | `/secret-admin/contents` | 筛选、分页、批量分类/标签、归档/恢复、编辑、删除 | 已接入真实 API |
 | 新建文章 | `/secret-admin/contents/new` | 元信息、Markdown 导入、图片上传 | 已接入真实 API |
-| 编辑文章 | `/secret-admin/contents/:id/edit` | 预填、更新、发布/草稿 | 已接入真实 API |
+| 编辑文章 | `/secret-admin/contents/:id/edit` | 预填、更新、草稿/待发布/发布/归档 | 已接入真实 API |
 | 分类管理 | `/secret-admin/categories` | 树形 CRUD | 已接入真实 API |
 | 标签管理 | `/secret-admin/tags` | 列表 CRUD | 已接入真实 API |
 | 站点设置 | `/secret-admin/options` | 站点标题、页面 Markdown | 已接入真实 API |
@@ -229,5 +229,5 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 - visual-desktop 和 visual-mobile 保存 28 张核心页面截图基线。
 - 浏览器套件使用 Mock API，本机 Chrome 和 Windows 基线；真实后端继续由 MySQL 冒烟脚本验证。
 
-当前已有 82 个 Node 内置测试；现代 Playwright 套件包含每个平台 79 个浏览器检查
+当前已有 89 个 Node 内置测试；现代 Playwright 套件包含每个平台 81 个浏览器检查
 （51 functional + 28 visual）。尚无组件级单元测试框架。

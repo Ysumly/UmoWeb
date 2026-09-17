@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import {
+  bulkUpdateContents,
   deleteContent,
   getAdminCats,
   getAdminContents,
@@ -16,6 +17,8 @@ import {
   ADMIN_CONTENT_STATUSES,
   ADMIN_PAGE_SIZE,
   ADMIN_PAGE_SIZE_OPTIONS,
+  buildBulkContentPayload,
+  formatBulkOperationError,
   resolveAdminContentQuery,
 } from '@/utils/adminContent'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -35,6 +38,10 @@ const tags = ref([])
 const contents = ref([])
 const pageInfo = ref({ page: 1, size: initialQuery.size, total: 0 })
 const deletingId = ref(null)
+const selectedIds = ref([])
+const bulkAction = ref('ADD_CATEGORIES')
+const bulkTargetId = ref('')
+const bulkLoading = ref(false)
 let requestId = 0
 
 const categoryOptions = computed(() => {
@@ -50,6 +57,57 @@ const totalPages = computed(() => {
 })
 
 const typeOptions = computed(() => contentTypes.filter((item) => item.value))
+const selectedContentCount = computed(() => selectedIds.value.length)
+const allCurrentPageSelected = computed(() => {
+  return contents.value.length > 0
+    && contents.value.every((content) => selectedIds.value.includes(content.id))
+})
+const bulkNeedsCategory = computed(() => {
+  return ['ADD_CATEGORIES', 'REMOVE_CATEGORIES'].includes(bulkAction.value)
+})
+const bulkNeedsTag = computed(() => {
+  return ['ADD_TAGS', 'REMOVE_TAGS'].includes(bulkAction.value)
+})
+const bulkTargetOptions = computed(() => {
+  if (bulkNeedsCategory.value) {
+    return categoryOptions.value
+  }
+  if (bulkNeedsTag.value) {
+    return tags.value
+  }
+  return []
+})
+const bulkActionLabel = computed(() => {
+  return {
+    ADD_CATEGORIES: '添加分类',
+    REMOVE_CATEGORIES: '移除分类',
+    ADD_TAGS: '添加标签',
+    REMOVE_TAGS: '移除标签',
+    ARCHIVE: '归档',
+    RESTORE_DRAFT: '恢复为草稿',
+  }[bulkAction.value] || '执行'
+})
+
+function clearSelection() {
+  selectedIds.value = []
+}
+
+function toggleAllCurrentPage(event) {
+  if (event.target.checked) {
+    selectedIds.value = contents.value.map((content) => content.id)
+  } else {
+    clearSelection()
+  }
+}
+
+function statusLabel(status) {
+  return {
+    DRAFT: '草稿',
+    SCHEDULED: '待发布',
+    PUBLISHED: '已发布',
+    ARCHIVED: '已归档',
+  }[status] || '草稿'
+}
 
 function syncQuery() {
   router.replace({
@@ -99,6 +157,7 @@ async function loadOptions() {
 
 async function loadList() {
   const currentRequest = ++requestId
+  clearSelection()
   status.value = 'loading'
   errorMessage.value = ''
 
@@ -130,6 +189,41 @@ async function loadList() {
     }
     status.value = 'error'
     errorMessage.value = getApiErrorMessage(error, '文章列表加载失败')
+  }
+}
+
+async function handleBulkAction() {
+  if (!selectedIds.value.length) {
+    errorMessage.value = '请先选择本页文章'
+    return
+  }
+  if ((bulkNeedsCategory.value || bulkNeedsTag.value) && !bulkTargetId.value) {
+    errorMessage.value = bulkNeedsCategory.value ? '请选择分类' : '请选择标签'
+    return
+  }
+  if (bulkAction.value === 'ARCHIVE'
+      && !window.confirm(`确定归档选中的 ${selectedIds.value.length} 篇文章吗？`)) {
+    return
+  }
+
+  const payload = buildBulkContentPayload({
+    action: bulkAction.value,
+    contentIds: selectedIds.value,
+    categoryIds: bulkNeedsCategory.value ? [bulkTargetId.value] : [],
+    tagIds: bulkNeedsTag.value ? [bulkTargetId.value] : [],
+  })
+  bulkLoading.value = true
+  actionMessage.value = ''
+  errorMessage.value = ''
+  try {
+    const response = await bulkUpdateContents(payload)
+    actionMessage.value =
+      `批量操作完成：更新 ${response.data.updatedCount} 篇，未变化 ${response.data.unchangedCount} 篇`
+    await loadList()
+  } catch (error) {
+    errorMessage.value = formatBulkOperationError(error)
+  } finally {
+    bulkLoading.value = false
   }
 }
 
@@ -203,7 +297,7 @@ onMounted(() => {
         <select :value="filters.status" @change="changeFilter('status', $event.target.value)">
           <option value="">全部状态</option>
           <option v-for="item in ADMIN_CONTENT_STATUSES" :key="item" :value="item">
-            {{ item === 'DRAFT' ? '草稿' : '已发布' }}
+            {{ statusLabel(item) }}
           </option>
         </select>
       </label>
@@ -264,6 +358,42 @@ onMounted(() => {
       </label>
     </form>
 
+    <div class="admin-bulk-bar" aria-label="批量操作">
+      <strong>{{ selectedContentCount }} 篇已选</strong>
+      <label>
+        <span>操作</span>
+        <select v-model="bulkAction" @change="bulkTargetId = ''">
+          <option value="ADD_CATEGORIES">添加分类</option>
+          <option value="REMOVE_CATEGORIES">移除分类</option>
+          <option value="ADD_TAGS">添加标签</option>
+          <option value="REMOVE_TAGS">移除标签</option>
+          <option value="ARCHIVE">归档</option>
+          <option value="RESTORE_DRAFT">恢复为草稿</option>
+        </select>
+      </label>
+      <label v-if="bulkNeedsCategory || bulkNeedsTag">
+        <span>{{ bulkNeedsCategory ? '分类' : '标签' }}</span>
+        <select v-model="bulkTargetId">
+          <option value="">请选择</option>
+          <option
+            v-for="target in bulkTargetOptions"
+            :key="target.id"
+            :value="target.id"
+          >
+            {{ target.name }}
+          </option>
+        </select>
+      </label>
+      <button
+        class="button button--outline"
+        type="button"
+        :disabled="bulkLoading || !selectedContentCount"
+        @click="handleBulkAction"
+      >
+        {{ bulkLoading ? '处理中...' : bulkActionLabel }}
+      </button>
+    </div>
+
     <ContentState
       v-if="status === 'loading' && !contents.length"
       state="loading"
@@ -293,6 +423,14 @@ onMounted(() => {
         <table class="admin-table">
           <thead>
             <tr>
+              <th class="admin-table__select">
+                <input
+                  type="checkbox"
+                  aria-label="全选当前页文章"
+                  :checked="allCurrentPageSelected"
+                  @change="toggleAllCurrentPage"
+                />
+              </th>
               <th>文章</th>
               <th>状态</th>
               <th>分类 / 标签</th>
@@ -302,6 +440,14 @@ onMounted(() => {
           </thead>
           <tbody>
             <tr v-for="content in contents" :key="content.id">
+              <td data-label="选择" class="admin-table__select">
+                <input
+                  v-model="selectedIds"
+                  type="checkbox"
+                  :value="content.id"
+                  :aria-label="`选择 ${content.title}`"
+                />
+              </td>
               <td data-label="文章">
                 <strong>{{ content.title }}</strong>
                 <small>/{{ content.slug }} · {{ content.type }}</small>
@@ -311,7 +457,7 @@ onMounted(() => {
                   class="admin-status"
                   :class="`admin-status--${String(content.status || 'DRAFT').toLowerCase()}`"
                 >
-                  {{ content.status === 'PUBLISHED' ? '已发布' : '草稿' }}
+                  {{ statusLabel(content.status) }}
                 </span>
               </td>
               <td data-label="分类 / 标签">
@@ -326,7 +472,12 @@ onMounted(() => {
                 </div>
               </td>
               <td data-label="发布时间">
-                {{ content.publishedAt ? formatPublishedDate(content.publishedAt) : '未发布' }}
+                <template v-if="content.status === 'SCHEDULED' && content.scheduledAt">
+                  {{ formatPublishedDate(content.scheduledAt) }} 计划
+                </template>
+                <template v-else>
+                  {{ content.publishedAt ? formatPublishedDate(content.publishedAt) : '未发布' }}
+                </template>
               </td>
               <td class="admin-table__actions">
                 <router-link :to="adminPath(`contents/${content.id}/edit`)">编辑</router-link>

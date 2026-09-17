@@ -71,12 +71,14 @@ String metadata;
 LocalDateTime createdAt;
 LocalDateTime updatedAt;
 LocalDateTime publishedAt;
+LocalDateTime scheduledAt;
 String searchBody;
 Integer relationScore;
 ```
 
 `type` 和 `status` 在 Entity 中仍是字符串；`searchBody` 只承接搜索查询的索引正文，
 `relationScore` 只承接相关文章查询的排序分，二者都不是 `contents` 表字段。
+`status` 实际值为 `DRAFT`、`SCHEDULED`、`PUBLISHED` 或 `ARCHIVED`。
 
 ### 2.5 Image
 
@@ -370,7 +372,26 @@ LIMIT 1
 只保留得分大于 0 的候选，按得分、`published_at`、`id` 倒序稳定排序并限制为 4 篇。
 分类使用精确 ID 交集，不展开层级；查询复用 `content_category` 与 `content_tag` 的现有索引。
 
-### 6.7 站点配置更新
+### 6.7 调度与批量更新
+
+调度查询按 `status='SCHEDULED'`、`scheduled_at <= now` 和计划时间顺序获取最多 100 篇。
+发布使用条件更新：
+
+```sql
+UPDATE contents
+SET status = 'PUBLISHED',
+    published_at = #{publishedAt},
+    scheduled_at = NULL
+WHERE id = #{id}
+  AND status = 'SCHEDULED'
+  AND scheduled_at = #{publishedAt}
+```
+
+受影响行数为 0 时表示其他工作线程已发布或管理员已改期，不再同步正文索引。批量归档与恢复
+同样使用状态条件更新；分类和标签添加使用 `INSERT IGNORE`，移除使用内容 ID 与目标 ID 两组
+`IN` 条件，避免部分更新。
+
+### 6.8 站点配置更新
 
 ```sql
 INSERT INTO site_options (option_key, option_value)
@@ -420,13 +441,15 @@ countContentsByTagId(tagId)
 - `content_category.category_id` 索引和双向外键。
 - `content_tag.tag_id` 索引和双向外键。
 - `contents.published_at` 索引。
+- `contents(status, scheduled_at)` 调度索引。
 - `categories.parent_id` 自引用外键。
 
 其中内容外键使用 `ON DELETE CASCADE`，分类和标签外键使用 `ON DELETE RESTRICT`。
 已有数据库使用 `docs/design/migrations/20260911_integrity_security.sql` 先清理孤儿行、再补列、
 索引和外键。`users.token_version` 也由该脚本兼容添加；
 `docs/design/migrations/20260913_image_cleanup_queue.sql` 通过 `CREATE TABLE IF NOT EXISTS`
-兼容新增图片清理队列表。
+兼容新增图片清理队列表；`docs/design/migrations/20260915_content_schedule.sql`
+兼容新增调度时间和状态索引。
 
 ---
 
@@ -438,7 +461,7 @@ GitHub Actions 的 MySQL 8.4 job 另行启动真实后端并验证 Mapper SQL：
 - 没有 Entity 与 Schema 的自动一致性测试。
 - 没有 SQL 注入和分页边界测试。
 
-2026-09-13 起 CI 会从空库执行 Schema、种子数据和全部兼容迁移，再执行当前 30/30 接口冒烟；
+2026-09-16 起 CI 会从空库执行 Schema、种子数据和全部兼容迁移，再执行当前 31/31 接口冒烟；
 覆盖 Mapper 查询、分类/标签关联、详情前后文章、相关文章排序与排除、图片生命周期与清理队列；
 2026-09-11 隔离 MySQL 5.7 副本记录继续保留。
 

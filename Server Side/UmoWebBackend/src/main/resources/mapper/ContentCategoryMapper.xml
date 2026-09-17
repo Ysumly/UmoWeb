@@ -8,6 +8,25 @@
         VALUES (#{contentId}, #{categoryId})
     </insert>
 
+    <insert id="insertIgnore">
+        INSERT IGNORE INTO content_category (content_id, category_id)
+        VALUES (#{contentId}, #{categoryId})
+    </insert>
+
+    <delete id="deleteLinks">
+        DELETE FROM content_category
+        WHERE content_id IN
+        <foreach collection="contentIds" item="contentId"
+                 open="(" separator="," close=")">
+            #{contentId}
+        </foreach>
+          AND category_id IN
+        <foreach collection="categoryIds" item="categoryId"
+                 open="(" separator="," close=")">
+            #{categoryId}
+        </foreach>
+    </delete>
+
     <delete id="deleteByContentId">
         DELETE FROM content_category WHERE content_id = #{contentId}
     </delete>

@@ -93,7 +93,7 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 145 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 164 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析、
 正文索引、摘要提取、图片清理和图片一致性测试。
 其中 10 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
@@ -121,7 +121,7 @@ cd "Server Side\UmoWebBackend"
   -Password "<current-password>"
 ```
 
-脚本覆盖公开端 8 个和管理端 22 个接口，结果为 `30/30` 通过；同时验证：
+脚本覆盖公开端 8 个和管理端 23 个接口，结果为 `31/31` 通过；同时验证：
 
 - 无有效 JWT 的管理端请求返回 401。
 - 修改密码返回 204，旧 token 立即失效。
@@ -146,12 +146,12 @@ cd "Server Side\UmoWebBackend"
   种子行数和迁移后孤儿关系为 0。
 - 在真实库执行分类、正文搜索、相关文章和图片管理集成测试，覆盖根/子/孙内容、精确/后代模式、
   管理端草稿、空结果、稳定排序、循环拒绝、中文 ngram 查询、索引幂等、
-  相关文章权重与排除规则、图片排序和清理队列失败记录。
+  相关文章权重与排除规则、调度发布、图片排序和清理队列失败记录。
 - 复制演示 Markdown 后连续执行两次正文回填脚本，校验索引行数等于已发布内容数，
   并验证正文全文和标题/摘要搜索。
 - 使用 Java 17 构建并启动后端，使用独立临时存储和运行时测试凭据执行 `api-smoke.py`。
-- 冒烟断言覆盖公开筛选、详情分类/标签、前后文章、相关文章、草稿隔离、密码失效、
-  图片完整生命周期、图片一致性来源查询和 429。
+- 冒烟断言覆盖公开筛选、详情分类/标签、前后文章、相关文章、草稿/待发布隔离、密码失效、
+  批量文章操作、图片完整生命周期、图片一致性来源查询和 429。
 - 冒烟通过后校验图片记录、清理队列与临时存储文件；job 退出时销毁后端进程、测试数据和临时文件。
 
 ### 2.3 前端
@@ -166,11 +166,11 @@ npm run test:e2e
 2026-09-15 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
-- 前端 82 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
+- 前端 89 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、
   API 错误解析、日期格式、书库后代参数、文章目录树/展开状态、标题 ID 与旧锚点兼容和
   Markdown 安全。
-- Playwright 79 个浏览器检查，其中 51 个 functional 用例覆盖公开端、文章目录、阅读进度与相关阅读、
+- Playwright 81 个浏览器检查，其中 53 个 functional 用例覆盖公开端、文章目录、阅读进度与相关阅读、
   图片一致性检查、隐私说明、在线编辑器、
   四款游戏（含高密度网格、长数字、10 张牌、旧成绩和响应式场景）和管理端核心流程，
   28 个视觉断言覆盖 14 个核心页面状态的桌面与 390px 基线。
@@ -277,7 +277,7 @@ bash scripts/backup/tests/backup-unit.sh
 /opt/umoweb/scripts/backup/restore-backup.sh /opt/umoweb/backups/umoweb-backup-<时间>.tar.gz
 ```
 
-执行恢复栈的 `api-smoke.ps1`，要求 30/30 通过，然后：
+执行恢复栈的 `api-smoke.ps1`，要求 31/31 通过，然后：
 
 ```bash
 /opt/umoweb/scripts/backup/cleanup-restore.sh umoweb-restore-<时间>
@@ -311,7 +311,7 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
   --env-file ".env.docker"
 ```
 
-该脚本与 PowerShell 版本均覆盖 30 个接口；会从 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASS`
+该脚本与 PowerShell 版本均覆盖 31 个接口；会从 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASS`
 读取管理员凭据，不输出密码值。2026-09-12 正式数据候选包、生产切换和最终备份恢复均通过
 `27/27`。
 
@@ -323,7 +323,7 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
   Nginx 六字段日志容器测试，并扫描全部已跟踪文件。
 - `backend`：使用 Temurin Java 17 执行 `mvn -B test`。
 - `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，运行分类层级与
-  图片管理 Mapper 集成测试，再启动真实后端执行 30/30 接口冒烟并校验图片记录、清理队列和文件回收。
+  图片管理 Mapper 集成测试，再启动真实后端执行 31/31 接口冒烟并校验图片记录、清理队列和文件回收。
 - `frontend`：使用 Node 24.12.0 执行 `npm ci`、`npm test` 和 `npm run build`。
 - `browser`：使用 Node 24.12.0 安装锁定版本 Chromium，执行 `npm run test:e2e`；
   失败时上传 `playwright-report-<attempt>` artifact。

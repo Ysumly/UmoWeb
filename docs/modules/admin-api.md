@@ -1,8 +1,8 @@
 # 管理端 API 实现
 
-> 基线日期: 2026-09-15
+> 基线日期: 2026-09-16
 > 前缀: `/api/admin`
-> 接口数: 22，其中登录无需 JWT
+> 接口数: 23，其中登录无需 JWT
 
 ---
 
@@ -11,7 +11,7 @@
 | Controller | 接口 |
 |---|---|
 | `AuthController` | 登录、修改密码 |
-| `ContentManageController` | 文章列表、详情、新建、编辑、删除 |
+| `ContentManageController` | 文章列表、详情、新建、编辑、批量操作、删除 |
 | `CategoryManageController` | 分类树、详情、新建、编辑、删除 |
 | `OptionController` | 配置查询、配置更新 |
 | `TagManageController` | 标签列表、新建、编辑、删除 |
@@ -75,10 +75,12 @@ GET /api/admin/contents
 - `status`（枚举）
 - `sort`
 
-`status` 为空时包含草稿和已发布内容。`includeDescendants=true` 必须同时提供 `categoryId`，
+`status` 为空时包含 `DRAFT`、`SCHEDULED`、`PUBLISHED` 和 `ARCHIVED`。
+`includeDescendants=true` 必须同时提供 `categoryId`，
 分类层级循环或超过 32 层返回 409。
 
-列表和详情 `VO` 均返回当前 `status`，前端无需再通过 `publishedAt` 推断草稿是否曾发布。
+列表和详情 `VO` 均返回当前 `status` 和可选 `scheduledAt`，前端无需再通过
+`publishedAt` 推断草稿是否曾发布。
 
 ### 3.2 详情
 
@@ -102,7 +104,8 @@ POST /api/admin/contents
 4. 数据库操作成功后以不覆盖方式提升到最终路径。
 5. 返回详情 VO；任何数据库回滚都会清理新文件。
 
-发布状态下会设置 `publishedAt = LocalDateTime.now()`。
+发布状态下会设置 `publishedAt = LocalDateTime.now()`。仅未发布草稿可设置未来的
+`scheduledAt` 并进入 `SCHEDULED`；归档会清空计划时间并保留正文与关联。
 
 现有文件不会被覆盖，数据库失败不会破坏旧文件。
 
@@ -133,6 +136,27 @@ DELETE /api/admin/contents/{id}
 数据库失败时文件保留；提交后文件删除失败会记录日志并留下可恢复孤儿文件。
 
 成功状态为 204。
+
+### 3.6 批量更新
+
+```http
+POST /api/admin/contents/bulk
+```
+
+支持分类/标签的添加与移除，以及批量归档和恢复草稿。请求先完成全部内容、关联对象和
+小说分类约束预检，再在一个事务中提交；失败不会产生部分更新，并以 `failures` 返回
+内容 ID、目标 ID 和原因。
+
+成功返回 `action`、`requestedCount`、`updatedCount` 和 `unchangedCount`。
+
+### 3.7 定时发布
+
+管理端可创建或更新 `SCHEDULED` 内容并提交 `scheduledAt`。调度器默认每 30 秒扫描一次，
+按计划时间和 ID 顺序处理到期内容；应用停机期间错过的任务会在恢复后补发。发布事务使用
+状态与计划时间的条件更新保证重复轮询或多实例下最多成功一次，并与正文索引同步。
+
+读取 Markdown、更新状态或同步索引失败时，该篇事务回滚并保留 `SCHEDULED`，后续轮询重试。
+手动取消、改期、提前发布或归档都会清空旧计划时间。
 
 ---
 
@@ -333,8 +357,8 @@ PUT /api/admin/options/{key}
 
 `BoundaryTest` 仍使用 Mock Service 覆盖接口边界，另有 Service/Util 单元测试覆盖真实文件、
 路径、JWT、限流、可信代理 CIDR、容器装配和批量查询行为；MySQL 8.4 环境门控测试覆盖真实
-分类层级 SQL、正文全文索引、相关文章排序、图片来源查询和图片清理队列。当前后端测试共 145 个，
-其中 10 个由 MySQL 8.4 环境门控，默认本地跳过。
+分类层级 SQL、正文全文索引、相关文章排序、调度发布、图片来源查询和图片清理队列。
+当前后端测试共 164 个，其中 11 个由 MySQL 8.4 环境门控，默认本地跳过。
 
 `BoundaryTest` 覆盖：
 

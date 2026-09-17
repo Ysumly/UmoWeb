@@ -107,6 +107,7 @@ public class ContentVOMapper {
         target.setTags(source.getTags());
         target.setMetadata(source.getMetadata());
         target.setPublishedAt(source.getPublishedAt());
+        target.setScheduledAt(source.getScheduledAt());
     }
 
     private void fillBasicFields(ContentListVO vo, Content content) {
@@ -117,6 +118,7 @@ public class ContentVOMapper {
         vo.setType(content.getType());
         vo.setStatus(content.getStatus());
         vo.setPublishedAt(content.getPublishedAt());
+        vo.setScheduledAt(content.getScheduledAt());
         vo.setMetadata(parseMetadata(content.getMetadata()));
     }
 

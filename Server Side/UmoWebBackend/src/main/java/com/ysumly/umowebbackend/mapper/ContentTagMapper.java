@@ -9,6 +9,10 @@ import java.util.List;
 public interface ContentTagMapper {
     void insert(@Param("contentId") Long contentId,
                 @Param("tagId") Long tagId);
+    void insertIgnore(@Param("contentId") Long contentId,
+                      @Param("tagId") Long tagId);
+    void deleteLinks(@Param("contentIds") List<Long> contentIds,
+                     @Param("tagIds") List<Long> tagIds);
     void deleteByContentId(Long contentId);
     List<Long> findTagIdsByContentId(Long contentId);
     List<ContentTagLink> findLinksByContentIds(@Param("contentIds") List<Long> contentIds);

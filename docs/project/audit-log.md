@@ -1,5 +1,51 @@
 # 审计日志
 
+## 审计 #44 - 2026-09-16 — Task 4.3 批量管理与定时发布
+
+### 范围
+
+- 将文章生命周期扩展为 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`。
+- 新增当前页批量分类/标签、归档/恢复和单篇定时发布。
+- 保持公开端只暴露 `PUBLISHED`，不引入文章修订历史。
+
+### 实现
+
+- `contents` 新增可空 `scheduled_at DATETIME(6)` 和 `(status, scheduled_at)` 索引；
+  新库写入 `schema.sql`，旧库使用 `20260915_content_schedule.sql` 幂等迁移。
+- 仅未发布草稿可设置未来 `scheduledAt`；调度器默认每 30 秒扫描到期内容，使用状态与时间
+  条件更新保证最多发布一次，计划和停机补发均以原计划时间写入 `published_at`。
+- 调度发布与正文索引同步在同一事务内完成；Markdown 读取、数据库或索引失败时保留
+  `SCHEDULED` 并记录单行警告，后续轮询重试。
+- 调度配置支持 `app.scheduling.enabled`；无 Web 的正文索引回填进程显式关闭调度，
+  避免调度线程阻止 CLI 进程退出。健康检查增加 5 秒超时、代理绕过和进度日志。
+- 根元素使用 `overflow-x: clip`，消除 Linux Chromium 中 `documentElement.scrollWidth`
+  的 10px 溢出游标；不引入横向滚动容器或视觉变化。
+- 新增 `POST /api/admin/contents/bulk`，支持分类/标签添加与移除、归档和恢复草稿；
+  整批预检后在单事务提交，失败返回 `failures`，不产生部分更新。
+- 管理端文章列表增加当前页勾选、批量操作和待发布/归档徽标；编辑器按状态显示
+  `datetime-local` 计划时间控件。Windows 桌面与移动端视觉基线已更新。
+- Python 与 PowerShell 冒烟统一为 31/31，新增待发布公开隔离和批量操作验证。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 后端完整测试 | 164/164，0 failures，0 errors；11 个 MySQL 门控默认跳过 |
+| MySQL 8.4 Mapper 门控 | 11/11 通过 |
+| 真实接口冒烟 | Python `api-smoke.py` 31/31；PowerShell 脚本语法通过 |
+| Node 测试 | 89/89 通过 |
+| Windows Playwright | 81/81 通过（53 functional + 28 visual） |
+| 生产构建 | Vite 8.1.0 通过 |
+| 迁移幂等 | Schema、种子和全部迁移连续执行通过；调度字段与索引断言通过 |
+| 差异与安全检查 | `git diff --check` 和敏感信息扫描通过 |
+| Linux Playwright | 81/81 通过，基线 workflow run `34992907506` |
+
+### 剩余风险
+
+1. 调度器采用数据库条件更新保证幂等，但当前部署仍是单实例，多实例调度延迟未做压测。
+2. 批量操作只选择当前页，单次最多 100 篇；跨页全量操作需要后续独立设计。
+3. 到期内容按 30 秒轮询周期发布，公开时间允许最多约 30 秒延迟。
+
 ## 审计 #43 - 2026-09-15 — Task 4.2 图片一致性检查
 
 ### 范围

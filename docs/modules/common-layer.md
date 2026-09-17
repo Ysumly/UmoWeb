@@ -41,7 +41,9 @@ public enum ContentType {
 ```java
 public enum ContentStatus {
     DRAFT,
-    PUBLISHED
+    SCHEDULED,
+    PUBLISHED,
+    ARCHIVED
 }
 ```
 
@@ -59,7 +61,8 @@ RuntimeException
     └── NotFoundException      -> 404
 ```
 
-`BusinessException` 持有 HTTP 语义状态码 `code` 和消息。
+`BusinessException` 持有 HTTP 语义状态码 `code` 和消息。`BulkOperationException`
+在此基础上携带逐项 `failures`，仅用于批量文章预检失败。
 
 ### 3.1 GlobalExceptionHandler
 

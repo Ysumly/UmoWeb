@@ -16,6 +16,7 @@ public class Content {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime publishedAt;
+    private LocalDateTime scheduledAt;
     private String searchBody;
     private Integer relationScore;
 }

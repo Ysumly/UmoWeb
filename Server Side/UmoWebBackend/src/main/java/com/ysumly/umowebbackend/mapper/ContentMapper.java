@@ -31,12 +31,19 @@ public interface ContentMapper {
     long countAll(@Param("query") ContentQuery query,
                   @Param("categoryIds") List<Long> categoryIds);
     Content findById(Long id);
+    List<Content> findByIds(@Param("ids") List<Long> ids);
+    List<Long> findDueScheduledIds(@Param("now") LocalDateTime now,
+                                   @Param("limit") int limit);
     long countBySlug(@Param("slug") String slug, @Param("excludeId") Long excludeId);
     List<String> findAllBodyPaths();
     List<Content> findAllForReferenceScan();
     List<Content> findAllPublishedForIndex();
     void insert(Content content);
     void update(Content content);
+    int archiveByIds(@Param("ids") List<Long> ids);
+    int restoreDraftByIds(@Param("ids") List<Long> ids);
+    int publishScheduled(@Param("id") Long id,
+                         @Param("publishedAt") LocalDateTime publishedAt);
     void delete(Long id);
 
     // 搜索

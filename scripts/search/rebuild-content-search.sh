@@ -15,4 +15,5 @@ fi
 cd "$backend_dir"
 exec java -jar "$jar_path" \
   --spring.main.web-application-type=none \
+  --app.scheduling.enabled=false \
   --app.search.backfill-only=true

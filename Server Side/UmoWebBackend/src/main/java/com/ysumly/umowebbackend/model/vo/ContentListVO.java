@@ -18,4 +18,5 @@ public class ContentListVO {
     private List<TagVO> tags;
     private Map<String, Object> metadata;
     private LocalDateTime publishedAt;
+    private LocalDateTime scheduledAt;
 }

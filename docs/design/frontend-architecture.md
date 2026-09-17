@@ -243,8 +243,8 @@ token 来源和存储位置都是 `localStorage`。
 |---|---|
 | `LoginPage.vue` | 表单、调用登录 API、错误提示、跳转 |
 | `AdminLayout.vue` | 桌面侧栏、移动抽屉、主题切换、退出登录和 `router-view` |
-| `ContentListPage.vue` | 文章筛选、分页、状态展示、编辑和删除 |
-| `ContentEditPage.vue` | 新建/编辑、Markdown front matter 导入、分类标签、metadata、分屏预览、图片上传和未保存保护 |
+| `ContentListPage.vue` | 四种状态筛选、分页、当前页批量分类/标签、归档/恢复、编辑和删除 |
+| `ContentEditPage.vue` | 新建/编辑、Markdown front matter 导入、分类标签、metadata、分屏预览、图片上传、定时发布和未保存保护 |
 | `CategoryManagePage.vue` | 分类树筛选、父级/排序字段、增改删、409 提示和未保存保护 |
 | `TagManagePage.vue` | 标签增改删、字段校验、409 提示和未保存保护 |
 | `ImageManagePage.vue` | 图片缩略图、引用筛选、分页、删除确认、409 提示和列表刷新 |
@@ -311,11 +311,12 @@ server: {
 ```
 
 2026-09-14 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
-搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 82 个 Node 测试覆盖路由、
+搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 89 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
 Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
 游戏规则与旧成绩、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；
-Playwright 另含 51 个 functional 和 28 个视觉检查。
+Playwright 另含 53 个 functional 和 28 个视觉检查。管理端文章生命周期为
+`DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`，仅未发布草稿可以选择未来计划时间。
 书库选择分类时 URL 使用
 `category=<id>&includeDescendants=true`，显式 `false` 仍可请求精确匹配。
 
@@ -332,7 +333,7 @@ Playwright 另含 51 个 functional 和 28 个视觉检查。
 3. 第三阶段已完成并合并 Markdown 导入、子分类筛选、图片删除、正文全文搜索和四个训练游戏，
    阶段出口条件已满足。
 4. 第四阶段 Task 4.1 已完成目录、阅读进度、浏览器原生正文检索和确定性相关阅读；
-   Task 4.2 已完成图片一致性检查，后续继续批量管理和定时发布，不包含文章修订历史。
+   Task 4.2 已完成图片一致性检查；Task 4.3 已完成批量管理和定时发布，不包含文章修订历史。
 5. 第五阶段在需求、隐私和成本明确后评估管理端 AI；AI 草稿和转换结果只保存在浏览器本地。
 6. 公开语义搜索、原文问答和知识图谱继续后置，作为独立项目重新评审。
 
