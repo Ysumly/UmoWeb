@@ -36,7 +36,7 @@ UmoWeb/
 ```
 
 后端主源码为 112 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
-游戏规则与页面、主题与 Markdown 工具和 Node 测试。`Downloads/`、
+本地工具中心、游戏规则与页面、主题与 Markdown 工具和 Node 测试。`Downloads/`、
 `.superpowers/`、`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
 ---
@@ -83,7 +83,7 @@ UmoWeb/
 | 触发 | `pull_request` 和 `master` push |
 | 运行环境 | Ubuntu、Temurin Java 17、Node 24.12.0 |
 | 检查 | 后端 Maven 测试、MySQL 8.4 Schema/种子/迁移与接口冒烟、前端 Node 测试、前端构建、Linux Playwright、diff 检查和敏感信息扫描 |
-| 视觉基线 | 28 张 Windows Chrome 与 28 张 Linux Chromium 独立 PNG |
+| 视觉基线 | 30 张 Windows Chrome 与 30 张 Linux Chromium 独立 PNG |
 | 权限 | `contents: read`，不配置仓库 Secret |
 | 合并门禁 | 当前私有仓库计划不支持分支保护或规则集，失败结果不能强制阻止合并 |
 
@@ -398,8 +398,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 基于服务端契约的书库筛选/分页、搜索 429 倒计时、Markdown 渲染和代码高亮。
 - 搜索覆盖标题、摘要和 Markdown 正文；正文命中时结果卡片展示 `excerpt`。
 - 404 页面采用公开端视觉布局。
-- 公开端已有 13 个业务路由：首页、书库、搜索、文章详情、About、Project、在线编辑器、
-  隐私说明、游戏中心及四款训练游戏；另有 404 回退。
+- 公开端已有 14 个业务路由：首页、书库、搜索、文章详情、About、Project、工具中心、
+  在线编辑器、隐私说明、游戏中心及四款训练游戏；另有 404 回退。
 - 2026-09-13 已完成 Task 3.2：分类筛选默认保持精确匹配，显式 `includeDescendants=true`
   展开全部后代；书库分类入口默认启用该行为，真实 MySQL 集成测试覆盖根/子/孙和循环拒绝。
 - 2026-09-13 已完成 Task 3.3：图片列表与删除、全部文章和固定页引用扫描、持久化文件
@@ -419,9 +419,13 @@ Spring Multipart 限制单文件和请求均为 50MB。
   桌面侧栏和窄屏悬浮面板均支持分支展开与当前/祖先高亮，阅读进度按正文滚动范围计算；
   标题使用稳定 ID 和旧版兼容别名，旧内容迁移脚本支持 dry-run、备份和原子写入。
   2026-09-15 已补齐相关阅读，正文内检索明确由浏览器原生查找承担，不提供站内搜索控件。
-- 2026-09-17 已完成 Task 4.4 Task 1：桌面文章目录保持 sticky，目录自然高度严格超过
-  `50vh` 时锁定为半屏抽屉，窄屏继续使用原悬浮面板；`body` 横向裁剪改用 `clip`，
-  避免破坏页面滚动与 sticky 定位。
+- 2026-09-17 已完成 Task 4.4：桌面文章目录保持 sticky，目录自然高度严格超过
+  `50vh` 时锁定为半屏抽屉，窄屏继续使用原悬浮面板；公开编辑器、管理端文章编辑器和
+  About/Project 设置编辑器等高，并通过 `useSyncedScroll` 在桌面按比例双向同步滚动，
+  移动端单面板不执行同步；`body` 横向裁剪改用 `clip`，避免破坏页面滚动与 sticky 定位。
+- 2026-09-17 已新增本地工具中心：公开导航抽为共享配置，页头、移动菜单和页脚均可进入
+  `/tools`；工具中心和在线编辑器共享 `section: tools` 激活态，首页增加独立工具模块，
+  当前目录只包含 Markdown 编辑器。
 - 2026-09-15 已完成 Task 4.2 图片一致性检查：图片管理页可按需展示三类异常、来源、计数和扫描时间，
   删除图片后旧报告失效；结果不写入 Pinia 或浏览器存储。
 - 2026-09-15 已完成 Task 4.3 批量管理与定时发布：新增四种内容状态、当前页批量分类/标签、
@@ -431,7 +435,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 
 - 管理端路径由统一 `VITE_ADMIN_PATH` 工具控制，默认 `/secret-admin`，不再依赖后端 `app.admin-path`。
 - 当前存在公开端 `SiteHeader`、`SiteFooter`、`ContentCard`、`ContentState`、`MarkdownArticle`、
-  `ThemeToggle`、`GameShell` 和 `GameResultDialog`；管理端仍没有统一表单/表格组件。
+  `ThemeToggle`、`GameShell`、`GameResultDialog` 和 `ToolsPage`；公开导航由
+  `publicNavigation` 统一提供，编辑滚动由 `useSyncedScroll` 复用；管理端仍没有统一表单/表格组件。
 - 公开端页头和管理端侧栏共用 `public/umo-logo.png`，浏览器图标为 `public/favicon.png`。
 - 前端已建立 Playwright functional 与视觉回归；Windows 使用本机 Chrome，CI 使用 Linux Chromium，
   浏览器测试不连接后端，真实接口由 CI MySQL 8.4 集成 job 和冒烟脚本负责。
@@ -538,19 +543,21 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 内容导入与阅读锚点工具共有 10 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、
   图片重写、内容去重、Linux 文件所有权、缺失素材阻断，以及旧锚点 dry-run、备份、
   原子写入、幂等和缺少目标阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 31 个接口。
-- 前端 93 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、游戏规则与旧成绩解析、
+- 前端 99 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、
   Markdown front matter 导入、日期格式、书库后代参数、目录树与展开状态、标题 ID/别名、
-  Markdown 原始 HTML、危险 URL 协议、图片 alt 转义、定时状态、目录半屏判定和批量载荷规则。
-- Playwright 每个平台运行 85 个浏览器检查：57 个 functional 用例覆盖公开端、正文摘要、
-  文章目录/阅读进度/相关阅读、图片一致性报告与竞态、隐私说明、在线编辑器、批量文章操作、
-  定时发布、目录 sticky/半屏抽屉/断点、四款游戏的高密度/长序列/旧成绩兼容和管理端核心流程；
-  28 个视觉断言覆盖 14 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+  Markdown 原始 HTML、危险 URL 协议、图片 alt 转义、定时状态、目录半屏判定、
+  编辑器滚动比例和批量载荷规则。
+- Playwright 每个平台运行 95 个浏览器检查：65 个 functional 用例覆盖公开端、正文摘要、
+  文章目录/阅读进度/相关阅读、图片一致性报告与竞态、隐私说明、工具中心、在线编辑器、
+  三处编辑工作区双向滚动、批量文章操作、定时发布、目录 sticky/半屏抽屉/断点、
+  四款游戏的高密度/长序列/旧成绩兼容和管理端核心流程；30 个视觉断言覆盖 15 个核心页面状态的
+  `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
 - Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；
   Windows 默认 Chrome channel，Linux CI 使用锁定 Playwright 版本的 Chromium。
-- 仓库分别保存 28 张 `win32` 和 28 张 `linux` 视觉快照；Linux 快照通过手动
+- 仓库分别保存 30 张 `win32` 和 30 张 `linux` 视觉快照；Linux 快照通过手动
   `Playwright Linux Baselines` 工作流生成 artifact 后人工审查提交，不会自动写回仓库。
 - `scripts/ci/scan-sensitive-info.sh` 扫描全部已跟踪文件，覆盖公开 IPv4、ECS 实例 ID、AccessKey、
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。

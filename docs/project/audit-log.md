@@ -1,5 +1,42 @@
 # 审计日志
 
+## 审计 #48 - 2026-09-17 — Task 4.4 编辑器滚动协同与本地工具入口
+
+### 范围
+
+- 统一公开在线编辑器、管理端文章编辑器和 About/Project 设置编辑器的桌面高度与双向滚动。
+- 新增公开端共享导航、`/tools` 工具中心、首页工具模块和“工具”栏目激活态。
+- 不修改后端 API、数据库、Markdown 文件格式、认证和 `umo-editor-draft-v1` 草稿键。
+
+### 实现
+
+- 新增 `calculateScrollRatio` 和 `scrollTopForRatio` 纯函数，空值、负值、越界值和不可滚动面板
+  分别按 `0` 或可达范围处理。
+- `useSyncedScroll` 监听主从面板滚动，通过 `requestAnimationFrame` 合并连续事件，并使用程序化
+  目标比例容差阻止双向回弹；媒体查询、元素更换和组件卸载时解绑。
+- 公开编辑器仅在 `min-width: 981px` 启用同步，管理端文章编辑器和 About/Project 设置仅在
+  `min-width: 701px` 启用；三处工作区输入、textarea 和预览面板保持等高，移动端继续单面板切换。
+- `publicNavigation` 统一渲染页头、移动菜单和页脚；`toolCatalog` 与 `ToolsPage.vue` 提供工具中心，
+  `/tools`、`/editor` 共享 `section: tools`，首页 `home-tools` 可直接进入工具中心或编辑器。
+- Windows 基线更新为 30 张；Linux 工作流 `35216777902` 生成 30 张 artifact，审查确认新增工具中心、
+  首页工具模块和移动端页脚变化符合预期。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| Node 测试 | 99/99 通过 |
+| Windows Playwright | 95/95 通过（65 functional + 30 visual） |
+| Linux 视觉基线工作流 | run `35216777902` 成功，30 张快照人工审查通过 |
+| 生产构建 | Vite 8.1.0 通过 |
+| 文档检查 | 路线图、规格、架构、测试指南、代码记忆、状态快照和审计同步 |
+
+### 剩余风险
+
+1. 双向同步按整体滚动比例近似，不保证 Markdown 源行与渲染块逐行对齐。
+2. 工具中心当前只有 Markdown 编辑器，后续新增工具需要继续复用共享导航和本地存储边界。
+3. Linux 快照仍绑定 runner 字体与 Chromium 版本，浏览器或 runner 升级后必须重新生成并审查。
+
 ## 审计 #47 - 2026-09-17 — Task 4.4 Task 1 文章目录滚动与半屏抽屉
 
 ### 范围

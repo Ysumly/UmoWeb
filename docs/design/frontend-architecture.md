@@ -1,8 +1,8 @@
 # UmoWeb 前端架构
 
-> 基线日期: 2026-09-15
+> 基线日期: 2026-09-17
 > 项目路径: `Client Side/umo-web-frontend/`
-> 状态: 公开端阅读增强、在线编辑器、隐私说明、四款训练游戏和管理端核心业务页均已实现
+> 状态: 公开端阅读增强、本地工具中心、在线编辑器、隐私说明、四款训练游戏和管理端核心业务页均已实现
 
 ---
 
@@ -158,6 +158,7 @@ umo-web-frontend/
 | `/post/:slug` | `post` | `PostDetailPage.vue` | 已接入真实 API |
 | `/about` | `about` | `AboutPage.vue` | 已接入真实 API |
 | `/project` | `project` | `ProjectPage.vue` | 已接入真实 API |
+| `/tools` | `tools` | `ToolsPage.vue` | 纯浏览器本地工具入口 |
 | `/editor` | `editor` | `EditorPage.vue` | 纯浏览器本地编辑器 |
 | `/privacy` | `privacy` | `PrivacyPage.vue` | 读取运行时访问保留策略 |
 | `/games` | `games` | `GamesPage.vue` | 四款游戏入口 |
@@ -181,6 +182,8 @@ umo-web-frontend/
 公开路由通过 `meta.motion` 区分 `cinematic` 和 `focused` 动效等级。
 游戏路由额外设置 `instantTransition`，不渲染全屏 route wipe，并以 `section: games`
 维持主导航激活状态。
+`/tools` 和 `/editor` 使用 `section: tools`，共享公开导航配置并在工具中心与编辑器间保持
+“工具”激活态。
 
 ---
 
@@ -250,7 +253,8 @@ token 来源和存储位置都是 `localStorage`。
 | `ImageManagePage.vue` | 图片缩略图、引用筛选、分页、删除确认、409 提示和列表刷新 |
 | `OptionPage.vue` | 站点信息、About/Project Markdown 预览、统一保存和部分失败反馈 |
 | `ChangePasswordPage.vue` | 密码校验、修改后清 token、跳转登录页 |
-| `EditorPage.vue` | `.md` 导入/下载、Markdown 编辑与安全预览、移动端切换和本地草稿恢复 |
+| `ToolsPage.vue` | 从工具目录展示本地工具卡片，当前仅包含 Markdown 编辑器 |
+| `EditorPage.vue` | `.md` 导入/下载、Markdown 编辑与安全预览、双向滚动、移动端切换和本地草稿恢复 |
 | `PrivacyPage.vue` | 展示收集目的、六字段边界、实际保留期、管理员访问边界和第三方限制 |
 | `GamesPage.vue` | 展示四款训练入口，不调用 API |
 | 四款游戏页面 | 保留原规则、键盘/触控操作、结果结算和旧版本地成绩 |
@@ -265,14 +269,21 @@ token 来源和存储位置都是 `localStorage`。
 - 搜索：显式提交、URL 同步和 429 倒计时。
 - 文章详情：Markdown、代码高亮、分类标签、后端返回的前后文章、自动目录、滚动章节高亮和
   阅读进度；相关内容最多 4 篇并排除前后篇，桌面双列、700px 以下单列。桌面端目录位于侧栏，
-  980px 以下使用可关闭的悬浮目录。
+  短目录保持 sticky 且高度不超过 `50vh`；自然高度超过半屏时降级为桌面抽屉，980px 以下
+  使用可关闭的悬浮目录。
 - About 与 Project：分别读取配置页 Markdown。
 
 主题由 `data-theme` 控制，亮暗偏好保存在 `localStorage`。公开端支持首页电影化动效、滚动揭示和减少动态偏好。
 
 ### 7.3 公开在线编辑器
 
-`EditorPage.vue` 不调用后端，使用原生 `textarea` 和 `MarkdownArticle` 完成分屏编辑/预览；窄屏切换单栏。支持导入与下载 `.md`、文件名规范化、导入替换确认和清空；草稿写入 `localStorage["umo-editor-draft-v1"]`，页面重新进入时恢复。
+`EditorPage.vue` 不调用后端，使用原生 `textarea` 和 `MarkdownArticle` 完成分屏编辑/预览；
+窄屏切换单栏。支持导入与下载 `.md`、文件名规范化、导入替换确认和清空；草稿写入
+`localStorage["umo-editor-draft-v1"]`，页面重新进入时恢复。
+
+公开编辑器、管理端文章编辑器和 About/Project 设置编辑器使用统一工作区高度模型，输入与预览
+面板等高。桌面分栏通过 `useSyncedScroll` 按可滚动比例双向同步，连续滚动事件由
+`requestAnimationFrame` 合并；移动端单面板和不可滚动内容不启用同步。
 
 ### 7.4 训练游戏
 
@@ -285,6 +296,12 @@ Stroop 保留 84 试次和 25% 一致试次，使用 `stroop_84_parchment`；五
 倒背数字保留 4 位起步、每级三题答对两题升级，不保存成绩；扑克牌保留两张开局、
 三秒记忆和 `poker_memory_best_span`；舒尔特保留 3×3 至 10×10 和
 `schulte_parchment_best` 分尺寸最佳成绩。游戏路由即时进入，非规则反馈等待已压缩。
+
+### 7.5 本地工具中心
+
+`publicNavigation` 统一生成桌面导航、移动菜单和页脚链接；`toolCatalog` 当前只定义
+Markdown 编辑器。`/tools` 展示工具卡片和本地保存说明，首页 `home-tools` 模块直接进入编辑器或
+工具中心。工具能力和草稿仍只存在于浏览器，不调用后端。
 
 ---
 
@@ -310,12 +327,12 @@ server: {
 }
 ```
 
-2026-09-14 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
-搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 89 个 Node 测试覆盖路由、
+2026-09-17 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
+搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 99 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
-Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
+编辑滚动比例、Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
 游戏规则与旧成绩、Markdown 原始 HTML、危险 URL 协议和图片 alt 转义；
-Playwright 另含 53 个 functional 和 28 个视觉检查。管理端文章生命周期为
+Playwright 另含 65 个 functional 和 30 个视觉检查。管理端文章生命周期为
 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`，仅未发布草稿可以选择未来计划时间。
 书库选择分类时 URL 使用
 `category=<id>&includeDescendants=true`，显式 `false` 仍可请求精确匹配。
@@ -333,7 +350,8 @@ Playwright 另含 53 个 functional 和 28 个视觉检查。管理端文章生�
 3. 第三阶段已完成并合并 Markdown 导入、子分类筛选、图片删除、正文全文搜索和四个训练游戏，
    阶段出口条件已满足。
 4. 第四阶段 Task 4.1 已完成目录、阅读进度、浏览器原生正文检索和确定性相关阅读；
-   Task 4.2 已完成图片一致性检查；Task 4.3 已完成批量管理和定时发布，不包含文章修订历史。
+   Task 4.2 已完成图片一致性检查；Task 4.3 已完成批量管理和定时发布；
+   Task 4.4 已完成目录滚动降级、三处编辑器滚动协同和本地工具中心，不包含文章修订历史。
 5. 第五阶段在需求、隐私和成本明确后评估管理端 AI；AI 草稿和转换结果只保存在浏览器本地。
 6. 公开语义搜索、原文问答和知识图谱继续后置，作为独立项目重新评审。
 
