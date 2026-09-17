@@ -69,6 +69,16 @@ test('在线编辑器视觉基线', async ({ page, apiMock }) => {
   await expect(page).toHaveScreenshot('editor.png', { fullPage: true })
 })
 
+test('工具中心视觉基线', async ({ page, apiMock }) => {
+  void apiMock
+  await prepareScreenshot(page)
+  await page.goto('/tools')
+  await expect(page.getByRole('heading', { name: '本地工具台' })).toBeVisible()
+  await waitForStablePage(page)
+
+  await expect(page).toHaveScreenshot('tools-index.png', { fullPage: true })
+})
+
 test('管理端登录视觉基线', async ({ page, apiMock }) => {
   void apiMock
   await prepareScreenshot(page)

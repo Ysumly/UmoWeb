@@ -190,6 +190,66 @@ test('首页展示接口返回的公开内容', async ({ page, apiMock }) => {
   await expect(stats.getByText('篇公开内容', { exact: true })).toBeVisible()
 })
 
+test('公开页头与页脚工具入口进入工具中心', async ({ page, apiMock }) => {
+  void apiMock
+  await page.goto('/')
+
+  const headerTools = page
+    .getByRole('navigation', { name: '公开端主导航' })
+    .getByRole('link', { name: '工具' })
+  await expect(headerTools).toBeVisible()
+  await headerTools.click()
+
+  await expect(page).toHaveURL(/\/tools$/)
+  await expect(page.getByRole('heading', { name: '本地工具台' })).toBeVisible()
+  await expect(headerTools).toHaveClass(/is-active/)
+
+  await page.goto('/')
+  await page
+    .getByRole('navigation', { name: '页脚导航' })
+    .getByRole('link', { name: '工具' })
+    .click()
+
+  await expect(page).toHaveURL(/\/tools$/)
+  await expect(page.getByRole('heading', { name: '本地工具台' })).toBeVisible()
+})
+
+test('首页工具模块直达编辑器和工具中心', async ({ page, apiMock }) => {
+  void apiMock
+  await page.goto('/')
+
+  const homeTools = page.locator('.home-tools')
+  await expect(homeTools.getByRole('heading', { name: '把草稿留在浏览器里。' })).toBeVisible()
+  await expect(homeTools.locator('.home-tools__list a')).toHaveCount(1)
+
+  await homeTools.getByRole('link', { name: /Markdown 编辑器/ }).click()
+  await expect(page).toHaveURL(/\/editor$/)
+
+  await page.goto('/')
+  await page.locator('.home-tools').getByRole('link', { name: '进入工具中心' }).click()
+  await expect(page).toHaveURL(/\/tools$/)
+})
+
+test('工具中心展示 Markdown 编辑器并在编辑页保持工具激活', async ({ page, apiMock }) => {
+  void apiMock
+  await page.goto('/tools')
+
+  const toolCard = page.locator('.tool-card')
+  await expect(toolCard).toHaveCount(1)
+  await expect(toolCard.getByRole('heading', { name: 'Markdown 编辑器' })).toBeVisible()
+  await expect(toolCard).toContainText('打开工具')
+
+  await toolCard.click()
+
+  await expect(page).toHaveURL(/\/editor$/)
+  await expect(page.getByRole('heading', { name: 'Markdown 编辑器' })).toBeVisible()
+  await expect(
+    page
+      .getByRole('navigation', { name: '公开端主导航' })
+      .getByRole('link', { name: '工具' }),
+  ).toHaveClass(/is-active/)
+})
+
 test('书库筛选与分页同步 URL', async ({ page, apiMock }) => {
   void apiMock
   await page.goto('/library')
@@ -570,6 +630,20 @@ test.describe('390px 公开端布局', () => {
 
     await page.goto('/search?q=E2E')
     await expect(page.locator('.content-card')).toHaveCount(1)
+    await expectNoHorizontalOverflow(page)
+  })
+
+  test('移动导航工具入口进入工具中心', async ({ page, apiMock }) => {
+    void apiMock
+    await page.goto('/')
+    await page.getByRole('button', { name: '打开导航目录' }).click()
+
+    const mobileNav = page.getByRole('navigation', { name: '移动端主导航' })
+    await expect(mobileNav).toBeVisible()
+    await mobileNav.getByRole('link', { name: /工具/ }).click()
+
+    await expect(page).toHaveURL(/\/tools$/)
+    await expect(page.getByRole('heading', { name: '本地工具台' })).toBeVisible()
     await expectNoHorizontalOverflow(page)
   })
 })

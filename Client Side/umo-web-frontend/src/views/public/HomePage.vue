@@ -7,6 +7,7 @@ import ContentState from '@/components/public/ContentState.vue'
 import SectionHeading from '@/components/public/SectionHeading.vue'
 import { contentTypes } from '@/config/contentTypes'
 import { gameCatalog } from '@/config/games'
+import { toolCatalog } from '@/config/tools'
 import { useSiteStore } from '@/stores/site'
 import { getApiErrorMessage } from '@/utils/apiError'
 
@@ -235,6 +236,22 @@ function resetBookPointer() {
           <span aria-hidden="true">{{ game.mark }}</span>
           <strong>{{ game.title }}</strong>
           <small>{{ game.english }}</small>
+        </router-link>
+      </div>
+    </section>
+
+    <section class="home-tools" v-reveal aria-labelledby="home-tools-title">
+      <div class="home-tools__copy">
+        <span class="editorial-eyebrow">Local Tools</span>
+        <h2 id="home-tools-title">把草稿留在浏览器里。</h2>
+        <p>无需登录、不上传正文，在本地完成 Markdown 写作、预览和下载。</p>
+        <router-link class="button button--outline" to="/tools">进入工具中心</router-link>
+      </div>
+      <div class="home-tools__list">
+        <router-link v-for="tool in toolCatalog" :key="tool.id" :to="tool.path">
+          <span aria-hidden="true">{{ tool.mark }}</span>
+          <strong>{{ tool.title }}</strong>
+          <small>{{ tool.english }}</small>
         </router-link>
       </div>
     </section>

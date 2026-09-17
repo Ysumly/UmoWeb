@@ -385,6 +385,10 @@ svg {
   letter-spacing: 0.14em;
 }
 
+.mobile-nav a.is-active {
+  color: var(--accent);
+}
+
 .site-footer {
   position: relative;
   z-index: 2;

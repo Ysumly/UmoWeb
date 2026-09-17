@@ -33,6 +33,18 @@ test('编辑器保存草稿并在刷新后恢复', async ({ page, apiMock }) => 
   await expect(page.getByText(/已恢复 \d{2}:\d{2}/)).toBeVisible()
 })
 
+test('编辑器页头标记工具入口为当前栏目', async ({ page, apiMock }) => {
+  void apiMock
+  await page.goto('/editor')
+
+  const toolsLink = page
+    .getByRole('navigation', { name: '公开端主导航' })
+    .getByRole('link', { name: '工具' })
+  await expect(toolsLink).toBeVisible()
+  await expect(toolsLink).toHaveAttribute('href', '/tools')
+  await expect(toolsLink).toHaveClass(/is-active/)
+})
+
 test('编辑器下载 Markdown 并安全预览', async ({ page, apiMock }) => {
   void apiMock
   await page.goto('/editor')
