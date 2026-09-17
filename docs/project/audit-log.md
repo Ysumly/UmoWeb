@@ -1,5 +1,45 @@
 # 审计日志
 
+## 审计 #46 - 2026-09-17 — Phase 4 `v1.0.0-rc.6` ECS 发布
+
+### 范围
+
+- 将 Task 4.1–4.3 和后续浏览器测试稳定性修复发布到现有单机 ECS。
+- 发布前创建并校验备份，发布后执行独立 `Verify` 和完整真实接口冒烟。
+- 不开放新端口，不改变生产拓扑，不推送实例标识、公网地址、管理路径或凭据。
+
+### 实现
+
+- `v1.0.0-rc.6` 从提交 `67b3c9f866d4` 构建，发布 CI run `35183870810`；annotated tag
+  指向同一提交。
+- 发布前备份 `20260917T044123Z` 通过内层清单校验，SHA-256 为
+  `4a3f1e8ec2b62c9adee381cfc60b32bfc6f27891e41ead02d0d515567e3e1c98`。
+- 后端 image ID 为
+  `sha256:6623a3d10fbda56c582ede53dab4cb65350412595268bb21c62cd7076b096fd5`，前端 image ID 为
+  `sha256:dc609dca4c3250ab832791d58b1d97a7096c210f9c5c6733357eded21654f86a`。
+- 发布归档 SHA-256 为
+  `ce0a606209763ae6878101c580418ec540bfeed67c692dbebe7fae69898ca428`，大小 175683584 字节。
+- 首次发布暴露 `remote-release.sh` 的一次性正文回填未关闭调度器，导致远端命令 300 秒超时；
+  修复为显式传入 `--app.scheduling.enabled=false` 并增加 PowerShell/Bash 回归断言。
+- 超时后确认旧发布进程仅阻塞在一次性回填，终止该进程树并清理精确校验后的 stale release lock；
+  随后复用重新构建的 rc.6 制品完成部署。
+
+### 验证
+
+| 验证 | 结果 |
+|---|---|
+| 发布前备份 | SHA-256 与内层清单通过 |
+| 独立 `Verify` | rc.6、manifest image ID、管理员登录和容器健康通过 |
+| ECS 真实接口冒烟 | Python `api-smoke.py` 31/31，exit code 0 |
+| 正文索引 | 29 篇 `PUBLISHED` 内容回填完成并正常退出 |
+| 发布工具回归 | PowerShell/Bash release unit 全部通过 |
+
+### 剩余风险
+
+1. 当前仍是无域名 HTTP 测试部署，HTTPS、正式 DNS 和混合内容验收不在本次发布范围。
+2. 发布超时后的进程树清理依赖人工判断 PID 与唯一 release lock；remote-release 后续仍应继续
+   强化超时和锁生命周期。
+
 ## 审计 #45 - 2026-09-17 — 稳定相关阅读移动端布局回归
 
 ### 范围

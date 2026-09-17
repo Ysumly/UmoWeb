@@ -425,6 +425,21 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
   `api-smoke.py` 29/29 通过。
 - 当前生产版本为 `v1.0.0-rc.5`；开发机保留 rc.4 和 rc.5 归档，rc.4 为正式回滚目标。
 
+### 9.9 Phase 4 发布
+
+- `v1.0.0-rc.6` 从提交 `67b3c9f866d4` 构建，发布 CI run `35183870810`；annotated tag
+  `v1.0.0-rc.6` 已推送。
+- 发布前备份 `20260917T044123Z` 通过 SHA-256 和内层清单校验，归档 SHA-256 为
+  `4a3f1e8ec2b62c9adee381cfc60b32bfc6f27891e41ead02d0d515567e3e1c98`。
+- 后端 image ID 为
+  `sha256:6623a3d10fbda56c582ede53dab4cb65350412595268bb21c62cd7076b096fd5`，前端 image ID 为
+  `sha256:dc609dca4c3250ab832791d58b1d97a7096c210f9c5c6733357eded21654f86a`。
+- 发布归档 SHA-256 为
+  `ce0a606209763ae6878101c580418ec540bfeed67c692dbebe7fae69898ca428`，大小 175683584 字节。
+- 一次性正文回填显式关闭调度器后正常退出；后端回填 29 篇已发布正文，独立 `Verify`
+  和 ECS `api-smoke.py` 31/31 通过。
+- 当前生产版本为 `v1.0.0-rc.6`；开发机保留 rc.5 与 rc.6 归档，rc.5 为正式回滚目标。
+
 ## 10. 访问安全日志与报表
 
 ### 10.1 日志边界
