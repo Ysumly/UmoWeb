@@ -459,6 +459,22 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
   均返回 200。
 - 当前生产版本为 `v1.0.0-rc.7`；开发机保留 rc.7 与 rc.6 归档，rc.6 为正式回滚目标。
 
+### 9.11 文章目录常驻与邻接加粗发布
+
+- `v1.0.0-rc.8` 从提交 `12bc8111cf36` 构建，发布 CI run `35231477064`；annotated tag
+  `v1.0.0-rc.8` 已推送并确认指向发布 commit。
+- 后端 image ID 为
+  `sha256:3f1bdf43c4eea8308d34e2c25c25c10ca0de105a070a4875f7ce236a34f69f53`，前端 image ID 为
+  `sha256:afa918d2ece757c35349a72482784929770559fd5c7d7a06015881963bb5f0a9`。
+- 发布归档 SHA-256 为
+  `137405c8e6e5927169cc17d4dfd52ed3c8c0e27e10ddc617c131283dbc3080e5`，
+  大小 175685632 字节。
+- 独立 `Verify` 返回 rc.8、manifest 双镜像 ID 和 `operation=deploy`；ECS 回填 29 篇正文，
+  `api-smoke.py` 31/31 通过。
+- 公网浏览器确认 1219px 下目录滚动前后均可见且 trigger 隐藏，文章列表加粗使用 `700` 字重，
+  正文不再包含字面 `**`。
+- 当前生产版本为 `v1.0.0-rc.8`；开发机保留 rc.8 与 rc.7 归档，rc.7 为正式回滚目标。
+
 ## 10. 访问安全日志与报表
 
 ### 10.1 日志边界

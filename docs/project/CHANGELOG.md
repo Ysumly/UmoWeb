@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 2026-09-17 — ECS 发布 `v1.0.0-rc.8`
+
+- `v1.0.0-rc.8` 从提交 `12bc8111cf36` 构建，发布 CI run `35231477064`；annotated tag
+  `v1.0.0-rc.8` 已推送并指向发布 commit。
+- 后端 image ID 为
+  `sha256:3f1bdf43c4eea8308d34e2c25c25c10ca0de105a070a4875f7ce236a34f69f53`，前端 image ID 为
+  `sha256:afa918d2ece757c35349a72482784929770559fd5c7d7a06015881963bb5f0a9`。
+- 发布归档 SHA-256 为
+  `137405c8e6e5927169cc17d4dfd52ed3c8c0e27e10ddc617c131283dbc3080e5`，
+  大小 175685632 字节。
+- 独立 `Verify` 返回 rc.8、manifest 双镜像 ID 和 `operation=deploy`；ECS `api-smoke.py`
+  31/31 通过。公网浏览器验证目录滚动前后常驻且 1219px 不显示抽屉，目标列表加粗字重为
+  `700`，正文无字面 `**`。
+- 当前生产版本为 `v1.0.0-rc.8`；开发机保留 rc.8 与 rc.7 归档，rc.7 为正式回滚目标。
+  本次没有 API、数据库、Markdown 存储或认证契约变更。
+
 ## 2026-09-17 — 文章目录常驻与邻接 Markdown 加粗修复
 
 - 桌面文章目录始终保留在 sticky 侧栏，目录最高 `50vh` 并在侧栏内部滚动；移除了按自然高度
