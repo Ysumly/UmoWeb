@@ -1,5 +1,40 @@
 # 审计日志
 
+## 审计 #53 - 2026-09-17 — 正式版 `v1.0.0` 发布
+
+### 范围
+
+- 将当前 `master` 标记并发布为正式版 `v1.0.0`，同步更新 ECS 镜像、Git 标签和发布状态。
+- 不修改后端 API、数据库 Schema、Markdown 存储格式、认证或部署拓扑。
+
+### 发布证据
+
+| 项 | 结果 |
+|---|---|
+| 发布版本 | `v1.0.0` |
+| Git commit | `fe008c59cb71c69f6cdf8e46be54bf124ee50c1b` |
+| Push CI | run `35232962034`，五个 job 全部成功 |
+| 后端 image ID | `sha256:0df8ad67702518c36490b6fb13d645946ac73a1e22c133bff1f2fafae9c7a82e` |
+| 前端 image ID | `sha256:4ef6cb550c655e32506816861399169500ae3ee15f7516ea366febce6a4d3e73` |
+| 发布归档 | 175685632 字节，SHA-256 `481c0a4ab1738dd5537a118caface215dc45ee0a20154152794a76b087751b68` |
+
+### 验收
+
+- annotated tag `v1.0.0` 已推送，远端 peel 后指向发布 commit。
+- ECS `current.json` 的 `releaseId`、`version`、双镜像标签和 image ID 与正式版 manifest 一致，
+  `operation=deploy`。
+- 独立 `Verify`、MySQL/backend healthy、frontend running、管理员登录、访问服务和公网入口
+  检查通过。
+- ECS 后端启动后回填 29 篇已发布正文；`api-smoke.py` 31/31 通过。
+- 公网浏览器在 `1219×958` 下确认目录滚动前后常驻、trigger 隐藏、列表加粗字重为 `700`，
+  正文无字面星号且页面无错误。
+
+### 边界与回滚
+
+- 当前生产版本为正式版 `v1.0.0`，正式回滚目标为 `v1.0.0-rc.8`；开发机保留这两个归档。
+- 正式版本发布不改变 `release-checklist-v1.md` 中尚未完成的域名/HTTPS、正式 CORS/可信代理
+  和完整核心页面清单状态。
+
 ## 审计 #52 - 2026-09-17 — `v1.0.0-rc.8` ECS 发布
 
 ### 范围

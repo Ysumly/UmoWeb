@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 2026-09-17 — 正式版 `v1.0.0`
+
+- 将当前 `master` 发布为正式版 `v1.0.0`，发布提交为
+  `fe008c59cb71c69f6cdf8e46be54bf124ee50c1b`，发布 CI run `35232962034`；annotated tag
+  `v1.0.0` 已推送并确认 peel 后指向发布 commit。
+- 后端 image ID 为
+  `sha256:0df8ad67702518c36490b6fb13d645946ac73a1e22c133bff1f2fafae9c7a82e`，前端 image ID 为
+  `sha256:4ef6cb550c655e32506816861399169500ae3ee15f7516ea366febce6a4d3e73`。
+- 发布归档 SHA-256 为
+  `481c0a4ab1738dd5537a118caface215dc45ee0a20154152794a76b087751b68`，
+  大小 175685632 字节。
+- 独立 `Verify` 返回正式版、manifest 双镜像 ID 和 `operation=deploy`；ECS `api-smoke.py`
+  31/31 通过。公网浏览器再次确认目录常驻、列表加粗和双主题页面无回归。
+- 当前生产版本为 `v1.0.0`；开发机保留 v1.0.0 与 rc.8 归档，rc.8 为正式回滚目标。
+  本次没有 API、数据库、Markdown 存储或认证契约变更。
+
 ## 2026-09-17 — ECS 发布 `v1.0.0-rc.8`
 
 - `v1.0.0-rc.8` 从提交 `12bc8111cf36` 构建，发布 CI run `35231477064`；annotated tag

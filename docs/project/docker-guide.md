@@ -475,6 +475,21 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
   正文不再包含字面 `**`。
 - 当前生产版本为 `v1.0.0-rc.8`；开发机保留 rc.8 与 rc.7 归档，rc.7 为正式回滚目标。
 
+### 9.12 正式版 `v1.0.0`
+
+- `v1.0.0` 从提交 `fe008c59cb71` 构建，发布 CI run `35232962034`；annotated tag `v1.0.0`
+  已推送并确认 peel 后指向发布 commit。
+- 后端 image ID 为
+  `sha256:0df8ad67702518c36490b6fb13d645946ac73a1e22c133bff1f2fafae9c7a82e`，前端 image ID 为
+  `sha256:4ef6cb550c655e32506816861399169500ae3ee15f7516ea366febce6a4d3e73`。
+- 发布归档 SHA-256 为
+  `481c0a4ab1738dd5537a118caface215dc45ee0a20154152794a76b087751b68`，
+  大小 175685632 字节。
+- 独立 `Verify` 返回 `v1.0.0`、manifest 双镜像 ID 和 `operation=deploy`；ECS 回填 29 篇正文，
+  `api-smoke.py` 31/31 通过。
+- 公网浏览器确认文章目录、列表加粗和现有公开页面行为保持一致。
+- 当前生产版本为正式版 `v1.0.0`；开发机保留 v1.0.0 与 rc.8 归档，rc.8 为正式回滚目标。
+
 ## 10. 访问安全日志与报表
 
 ### 10.1 日志边界
