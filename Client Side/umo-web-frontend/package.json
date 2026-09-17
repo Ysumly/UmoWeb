@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test src/router/guard.test.js src/config/adminPath.test.js src/theme/theme.test.js src/games/gameLogic.test.js src/utils/accessPrivacy.test.js src/utils/adminContent.test.js src/utils/adminManagement.test.js src/utils/apiError.test.js src/utils/articleOutline.test.js src/utils/articleOutlineLayout.test.js src/utils/editor.test.js src/utils/format.test.js src/utils/markdownImport.test.js src/utils/markdown.test.js src/utils/publicContent.test.js",
+    "test": "node --test src/router/guard.test.js src/config/adminPath.test.js src/theme/theme.test.js src/games/gameLogic.test.js src/utils/accessPrivacy.test.js src/utils/adminContent.test.js src/utils/adminManagement.test.js src/utils/apiError.test.js src/utils/articleOutline.test.js src/utils/articleOutlineLayout.test.js src/utils/editor.test.js src/utils/editorScroll.test.js src/utils/format.test.js src/utils/markdownImport.test.js src/utils/markdown.test.js src/utils/publicContent.test.js",
     "test:router": "node --test src/router/guard.test.js src/config/adminPath.test.js",
     "test:e2e": "npm run build && node e2e/runPlaywright.js",
     "test:e2e:update": "npm run build && node e2e/runPlaywright.js --update-snapshots",

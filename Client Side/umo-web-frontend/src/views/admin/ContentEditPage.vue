@@ -19,6 +19,7 @@ import {
 } from '@/api/admin'
 import MarkdownArticle from '@/components/public/MarkdownArticle.vue'
 import ContentState from '@/components/public/ContentState.vue'
+import { useSyncedScroll } from '@/composables/useSyncedScroll'
 import { adminPath } from '@/config/adminPath'
 import {
   buildContentPayload,
@@ -51,6 +52,7 @@ const categories = ref([])
 const tags = ref([])
 const errors = ref({})
 const textareaRef = ref(null)
+const previewRef = ref(null)
 const fileInputRef = ref(null)
 const markdownFileInputRef = ref(null)
 const initialSnapshot = ref('')
@@ -61,6 +63,10 @@ const importMessage = ref('')
 const importWarnings = ref([])
 const importErrors = ref({})
 const originalContent = ref(null)
+
+useSyncedScroll(textareaRef, previewRef, {
+  mediaQuery: '(min-width: 701px)',
+})
 
 const form = reactive({
   title: '',
@@ -720,6 +726,7 @@ onBeforeUnmount(() => {
               />
             </div>
             <div
+              ref="previewRef"
               class="admin-editor-pane admin-editor-pane--preview"
               :class="{ 'is-mobile-active': mobilePane === 'preview' }"
             >
