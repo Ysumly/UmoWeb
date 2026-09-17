@@ -1,7 +1,7 @@
 # UmoWeb 接口与构建测试指南
 
 > 基线日期: 2026-09-15
-> 接口数: 公开 8 个，管理 21 个，共 29 个
+> 接口数: 公开 8 个，管理 22 个，共 30 个
 > 关键约定: 正常响应没有 `{ code, data }` 包装层
 
 ---
@@ -93,10 +93,10 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 132 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 145 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析、
-正文索引、摘要提取和图片清理测试。
-其中 9 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
+正文索引、摘要提取、图片清理和图片一致性测试。
+其中 10 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
 不连接 MySQL，`UmoWebBackendApplicationTests` 仍是一条空测试。
 
 ### 2.2 数据库迁移副本 + 全接口冒烟
@@ -121,7 +121,7 @@ cd "Server Side\UmoWebBackend"
   -Password "<current-password>"
 ```
 
-脚本覆盖公开端 8 个和管理端 21 个接口，结果为 `29/29` 通过；同时验证：
+脚本覆盖公开端 8 个和管理端 22 个接口，结果为 `30/30` 通过；同时验证：
 
 - 无有效 JWT 的管理端请求返回 401。
 - 修改密码返回 204，旧 token 立即失效。
@@ -130,6 +130,7 @@ cd "Server Side\UmoWebBackend"
 - PNG 上传同时通过 MIME 和文件签名校验。
 - 图片列表能识别未引用状态；被草稿引用时删除返回 409，解除引用后删除返回 204，
   文件不可再通过 `/images/**` 访问。
+- 图片一致性接口能定位临时断裂引用，并返回稳定的三类数组和来源信息。
 - 公开列表只返回 `PUBLISHED`；管理列表和详情同时暴露 `DRAFT` 与 `PUBLISHED` 状态。
 - 测试创建的分类、标签、草稿文章和临时图片全部删除，密码和 `site_title` 恢复原值。
 
@@ -143,14 +144,14 @@ cd "Server Side\UmoWebBackend"
 - 兼容迁移连续执行两次并要求幂等；校验 `token_version`、图片清理队列表、正文索引表、
   3 个既有索引、6 个外键、
   种子行数和迁移后孤儿关系为 0。
-- 在真实库执行 9 个分类、正文搜索、相关文章和图片管理集成测试，覆盖根/子/孙内容、精确/后代模式、
+- 在真实库执行分类、正文搜索、相关文章和图片管理集成测试，覆盖根/子/孙内容、精确/后代模式、
   管理端草稿、空结果、稳定排序、循环拒绝、中文 ngram 查询、索引幂等、
   相关文章权重与排除规则、图片排序和清理队列失败记录。
 - 复制演示 Markdown 后连续执行两次正文回填脚本，校验索引行数等于已发布内容数，
   并验证正文全文和标题/摘要搜索。
 - 使用 Java 17 构建并启动后端，使用独立临时存储和运行时测试凭据执行 `api-smoke.py`。
 - 冒烟断言覆盖公开筛选、详情分类/标签、前后文章、相关文章、草稿隔离、密码失效、
-  图片完整生命周期和 429。
+  图片完整生命周期、图片一致性来源查询和 429。
 - 冒烟通过后校验图片记录、清理队列与临时存储文件；job 退出时销毁后端进程、测试数据和临时文件。
 
 ### 2.3 前端
@@ -169,8 +170,8 @@ npm run test:e2e
   管理端文章/分类/标签/图片/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、
   API 错误解析、日期格式、书库后代参数、文章目录树/展开状态、标题 ID 与旧锚点兼容和
   Markdown 安全。
-- Playwright 76 个浏览器检查，其中 48 个 functional 用例覆盖公开端、文章目录、阅读进度与相关阅读、
-  隐私说明、在线编辑器、
+- Playwright 79 个浏览器检查，其中 51 个 functional 用例覆盖公开端、文章目录、阅读进度与相关阅读、
+  图片一致性检查、隐私说明、在线编辑器、
   四款游戏（含高密度网格、长数字、10 张牌、旧成绩和响应式场景）和管理端核心流程，
   28 个视觉断言覆盖 14 个核心页面状态的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
@@ -178,8 +179,8 @@ npm run test:e2e
 
 2026-09-15 已验证：
 
-- Windows 本机 Chrome 当前运行 76 个 Playwright 检查，28 张 `win32` 视觉快照通过。
-- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 76 个检查，
+- Windows 本机 Chrome 当前运行 79 个 Playwright 检查，28 张 `win32` 视觉快照通过。
+- GitHub Actions Ubuntu 使用 Playwright 1.63.0 的 Chromium 运行同样的 79 个检查，
   通过独立的 `linux` 视觉快照验证。
 - `browser` job 失败时会保留 Playwright HTML 报告、trace 和失败截图 artifact。
 
@@ -276,7 +277,7 @@ bash scripts/backup/tests/backup-unit.sh
 /opt/umoweb/scripts/backup/restore-backup.sh /opt/umoweb/backups/umoweb-backup-<时间>.tar.gz
 ```
 
-执行恢复栈的 `api-smoke.ps1`，要求 29/29 通过，然后：
+执行恢复栈的 `api-smoke.ps1`，要求 30/30 通过，然后：
 
 ```bash
 /opt/umoweb/scripts/backup/cleanup-restore.sh umoweb-restore-<时间>
@@ -310,7 +311,7 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
   --env-file ".env.docker"
 ```
 
-该脚本与 PowerShell 版本均覆盖 29 个接口；会从 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASS`
+该脚本与 PowerShell 版本均覆盖 30 个接口；会从 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASS`
 读取管理员凭据，不输出密码值。2026-09-12 正式数据候选包、生产切换和最终备份恢复均通过
 `27/27`。
 
@@ -322,7 +323,7 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
   Nginx 六字段日志容器测试，并扫描全部已跟踪文件。
 - `backend`：使用 Temurin Java 17 执行 `mvn -B test`。
 - `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，运行分类层级与
-  图片管理 Mapper 集成测试，再启动真实后端执行 29/29 接口冒烟并校验图片记录、清理队列和文件回收。
+  图片管理 Mapper 集成测试，再启动真实后端执行 30/30 接口冒烟并校验图片记录、清理队列和文件回收。
 - `frontend`：使用 Node 24.12.0 执行 `npm ci`、`npm test` 和 `npm run build`。
 - `browser`：使用 Node 24.12.0 安装锁定版本 Chromium，执行 `npm run test:e2e`；
   失败时上传 `playwright-report-<attempt>` artifact。
@@ -819,7 +820,17 @@ Content-Type: multipart/form-data
 
 上传文本文件、伪造 `Content-Type` 或伪造扩展名预期 400。超过 50MB 预期 413。
 
-### 7.2 查询配置
+### 7.2 检查图片一致性
+
+```http
+GET {{baseUrl}}/api/admin/images/integrity
+```
+
+预期 200，始终包含 `counts`、`brokenReferences`、`missingFiles` 和 `untrackedFiles`。
+使用临时草稿引用不存在的 `/images/...` 路径时，对应断裂引用应返回该内容 ID、标题和 URL；
+扫描失败预期 500。
+
+### 7.3 查询配置
 
 ```http
 GET {{baseUrl}}/api/admin/options
@@ -827,7 +838,7 @@ GET {{baseUrl}}/api/admin/options
 
 预期 200，直接返回 KV Map。
 
-### 7.3 更新配置
+### 7.4 更新配置
 
 ```http
 PUT {{baseUrl}}/api/admin/options/site_title

@@ -209,6 +209,6 @@ From the development machine, create an SSH tunnel to this port and run:
   .\\Server Side\\UmoWebBackend\\scripts\\api-smoke.ps1 ^
     -BaseUrl http://127.0.0.1:$RESTORE_PORT -Username <admin> -Password <current-password>
 
-After 29/29 passes, remove only this restore environment:
+After 30/30 passes, remove only this restore environment:
   $SCRIPT_DIR/cleanup-restore.sh $project
 EOF

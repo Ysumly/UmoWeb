@@ -26,7 +26,7 @@ python -m unittest discover -s scripts\content-import\tests -v
 
 ## 发布约束
 
-1. 先把候选包恢复到 `umoweb-restore-*`，表行数、文件清单和 29/29 接口冒烟全部通过。
+1. 先把候选包恢复到 `umoweb-restore-*`，表行数、文件清单和 30/30 接口冒烟全部通过。
 2. 再执行 `promote-content-backup.sh --confirm <archive>`。
 3. 提升脚本会保留提升前备份和旧 `.env.docker`；失败时按服务器侧发布记录回滚。
 

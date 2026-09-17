@@ -1,8 +1,8 @@
 # 管理端 API 实现
 
-> 基线日期: 2026-09-13
+> 基线日期: 2026-09-15
 > 前缀: `/api/admin`
-> 接口数: 21，其中登录无需 JWT
+> 接口数: 22，其中登录无需 JWT
 
 ---
 
@@ -15,7 +15,7 @@
 | `CategoryManageController` | 分类树、详情、新建、编辑、删除 |
 | `OptionController` | 配置查询、配置更新 |
 | `TagManageController` | 标签列表、新建、编辑、删除 |
-| `ImageController` | 图片上传、列表、删除 |
+| `ImageController` | 图片上传、列表、一致性检查、删除 |
 
 除 `/api/admin/login` 外，所有接口都由 `AdminInterceptor` 检查 JWT。
 
@@ -272,7 +272,24 @@ GET /api/admin/images?page=1&size=24&usage=ORPHANED
 - `ImageReferenceService` 扫描全部文章正文和 About/Project，只在命中规范 `/images/...`
   路径时判定为已引用。
 
-### 6.3 删除图片
+### 6.3 检查图片一致性
+
+```http
+GET /api/admin/images/integrity
+```
+
+`ImageIntegrityService` 严格扫描全部文章 Markdown 与 About/Project，并同时读取 `images` 记录和
+`app.storage-path/images` 普通文件。响应固定包含 `scannedAt`、`counts`、`brokenReferences`、
+`missingFiles` 和 `untrackedFiles`：
+
+- 断裂引用包含 URL、来源类型、内容 ID 和标题或固定页名称。
+- 记录缺文件包含图片 ID、URL 和原始文件名。
+- 磁盘孤立文件只包含 URL；被正文引用的无记录文件只进入断裂引用，不重复计算。
+- 扫描失败返回 500，不返回部分或可能误导的空报告。
+
+该接口不修改数据库或文件，检测结果也不持久化。
+
+### 6.4 删除图片
 
 ```http
 DELETE /api/admin/images/{id}
@@ -316,8 +333,8 @@ PUT /api/admin/options/{key}
 
 `BoundaryTest` 仍使用 Mock Service 覆盖接口边界，另有 Service/Util 单元测试覆盖真实文件、
 路径、JWT、限流、可信代理 CIDR、容器装配和批量查询行为；MySQL 8.4 环境门控测试覆盖真实
-分类层级 SQL、正文全文索引、相关文章排序和图片清理队列。当前后端测试共 132 个，默认本地运行跳过
-9 个 MySQL 环境门控用例。
+分类层级 SQL、正文全文索引、相关文章排序、图片来源查询和图片清理队列。当前后端测试共 145 个，
+其中 10 个由 MySQL 8.4 环境门控，默认本地跳过。
 
 `BoundaryTest` 覆盖：
 

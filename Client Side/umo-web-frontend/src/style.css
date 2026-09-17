@@ -63,6 +63,7 @@
 html {
   min-width: 320px;
   min-height: 100%;
+  overflow-x: clip;
   scroll-behavior: smooth;
   background: var(--paper);
 }
@@ -3298,6 +3299,14 @@ fieldset.admin-field {
   background: color-mix(in srgb, var(--surface) 72%, transparent);
 }
 
+.admin-image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .admin-image-filter button {
   min-width: 72px;
   border: 0;
@@ -3316,6 +3325,125 @@ fieldset.admin-field {
 .admin-image-filter button[aria-pressed="true"] {
   background: var(--ink);
   color: var(--paper);
+}
+
+.admin-integrity-report {
+  margin-bottom: 24px;
+  border: 1px solid var(--line);
+  padding: 18px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+}
+
+.admin-integrity-report > header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.admin-integrity-report h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.admin-integrity-report > header small {
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.admin-integrity-report__clean,
+.admin-integrity-report__summary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-integrity-report__clean {
+  color: var(--secondary);
+}
+
+.admin-integrity-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.admin-integrity-counts article {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+  border: 1px solid var(--line);
+  padding: 11px 12px;
+  background: var(--paper);
+}
+
+.admin-integrity-counts strong {
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.admin-integrity-counts span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.admin-integrity-issues {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.admin-integrity-issues section {
+  min-width: 0;
+}
+
+.admin-integrity-issues h3 {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-integrity-issues ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-integrity-issues li {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 14px;
+  border-top: 1px dashed var(--line);
+  padding-top: 7px;
+}
+
+.admin-integrity-issues code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.admin-integrity-issues span,
+.admin-integrity-issues strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .admin-image-grid {
@@ -3803,6 +3931,25 @@ fieldset.admin-field {
 
   .admin-image-filter {
     align-self: flex-start;
+  }
+
+  .admin-image-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-image-actions .button,
+  .admin-image-filter {
+    align-self: flex-start;
+  }
+
+  .admin-integrity-report > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-integrity-counts {
+    grid-template-columns: 1fr;
   }
 
   .admin-image-grid {

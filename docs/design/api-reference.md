@@ -2,8 +2,8 @@
 
 > 基线日期: 2026-09-15
 > 事实来源: `controller/`、`model/dto/`、`model/vo/`、`GlobalExceptionHandler`、Mapper XML
-> 接口总数: 公开端 8 个，管理端 21 个，共 29 个
-> 实测状态: 2026-09-15 完成 MySQL 8.4 集成与公开/管理接口 29/29 冒烟
+> 接口总数: 公开端 8 个，管理端 22 个，共 30 个
+> 实测状态: 2026-09-15 完成 MySQL 8.4 集成与公开/管理接口 30/30 冒烟
 
 ---
 
@@ -648,7 +648,52 @@ Authorization: Bearer <token>
 引用状态扫描全部 `DRAFT`、`PUBLISHED` 文章 Markdown，以及 `about_page`、`project_page`；
 只识别规范 `/images/...` 路径。Markdown 文件缺失只记录警告，不影响列表。
 
-### 7.3 删除图片
+### 7.3 检查图片一致性
+
+```http
+GET /api/admin/images/integrity
+Authorization: Bearer <token>
+```
+
+只读扫描全部文章 Markdown 与 About/Project，并对 `images` 目录做数据库和文件系统一致性检查。
+存在异常时仍返回 200：
+
+```json
+{
+  "scannedAt": "2026-09-15T21:00:00",
+  "counts": {
+    "brokenReferences": 2,
+    "missingFiles": 1,
+    "untrackedFiles": 1,
+    "total": 4
+  },
+  "brokenReferences": [
+    {
+      "url": "/images/2026/09/missing-record.png",
+      "sourceType": "CONTENT",
+      "sourceId": 12,
+      "sourceLabel": "文章标题"
+    }
+  ],
+  "missingFiles": [
+    {
+      "id": 9,
+      "url": "/images/2026/09/missing-file.png",
+      "originalName": "missing-file.png"
+    }
+  ],
+  "untrackedFiles": [
+    { "url": "/images/2026/09/untracked-file.png" }
+  ]
+}
+```
+
+`brokenReferences` 表示正文或固定页引用了 `/images/...`，但 `images` 表无对应路径；
+`missingFiles` 表示数据库记录存在但磁盘普通文件缺失；`untrackedFiles` 表示磁盘存在普通文件、
+数据库无记录且未被内容引用。已有数据库记录但未被引用仍属于列表中的 `ORPHANED`，不算一致性问题。
+扫描无法可靠完成时返回 500；不自动修复、不持久化历史。
+
+### 7.4 删除图片
 
 ```http
 DELETE /api/admin/images/{id}
@@ -661,7 +706,7 @@ Authorization: Bearer <token>
 删除事务同时移除 `images` 记录并写入 `image_cleanup_queue`。事务提交后删除文件；
 文件删除失败时保留队列、记录次数和错误，并在下次应用启动或图片操作前重试。
 
-### 7.4 获取全部站点配置
+### 7.5 获取全部站点配置
 
 ```http
 GET /api/admin/options
@@ -677,7 +722,7 @@ Authorization: Bearer <token>
 }
 ```
 
-### 7.5 更新站点配置
+### 7.6 更新站点配置
 
 ```http
 PUT /api/admin/options/{key}

@@ -367,6 +367,57 @@ test('图片管理支持引用筛选、删除和 409 保护', async ({ page, api
   expect(apiMock.state.images).toHaveLength(1)
 })
 
+test('图片一致性检查展示三类问题与来源，删除后报告失效', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/images')
+
+  await page.getByRole('button', { name: '检查一致性' }).click()
+
+  await expect(page.getByRole('heading', { name: '图片一致性报告' })).toBeVisible()
+  await expect(page.getByText('检查完成：发现 4 项问题')).toBeVisible()
+  await expect(page.getByText('引用断裂').first()).toBeVisible()
+  await expect(page.getByText('记录缺文件').first()).toBeVisible()
+  await expect(page.getByText('磁盘孤立文件').first()).toBeVisible()
+  await expect(page.getByText('/images/2026/09/missing-record.png')).toBeVisible()
+  await expect(page.getByText('文章：第一篇公开文章')).toBeVisible()
+  await expect(page.getByText('固定页：About 页面')).toBeVisible()
+  await expect(page.getByText('missing-file.png', { exact: true })).toBeVisible()
+  await expect(page.getByText('/images/2026/09/untracked-file.png')).toBeVisible()
+  await expect(page.getByText(/扫描时间：2026年09月15日/)).toBeVisible()
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '删除 orphan-image.png' }).click()
+  await expect(page.getByText('图片已删除')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '图片一致性报告' })).toHaveCount(0)
+})
+
+test('图片一致性检查失败时保留错误提示且不展示报告', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  apiMock.state.imageIntegrityError = true
+  await page.goto('/secret-admin/images')
+
+  await page.getByRole('button', { name: '检查一致性' }).click()
+
+  await expect(page.getByRole('alert')).toContainText('图片一致性检查失败')
+  await expect(page.getByRole('heading', { name: '图片一致性报告' })).toHaveCount(0)
+})
+
+test('删除图片后，在途一致性扫描不会恢复旧报告', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  apiMock.state.imageIntegrityDelayMs = 600
+  await page.goto('/secret-admin/images')
+
+  await page.getByRole('button', { name: '检查一致性' }).click()
+  await expect(page.getByRole('button', { name: '检查中...' })).toBeDisabled()
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '删除 orphan-image.png' }).click()
+  await expect(page.getByText('图片已删除')).toBeVisible()
+
+  await page.waitForTimeout(800)
+  await expect(page.getByRole('heading', { name: '图片一致性报告' })).toHaveCount(0)
+})
+
 test.describe('390px 管理端布局', () => {
   test.use({
     viewport: { width: 390, height: 844 },
@@ -396,6 +447,8 @@ test.describe('390px 管理端布局', () => {
     await page.goto('/secret-admin/images')
 
     await expect(page.getByRole('heading', { name: '图片管理' })).toBeVisible()
+    await page.getByRole('button', { name: '检查一致性' }).click()
+    await expect(page.getByRole('heading', { name: '图片一致性报告' })).toBeVisible()
     const dimensions = await page.evaluate(() => {
       const grid = document.querySelector('.admin-image-grid')
       return {

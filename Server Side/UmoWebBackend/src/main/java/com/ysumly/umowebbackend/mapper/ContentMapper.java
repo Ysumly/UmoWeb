@@ -33,6 +33,7 @@ public interface ContentMapper {
     Content findById(Long id);
     long countBySlug(@Param("slug") String slug, @Param("excludeId") Long excludeId);
     List<String> findAllBodyPaths();
+    List<Content> findAllForReferenceScan();
     List<Content> findAllPublishedForIndex();
     void insert(Content content);
     void update(Content content);

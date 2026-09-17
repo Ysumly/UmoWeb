@@ -160,6 +160,41 @@ function createState() {
         referenced: false,
       },
     ],
+    imageIntegrity: {
+      scannedAt: '2026-09-15T21:00:00',
+      counts: {
+        brokenReferences: 2,
+        missingFiles: 1,
+        untrackedFiles: 1,
+        total: 4,
+      },
+      brokenReferences: [
+        {
+          url: '/images/2026/09/missing-record.png',
+          sourceType: 'CONTENT',
+          sourceId: 1,
+          sourceLabel: '第一篇公开文章',
+        },
+        {
+          url: '/images/2026/09/missing-about.png',
+          sourceType: 'FIXED_PAGE',
+          sourceId: null,
+          sourceLabel: 'About 页面',
+        },
+      ],
+      missingFiles: [
+        {
+          id: 9,
+          url: '/images/2026/09/missing-file.png',
+          originalName: 'missing-file.png',
+        },
+      ],
+      untrackedFiles: [
+        { url: '/images/2026/09/untracked-file.png' },
+      ],
+    },
+    imageIntegrityError: false,
+    imageIntegrityDelayMs: 0,
     password: 'admin123',
     validToken: true,
     searchRateLimitOnce: false,
@@ -458,6 +493,15 @@ async function handleAdminApi(route, state, pathname, searchParams) {
       originalName: 'test-image.png',
       size: 68,
     })
+  }
+  if (pathname === '/api/admin/images/integrity' && method === 'GET') {
+    if (state.imageIntegrityDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, state.imageIntegrityDelayMs))
+    }
+    if (state.imageIntegrityError) {
+      return error(route, 500, '图片一致性检查失败')
+    }
+    return json(route, clone(state.imageIntegrity))
   }
   if (pathname === '/api/admin/images' && method === 'GET') {
     const usage = searchParams.get('usage')

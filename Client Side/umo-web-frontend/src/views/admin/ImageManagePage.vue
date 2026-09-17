@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { deleteImage, getAdminImages } from '@/api/admin'
+import { deleteImage, getAdminImages, getImageIntegrity } from '@/api/admin'
 import ContentState from '@/components/public/ContentState.vue'
 import {
   buildImageListParams,
@@ -22,6 +22,10 @@ const usage = ref(normalizeUsage(route.query.usage))
 const page = ref(normalizePage(route.query.page))
 const pageInfo = ref({ page: 1, size: 24, total: 0 })
 const deletingId = ref(null)
+const integrityReport = ref(null)
+const integrityError = ref('')
+const checkingIntegrity = ref(false)
+let integrityRequestId = 0
 
 const totalPages = computed(() => {
   return Math.max(1, Math.ceil(pageInfo.value.total / pageInfo.value.size))
@@ -83,6 +87,10 @@ async function handleDelete(image) {
   errorMessage.value = ''
   try {
     await deleteImage(image.id)
+    integrityRequestId += 1
+    integrityReport.value = null
+    integrityError.value = ''
+    checkingIntegrity.value = false
     actionMessage.value = '图片已删除'
     const lastPage = images.value.length === 1 && page.value > 1
       ? page.value - 1
@@ -93,6 +101,38 @@ async function handleDelete(image) {
   } finally {
     deletingId.value = null
   }
+}
+
+async function checkIntegrity() {
+  if (checkingIntegrity.value) {
+    return
+  }
+  const requestId = ++integrityRequestId
+  checkingIntegrity.value = true
+  integrityReport.value = null
+  integrityError.value = ''
+  actionMessage.value = ''
+  try {
+    const response = await getImageIntegrity()
+    if (requestId !== integrityRequestId) {
+      return
+    }
+    integrityReport.value = response.data || null
+  } catch (error) {
+    if (requestId !== integrityRequestId) {
+      return
+    }
+    integrityError.value = getApiErrorMessage(error, '图片一致性检查失败')
+  } finally {
+    if (requestId === integrityRequestId) {
+      checkingIntegrity.value = false
+    }
+  }
+}
+
+function referenceSourceLabel(reference) {
+  const prefix = reference.sourceType === 'FIXED_PAGE' ? '固定页' : '文章'
+  return `${prefix}：${reference.sourceLabel}`
 }
 
 async function syncRoute() {
@@ -144,16 +184,27 @@ onMounted(loadImages)
         <h1>图片管理</h1>
         <p>查看图片引用状态，删除不再使用的媒体文件。</p>
       </div>
-      <div class="admin-image-filter" role="group" aria-label="图片引用筛选">
+      <div class="admin-image-actions">
         <button
-          v-for="filter in filters"
-          :key="filter.value"
+          class="button button--primary"
           type="button"
-          :aria-pressed="usage === filter.value"
-          @click="selectUsage(filter.value)"
+          :disabled="checkingIntegrity"
+          :aria-busy="checkingIntegrity"
+          @click="checkIntegrity"
         >
-          {{ filter.label }}
+          {{ checkingIntegrity ? '检查中...' : '检查一致性' }}
         </button>
+        <div class="admin-image-filter" role="group" aria-label="图片引用筛选">
+          <button
+            v-for="filter in filters"
+            :key="filter.value"
+            type="button"
+            :aria-pressed="usage === filter.value"
+            @click="selectUsage(filter.value)"
+          >
+            {{ filter.label }}
+          </button>
+        </div>
       </div>
     </header>
 
@@ -165,6 +216,89 @@ onMounted(loadImages)
       {{ errorMessage }}
       <button type="button" aria-label="关闭提示" @click="errorMessage = ''">关闭</button>
     </div>
+    <div v-if="integrityError" class="admin-notice" role="alert">
+      {{ integrityError }}
+      <button type="button" aria-label="关闭一致性检查错误" @click="integrityError = ''">
+        关闭
+      </button>
+    </div>
+
+    <section
+      v-if="integrityReport"
+      class="admin-integrity-report"
+      aria-labelledby="image-integrity-title"
+    >
+      <header>
+        <div>
+          <span class="admin-page__eyebrow">MEDIA CHECK / 一致性</span>
+          <h2 id="image-integrity-title">图片一致性报告</h2>
+        </div>
+        <small>扫描时间：{{ formatPublishedDate(integrityReport.scannedAt) }}</small>
+      </header>
+
+      <p
+        v-if="integrityReport.counts.total === 0"
+        class="admin-integrity-report__clean"
+        role="status"
+      >
+        检查完成：未发现一致性问题
+      </p>
+
+      <template v-else>
+        <p class="admin-integrity-report__summary" role="status">
+          检查完成：发现 {{ integrityReport.counts.total }} 项问题
+        </p>
+
+        <div class="admin-integrity-counts">
+          <article>
+            <strong>{{ integrityReport.counts.brokenReferences }}</strong>
+            <span>引用断裂</span>
+          </article>
+          <article>
+            <strong>{{ integrityReport.counts.missingFiles }}</strong>
+            <span>记录缺文件</span>
+          </article>
+          <article>
+            <strong>{{ integrityReport.counts.untrackedFiles }}</strong>
+            <span>磁盘孤立文件</span>
+          </article>
+        </div>
+
+        <div class="admin-integrity-issues">
+          <section v-if="integrityReport.brokenReferences.length">
+            <h3>引用断裂</h3>
+            <ul>
+              <li
+                v-for="reference in integrityReport.brokenReferences"
+                :key="`${reference.url}-${reference.sourceType}-${reference.sourceId || reference.sourceLabel}`"
+              >
+                <code>{{ reference.url }}</code>
+                <span>{{ referenceSourceLabel(reference) }}</span>
+              </li>
+            </ul>
+          </section>
+
+          <section v-if="integrityReport.missingFiles.length">
+            <h3>记录缺文件</h3>
+            <ul>
+              <li v-for="file in integrityReport.missingFiles" :key="file.id">
+                <strong>{{ file.originalName }}</strong>
+                <code>{{ file.url }}</code>
+              </li>
+            </ul>
+          </section>
+
+          <section v-if="integrityReport.untrackedFiles.length">
+            <h3>磁盘孤立文件</h3>
+            <ul>
+              <li v-for="file in integrityReport.untrackedFiles" :key="file.url">
+                <code>{{ file.url }}</code>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </template>
+    </section>
 
     <ContentState
       v-if="status === 'loading' && !images.length"

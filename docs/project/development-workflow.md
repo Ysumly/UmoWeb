@@ -76,7 +76,7 @@ npm run test:e2e
 ### CI
 
 `.github/workflows/ci.yml` 负责基础质量检查、MySQL 8.4 真实集成和 Ubuntu Playwright。
-MySQL job 从空库执行 Schema、种子和兼容迁移，启动后端并执行 29/29 接口冒烟。
+MySQL job 从空库执行 Schema、种子和兼容迁移，启动后端并执行 30/30 接口冒烟。
 Linux 视觉基线通过手动 `Playwright Linux Baselines` 工作流生成 artifact，由开发者审查后提交。
 访问日志链路必须运行：
 
@@ -101,7 +101,7 @@ bash scripts/ci/scan-sensitive-info.sh
 ### 文档
 
 - 搜索旧版本号、错误的响应包装和“已实现”措辞。
-- 所有 API 数量应保持：公开 8、管理 21、总计 29。
+- 所有 API 数量应保持：公开 8、管理 22、总计 30。
 - 所有新建接口状态应为 200。
 - 搜索应描述为标题、摘要和 Markdown 正文全文；正文使用 MySQL ngram 索引。
 

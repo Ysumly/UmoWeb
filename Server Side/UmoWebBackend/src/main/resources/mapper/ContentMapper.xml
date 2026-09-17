@@ -198,6 +198,12 @@
         FROM contents
     </select>
 
+    <select id="findAllForReferenceScan" resultType="Content">
+        SELECT id, title, body_path
+        FROM contents
+        ORDER BY id ASC
+    </select>
+
     <select id="findAllPublishedForIndex" resultType="Content">
         SELECT <include refid="baseColumns"/>
         FROM contents c

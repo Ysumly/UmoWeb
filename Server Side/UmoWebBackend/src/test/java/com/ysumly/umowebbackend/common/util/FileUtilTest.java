@@ -12,6 +12,7 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class FileUtilTest {
 
@@ -91,5 +92,40 @@ class FileUtilTest {
 
         assertThat(backup).isNotBlank();
         assertThat(fileUtil.readMarkdown(backup)).isEqualTo("old");
+    }
+
+    @Test
+    void listsOnlyRegularFilesInsideStoredDirectory() throws IOException {
+        Path images = storageRoot.resolve("images");
+        Path nested = images.resolve("2026/09");
+        Files.createDirectories(nested);
+        Files.writeString(nested.resolve("one.png"), "image");
+        Files.createDirectories(images.resolve("empty"));
+
+        Path outside = storageRoot.resolve("outside.png");
+        Files.writeString(outside, "outside");
+        Path link = nested.resolve("linked.png");
+        try {
+            Files.createSymbolicLink(link, outside);
+        } catch (UnsupportedOperationException | IOException e) {
+            assumeTrue(false, "symbolic links are not available");
+        }
+
+        assertThat(fileUtil.listStoredFiles("images"))
+                .containsExactly("images/2026/09/one.png");
+    }
+
+    @Test
+    void listingMissingStoredDirectoryReturnsEmptyList() throws IOException {
+        assertThat(fileUtil.listStoredFiles("images")).isEmpty();
+    }
+
+    @Test
+    void listingStoredFileAsDirectoryFails() throws IOException {
+        Path images = storageRoot.resolve("images");
+        Files.writeString(images, "not-a-directory");
+
+        assertThatThrownBy(() -> fileUtil.listStoredFiles("images"))
+                .isInstanceOf(IOException.class);
     }
 }

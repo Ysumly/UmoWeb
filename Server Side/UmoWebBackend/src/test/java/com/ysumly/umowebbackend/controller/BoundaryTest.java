@@ -7,6 +7,8 @@ import com.ysumly.umowebbackend.service.admin.*;
 import com.ysumly.umowebbackend.service.open.*;
 import com.ysumly.umowebbackend.model.vo.CategoryTreeVO;
 import com.ysumly.umowebbackend.model.vo.ContentDetailVO;
+import com.ysumly.umowebbackend.model.vo.ImageIntegrityCountsVO;
+import com.ysumly.umowebbackend.model.vo.ImageIntegrityReportVO;
 import com.ysumly.umowebbackend.model.vo.TagVO;
 import org.junit.jupiter.api.*;
 import org.springframework.http.MediaType;
@@ -37,6 +39,8 @@ class BoundaryTest {
     private final CategoryManageService categoryManageService = mock(CategoryManageService.class);
     private final TagManageService tagManageService = mock(TagManageService.class);
     private final ImageService imageService = mock(ImageService.class);
+    private final ImageIntegrityService imageIntegrityService =
+            mock(ImageIntegrityService.class);
 
     private final MockMvc mvc = MockMvcBuilders
             .standaloneSetup(
@@ -48,7 +52,7 @@ class BoundaryTest {
                     new ContentManageController(contentManageService),
                     new CategoryManageController(categoryManageService),
                     new TagManageController(tagManageService),
-                    new ImageController(imageService),
+                    new ImageController(imageService, imageIntegrityService),
                     new OptionController(siteOptionService)
             )
             .setControllerAdvice(new GlobalExceptionHandler())
@@ -360,5 +364,37 @@ class BoundaryTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value(409))
                 .andExpect(jsonPath("$.message").value("图片仍被内容引用，无法删除"));
+    }
+
+    @Test
+    @DisplayName("32. 图片一致性检查: 无异常 → 200 完整报告")
+    void imageIntegrityReport() throws Exception {
+        ImageIntegrityReportVO report = new ImageIntegrityReportVO(
+                java.time.LocalDateTime.of(2026, 9, 15, 21, 0),
+                new ImageIntegrityCountsVO(0, 0, 0, 0),
+                java.util.List.of(),
+                java.util.List.of(),
+                java.util.List.of());
+        when(imageIntegrityService.inspect()).thenReturn(report);
+
+        mvc.perform(get("/api/admin/images/integrity"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scannedAt").value("2026-09-15T21:00:00"))
+                .andExpect(jsonPath("$.counts.total").value(0))
+                .andExpect(jsonPath("$.brokenReferences").isArray())
+                .andExpect(jsonPath("$.missingFiles").isArray())
+                .andExpect(jsonPath("$.untrackedFiles").isArray());
+    }
+
+    @Test
+    @DisplayName("33. 图片一致性检查: 扫描失败 → 500")
+    void imageIntegrityScanFailure() throws Exception {
+        when(imageIntegrityService.inspect())
+                .thenThrow(new BusinessException(500, "图片一致性检查失败"));
+
+        mvc.perform(get("/api/admin/images/integrity"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value(500))
+                .andExpect(jsonPath("$.message").value("图片一致性检查失败"));
     }
 }
