@@ -45,6 +45,9 @@ jobs:
       - name: Test sensitive information scanner
         run: bash scripts/ci/tests/scan-sensitive-info-test.sh
 
+      - name: Test fake OpenAI provider
+        run: bash scripts/ai/tests/fake-openai-server.sh
+
       - name: Scan tracked files for sensitive information
         run: bash scripts/ci/scan-sensitive-info.sh
 
