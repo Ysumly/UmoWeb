@@ -168,6 +168,23 @@ public class AiModeCatalogServiceImpl implements AiModeCatalogService {
     }
 
     @Override
+    public Optional<AiModeRuntimeConfig> findByKey(String modeKey) {
+        AiTransformMode mode = modeMapper.findByKey(modeKey);
+        if (mode == null) {
+            return Optional.empty();
+        }
+        AiTransformModeVersion version = requireCurrentVersion(mode);
+        return Optional.of(new AiModeRuntimeConfig(
+                mode.getId(),
+                mode.getModeKey(),
+                mode.getName(),
+                version.getVersionNo(),
+                version.getSystemPrompt(),
+                version.getValidationProfile(),
+                Boolean.TRUE.equals(mode.getEnabled())));
+    }
+
+    @Override
     public Optional<AiModeRuntimeConfig> findEnabledByKey(String modeKey) {
         AiTransformMode mode = modeMapper.findEnabledByKey(modeKey);
         if (mode == null) {

@@ -8,6 +8,16 @@ public record AiModeRuntimeConfig(
         String name,
         int versionNo,
         String systemPrompt,
-        AiValidationProfile validationProfile
+        AiValidationProfile validationProfile,
+        boolean enabled
 ) {
+    public AiModeRuntimeConfig(
+            Long modeId,
+            String modeKey,
+            String name,
+            int versionNo,
+            String systemPrompt,
+            AiValidationProfile validationProfile) {
+        this(modeId, modeKey, name, versionNo, systemPrompt, validationProfile, true);
+    }
 }

@@ -255,6 +255,25 @@ class AiModeCatalogServiceImplTest {
     }
 
     @Test
+    void keyLookupReportsDisabledModeWithoutHidingIt() {
+        AiTransformMode mode = mode(1L, "CUSTOM_MODE", false, 2);
+        when(modeMapper.findByKey("CUSTOM_MODE")).thenReturn(mode);
+        when(versionMapper.findCurrentVersion(1L)).thenReturn(version(
+                1L, 2, "runtime-prompt", AiValidationProfile.NONE));
+
+        Optional<AiModeRuntimeConfig> result = service.findByKey("CUSTOM_MODE");
+
+        assertThat(result).contains(new AiModeRuntimeConfig(
+                1L,
+                "CUSTOM_MODE",
+                "Custom Mode",
+                2,
+                "runtime-prompt",
+                AiValidationProfile.NONE,
+                false));
+    }
+
+    @Test
     void versionListingRequiresExistingModeAndKeepsMapperOrder() {
         when(modeMapper.findById(1L)).thenReturn(mode(1L, "CUSTOM_MODE", true, 2));
         when(versionMapper.findVersions(1L)).thenReturn(List.of(

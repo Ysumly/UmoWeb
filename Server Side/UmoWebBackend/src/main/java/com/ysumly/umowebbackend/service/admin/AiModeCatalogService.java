@@ -17,5 +17,6 @@ public interface AiModeCatalogService {
     AiModeSettingsVO update(Long id, AiModeUpdateRequest request);
     List<AiModeVersionVO> listVersions(Long id);
     AiModeSettingsVO rollback(Long id, int versionNo, int expectedVersion);
+    Optional<AiModeRuntimeConfig> findByKey(String modeKey);
     Optional<AiModeRuntimeConfig> findEnabledByKey(String modeKey);
 }
