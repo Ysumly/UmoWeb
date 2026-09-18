@@ -1,11 +1,16 @@
 package com.ysumly.umowebbackend.service.impl.ai;
 
+import com.ysumly.umowebbackend.config.AiProperties;
 import com.ysumly.umowebbackend.service.ai.AiProviderErrorCategory;
 import com.ysumly.umowebbackend.service.ai.AiProviderException;
 import com.ysumly.umowebbackend.service.ai.AiProviderRequest;
 import com.ysumly.umowebbackend.service.ai.AiProviderResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -130,6 +135,29 @@ class DeepSeekAiTransformProviderTest {
                         """, MediaType.APPLICATION_JSON));
 
         assertProviderCategory(AiProviderErrorCategory.INVALID_RESPONSE);
+    }
+
+    @Test
+    void springCreatesProviderWhenDeepSeekBeansArePresent() {
+        try (AnnotationConfigApplicationContext context =
+                     new AnnotationConfigApplicationContext(ProviderConstructionConfig.class)) {
+            assertThat(context.getBean(DeepSeekAiTransformProvider.class)).isNotNull();
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    @Import(DeepSeekAiTransformProvider.class)
+    static class ProviderConstructionConfig {
+
+        @Bean
+        AiProperties aiProperties() {
+            return new AiProperties();
+        }
+
+        @Bean
+        RestClient deepSeekRestClient() {
+            return RestClient.create();
+        }
     }
 
     private void assertHttpCategory(int status, AiProviderErrorCategory category) {

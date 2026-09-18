@@ -6,6 +6,7 @@ import com.ysumly.umowebbackend.service.ai.AiProviderException;
 import com.ysumly.umowebbackend.service.ai.AiProviderRequest;
 import com.ysumly.umowebbackend.service.ai.AiProviderResult;
 import com.ysumly.umowebbackend.service.ai.AiTransformProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -32,6 +33,7 @@ public class DeepSeekAiTransformProvider implements AiTransformProvider {
     private final String apiKey;
     private final String configuredModel;
 
+    @Autowired
     public DeepSeekAiTransformProvider(
             @Qualifier("deepSeekRestClient") RestClient restClient,
             AiProperties properties) {
