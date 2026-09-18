@@ -5,7 +5,9 @@ import { onBeforeRouteLeave } from 'vue-router'
 import {
   copyAiMode,
   createAiMode,
+  getAiModeVersions,
   getAiModes,
+  rollbackAiMode,
   updateAiMode,
 } from '@/api/admin'
 import ContentState from '@/components/public/ContentState.vue'
@@ -15,6 +17,7 @@ import {
   buildAiModeCreatePayload,
   buildAiModeUpdatePayload,
   createEmptyAiModeForm,
+  formatModeVersion,
   modeToForm,
   sortAiModes,
   validateAiModeForm,
@@ -27,11 +30,17 @@ const actionMessage = ref('')
 const conflictMessage = ref('')
 const errors = ref({})
 const modes = ref([])
+const versions = ref([])
+const versionsStatus = ref('idle')
+const versionsError = ref('')
+const previewVersion = ref(null)
 const selectedId = ref(null)
 const editorMode = ref('edit')
 const saving = ref(false)
+const rollingBack = ref(false)
 const initialSnapshot = ref('')
 const form = reactive(createEmptyAiModeForm())
+let versionsRequestId = 0
 
 const selectedMode = computed(() => {
   return modes.value.find((mode) => mode.id === selectedId.value) || null
@@ -79,6 +88,7 @@ function selectMode(mode) {
   selectedId.value = mode.id
   resetForm(mode)
   conflictMessage.value = ''
+  loadVersions(mode.id)
   return true
 }
 
@@ -89,6 +99,9 @@ function openCreate() {
   editorMode.value = 'create'
   selectedId.value = null
   resetForm()
+  versions.value = []
+  previewVersion.value = null
+  versionsStatus.value = 'idle'
   status.value = 'success'
   conflictMessage.value = ''
   actionMessage.value = ''
@@ -100,6 +113,7 @@ function openCopy() {
   }
   const source = selectedMode.value
   editorMode.value = 'copy'
+  previewVersion.value = null
   resetForm({
     ...source,
     modeKey: '',
@@ -140,6 +154,7 @@ function applySavedMode(mode, message) {
   actionMessage.value = message
   conflictMessage.value = ''
   errorMessage.value = ''
+  loadVersions(mode.id)
 }
 
 function handleSaveError(error, { preserveForm = true } = {}) {
@@ -222,6 +237,65 @@ async function reloadSelectedMode() {
   conflictMessage.value = ''
 }
 
+async function loadVersions(modeId = selectedMode.value?.id) {
+  const currentRequest = ++versionsRequestId
+  previewVersion.value = null
+  if (!modeId || editorMode.value !== 'edit') {
+    versions.value = []
+    versionsStatus.value = 'idle'
+    versionsError.value = ''
+    return
+  }
+
+  versionsStatus.value = 'loading'
+  versionsError.value = ''
+  try {
+    const response = await getAiModeVersions(modeId)
+    if (currentRequest !== versionsRequestId) {
+      return
+    }
+    versions.value = response.data || []
+    versionsStatus.value = 'success'
+  } catch (error) {
+    if (currentRequest !== versionsRequestId) {
+      return
+    }
+    versions.value = []
+    versionsStatus.value = 'error'
+    versionsError.value = getApiErrorMessage(error, '历史版本加载失败')
+  }
+}
+
+async function rollbackVersion(version) {
+  if (
+    rollingBack.value
+    || conflictMessage.value
+    || !selectedMode.value
+    || version.versionNo === selectedMode.value.currentVersion
+  ) {
+    return
+  }
+  if (!window.confirm(`回滚到版本 ${version.versionNo} 将生成一个新版本，确定继续吗？`)) {
+    return
+  }
+
+  rollingBack.value = true
+  actionMessage.value = ''
+  errorMessage.value = ''
+  try {
+    const response = await rollbackAiMode(
+      selectedMode.value.id,
+      version.versionNo,
+      selectedMode.value.currentVersion,
+    )
+    applySavedMode(response.data, '已生成新版本')
+  } catch (error) {
+    handleSaveError(error)
+  } finally {
+    rollingBack.value = false
+  }
+}
+
 async function loadModes() {
   status.value = 'loading'
   errorMessage.value = ''
@@ -242,6 +316,7 @@ async function loadModes() {
     selectedId.value = nextMode.id
     resetForm(nextMode)
     status.value = 'success'
+    loadVersions(nextMode.id)
   } catch (error) {
     status.value = 'error'
     errorMessage.value = getApiErrorMessage(error, 'AI 模式加载失败')
@@ -497,6 +572,53 @@ onBeforeRouteLeave(() => {
             </button>
           </div>
         </form>
+
+        <details
+          v-if="selectedMode && !creating && !copying"
+          class="admin-management-panel admin-ai-versions"
+          open
+        >
+          <summary>
+            <span>历史版本</span>
+            <small>最近 {{ versions.length }} 版</small>
+          </summary>
+
+          <div v-if="versionsStatus === 'loading'" class="admin-ai-versions__state">
+            正在读取历史版本
+          </div>
+          <div v-else-if="versionsStatus === 'error'" class="admin-ai-versions__state">
+            <span>{{ versionsError }}</span>
+            <button type="button" @click="loadVersions()">重新加载</button>
+          </div>
+          <ol v-else class="admin-ai-version-list">
+            <li v-for="version in versions" :key="version.versionNo">
+              <div>
+                <strong>{{ formatModeVersion(version) }}</strong>
+                <span v-if="version.versionNo === selectedMode.currentVersion">当前</span>
+                <small>{{ version.validationProfile }}</small>
+              </div>
+              <div class="admin-ai-version-list__actions">
+                <button type="button" @click="previewVersion = version">查看提示词</button>
+                <button
+                  v-if="version.versionNo !== selectedMode.currentVersion"
+                  type="button"
+                  :disabled="rollingBack || Boolean(conflictMessage)"
+                  @click="rollbackVersion(version)"
+                >
+                  回滚到此版本
+                </button>
+              </div>
+            </li>
+          </ol>
+
+          <div v-if="previewVersion" class="admin-ai-version-preview">
+            <header>
+              <strong>{{ formatModeVersion(previewVersion) }}</strong>
+              <button type="button" @click="previewVersion = null">关闭预览</button>
+            </header>
+            <pre>{{ previewVersion.systemPrompt }}</pre>
+          </div>
+        </details>
       </section>
     </div>
   </section>

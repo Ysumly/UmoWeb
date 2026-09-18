@@ -4055,6 +4055,130 @@ fieldset.admin-field {
   justify-content: flex-end;
 }
 
+.admin-ai-versions {
+  margin-top: 18px;
+}
+
+.admin-ai-versions > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-ai-versions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-ai-versions > summary span {
+  font-family: var(--font-display);
+  font-size: 24px;
+}
+
+.admin-ai-versions > summary small,
+.admin-ai-version-list small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.admin-ai-versions__state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  color: var(--muted);
+}
+
+.admin-ai-versions__state button,
+.admin-ai-version-list__actions button,
+.admin-ai-version-preview button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.admin-ai-version-list {
+  display: grid;
+  gap: 0;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-ai-version-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+  padding: 13px 0;
+}
+
+.admin-ai-version-list li > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.admin-ai-version-list li > div:first-child {
+  min-width: 0;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.admin-ai-version-list li strong {
+  font-size: 13px;
+}
+
+.admin-ai-version-list li > div:first-child > span {
+  border: 1px solid var(--line);
+  padding: 2px 6px;
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.admin-ai-version-list__actions {
+  flex-shrink: 0;
+}
+
+.admin-ai-version-list__actions button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.admin-ai-version-preview {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+}
+
+.admin-ai-version-preview header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  padding: 11px 13px;
+}
+
+.admin-ai-version-preview pre {
+  max-height: 320px;
+  margin: 0;
+  overflow: auto;
+  padding: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
 @media (max-width: 1100px) {
   .admin-filters {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4137,6 +4261,11 @@ fieldset.admin-field {
 
   .admin-ai-conflict button {
     align-self: flex-start;
+  }
+
+  .admin-ai-version-list li {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
