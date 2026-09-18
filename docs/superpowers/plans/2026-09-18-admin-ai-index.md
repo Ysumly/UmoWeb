@@ -52,6 +52,22 @@ Node test、Playwright 1.63、PowerShell/Bash 发布脚本。
 - 后端日志不得包含正文、转换结果、系统提示词、API Key 或完整提示词。
 - 真实 DeepSeek 调用只用于人工控制的质量验收，CI 始终使用假供应商。
 
+## 冻结数据字段
+
+以下类型和字段名是 `5.1B–5.1E` 的固定契约，后续计划、Mapper、Controller 和前端不得自行改名：
+
+```text
+AiModeSettingsVO: id, modeKey, name, description, enabled, sortOrder,
+                  currentVersion, systemPrompt, validationProfile,
+                  createdAt, updatedAt
+AiModeVersionVO: versionNo, systemPrompt, validationProfile, createdAt
+AiCapabilityModeVO: modeKey, name, description
+AiTransformRequest: modeKey, content
+AiTransformResultVO: requestId, modeKey, modeVersion, content,
+                     model, usage
+AiTokenUsageVO: inputTokens, outputTokens, totalTokens
+```
+
 ## 冻结接口
 
 管理端接口使用现有 JWT 拦截器，正常响应直接返回 VO 或数组，异常返回 `{ code, message }`。
