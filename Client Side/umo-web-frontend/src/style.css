@@ -4042,6 +4042,19 @@ fieldset.admin-field {
   line-height: 1.65;
 }
 
+.admin-ai-conflict {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-ai-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 @media (max-width: 1100px) {
   .admin-filters {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4115,6 +4128,15 @@ fieldset.admin-field {
 
   .admin-ai-layout {
     grid-template-columns: 1fr;
+  }
+
+  .admin-ai-conflict {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-ai-conflict button {
+    align-self: flex-start;
   }
 }
 

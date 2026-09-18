@@ -2,26 +2,51 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 
-import { getAiModes } from '@/api/admin'
+import {
+  copyAiMode,
+  createAiMode,
+  getAiModes,
+  updateAiMode,
+} from '@/api/admin'
 import ContentState from '@/components/public/ContentState.vue'
 import {
   AI_VALIDATION_PROFILES,
+  buildAiModeCopyPayload,
+  buildAiModeCreatePayload,
+  buildAiModeUpdatePayload,
   createEmptyAiModeForm,
   modeToForm,
   sortAiModes,
+  validateAiModeForm,
 } from '@/utils/aiModeSettings'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const status = ref('loading')
 const errorMessage = ref('')
+const actionMessage = ref('')
+const conflictMessage = ref('')
+const errors = ref({})
 const modes = ref([])
 const selectedId = ref(null)
-const creating = ref(false)
+const editorMode = ref('edit')
+const saving = ref(false)
 const initialSnapshot = ref('')
 const form = reactive(createEmptyAiModeForm())
 
 const selectedMode = computed(() => {
   return modes.value.find((mode) => mode.id === selectedId.value) || null
+})
+
+const creating = computed(() => editorMode.value === 'create')
+const copying = computed(() => editorMode.value === 'copy')
+const editorTitle = computed(() => {
+  if (creating.value) {
+    return '新转换模式'
+  }
+  if (copying.value) {
+    return `复制 ${selectedMode.value?.name || '模式'}`
+  }
+  return selectedMode.value?.name || '转换模式'
 })
 
 const dirty = computed(() => {
@@ -35,6 +60,7 @@ function snapshotForm() {
 
 function resetForm(mode = null) {
   Object.assign(form, mode ? modeToForm(mode) : createEmptyAiModeForm())
+  errors.value = {}
   snapshotForm()
 }
 
@@ -43,24 +69,157 @@ function confirmDiscard(message) {
 }
 
 function selectMode(mode) {
-  if (mode.id === selectedId.value && !creating.value) {
-    return
+  if (mode.id === selectedId.value && editorMode.value === 'edit') {
+    return true
   }
   if (!confirmDiscard('当前模式修改尚未保存，确定切换模式吗？')) {
-    return
+    return false
   }
-  creating.value = false
+  editorMode.value = 'edit'
   selectedId.value = mode.id
   resetForm(mode)
+  conflictMessage.value = ''
+  return true
 }
 
 function openCreate() {
   if (!confirmDiscard('当前模式修改尚未保存，确定新建模式吗？')) {
     return
   }
-  creating.value = true
+  editorMode.value = 'create'
   selectedId.value = null
   resetForm()
+  status.value = 'success'
+  conflictMessage.value = ''
+  actionMessage.value = ''
+}
+
+function openCopy() {
+  if (!selectedMode.value || !confirmDiscard('当前模式修改尚未保存，确定复制模式吗？')) {
+    return
+  }
+  const source = selectedMode.value
+  editorMode.value = 'copy'
+  resetForm({
+    ...source,
+    modeKey: '',
+    name: `${source.name} 副本`,
+  })
+  conflictMessage.value = ''
+  actionMessage.value = ''
+}
+
+function discardChanges() {
+  if (!confirmDiscard('确定放弃当前未保存的修改吗？')) {
+    return
+  }
+  if (creating.value) {
+    const nextMode = modes.value[0] || null
+    editorMode.value = nextMode ? 'edit' : 'create'
+    selectedId.value = nextMode?.id ?? null
+    resetForm(nextMode)
+  } else {
+    editorMode.value = 'edit'
+    resetForm(selectedMode.value)
+  }
+  conflictMessage.value = ''
+}
+
+function upsertMode(mode) {
+  const nextModes = modes.value.filter((item) => item.id !== mode.id)
+  nextModes.push(mode)
+  modes.value = sortAiModes(nextModes)
+  status.value = 'success'
+}
+
+function applySavedMode(mode, message) {
+  upsertMode(mode)
+  editorMode.value = 'edit'
+  selectedId.value = mode.id
+  resetForm(mode)
+  actionMessage.value = message
+  conflictMessage.value = ''
+  errorMessage.value = ''
+}
+
+function handleSaveError(error, { preserveForm = true } = {}) {
+  if (error?.response?.status === 409) {
+    conflictMessage.value = '提示词已在其他窗口更新，请重新加载后再保存。'
+    return
+  }
+  errorMessage.value = getApiErrorMessage(error, 'AI 模式保存失败')
+  if (!preserveForm) {
+    resetForm(selectedMode.value)
+  }
+}
+
+async function saveMode() {
+  errors.value = validateAiModeForm(form, { creating: creating.value })
+  actionMessage.value = ''
+  conflictMessage.value = ''
+  errorMessage.value = ''
+  if (Object.keys(errors.value).length) {
+    return
+  }
+
+  saving.value = true
+  try {
+    let response
+    let message
+    if (creating.value) {
+      response = await createAiMode(buildAiModeCreatePayload(form))
+      message = '模式已创建，默认停用'
+    } else if (copying.value) {
+      response = await copyAiMode(selectedMode.value.id, buildAiModeCopyPayload(form))
+      message = '模式已复制，默认停用'
+    } else {
+      response = await updateAiMode(
+        selectedMode.value.id,
+        buildAiModeUpdatePayload(selectedMode.value, form),
+      )
+      message = '模式已保存'
+    }
+    applySavedMode(response.data, message)
+  } catch (error) {
+    handleSaveError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function toggleMode(mode) {
+  if (saving.value) {
+    return
+  }
+  if (!selectMode(mode)) {
+    return
+  }
+
+  const targetEnabled = !mode.enabled
+  const nextForm = {
+    ...form,
+    enabled: targetEnabled,
+  }
+  saving.value = true
+  actionMessage.value = ''
+  conflictMessage.value = ''
+  errorMessage.value = ''
+  try {
+    const response = await updateAiMode(
+      mode.id,
+      buildAiModeUpdatePayload(mode, nextForm),
+    )
+    applySavedMode(response.data, targetEnabled ? '模式已启用' : '模式已停用')
+  } catch (error) {
+    handleSaveError(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function reloadSelectedMode() {
+  await loadModes()
+  conflictMessage.value = ''
 }
 
 async function loadModes() {
@@ -79,7 +238,7 @@ async function loadModes() {
 
     const nextMode = modes.value.find((mode) => mode.id === selectedId.value)
       || modes.value[0]
-    creating.value = false
+    editorMode.value = 'edit'
     selectedId.value = nextMode.id
     resetForm(nextMode)
     status.value = 'success'
@@ -119,13 +278,22 @@ onBeforeRouteLeave(() => {
         <h1>AI 设置</h1>
         <p>维护文章转换模式、系统提示词和版本。</p>
       </div>
-      <button class="button button--primary" type="button" @click="openCreate">
+      <button class="button button--primary" type="button" :disabled="saving" @click="openCreate">
         新建模式
       </button>
     </header>
 
+    <div v-if="actionMessage" class="admin-notice admin-notice--success" role="status">
+      {{ actionMessage }}
+    </div>
+
     <div v-if="errorMessage && status !== 'error'" class="admin-notice" role="alert">
       {{ errorMessage }}
+    </div>
+
+    <div v-if="conflictMessage" class="admin-notice admin-ai-conflict" role="alert">
+      <span>{{ conflictMessage }}</span>
+      <button type="button" :disabled="saving" @click="reloadSelectedMode">重新加载</button>
     </div>
 
     <ContentState
@@ -171,6 +339,7 @@ onBeforeRouteLeave(() => {
                 <th>状态</th>
                 <th>排序</th>
                 <th>版本</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -196,6 +365,11 @@ onBeforeRouteLeave(() => {
                 </td>
                 <td>{{ mode.sortOrder }}</td>
                 <td>v{{ mode.currentVersion }}</td>
+                <td class="admin-table__actions">
+                  <button type="button" :disabled="saving" @click="toggleMode(mode)">
+                    {{ mode.enabled ? '停用' : '启用' }}
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -206,45 +380,62 @@ onBeforeRouteLeave(() => {
         <header>
           <div>
             <span class="admin-page__eyebrow">
-              {{ creating ? 'NEW / 新建' : 'EDIT / 编辑' }}
+              {{ creating ? 'NEW / 新建' : copying ? 'COPY / 复制' : 'EDIT / 编辑' }}
             </span>
-            <h2>{{ creating ? '新转换模式' : selectedMode?.name || '转换模式' }}</h2>
+            <h2>{{ editorTitle }}</h2>
           </div>
-          <span v-if="selectedMode">当前版本 v{{ selectedMode.currentVersion }}</span>
+          <span v-if="selectedMode && !creating && !copying">
+            当前版本 v{{ selectedMode.currentVersion }}
+          </span>
         </header>
 
-        <form class="admin-form-grid" @submit.prevent>
+        <form class="admin-form-grid" @submit.prevent="saveMode">
           <label class="admin-field">
             <span>模式标识</span>
             <input
               v-model.trim="form.modeKey"
               type="text"
               maxlength="64"
-              :disabled="!creating"
+              :disabled="!creating && !copying"
               placeholder="CUSTOM_MODE"
             />
+            <small>{{ errors.modeKey }}</small>
           </label>
 
           <div class="admin-form-grid admin-form-grid--two">
             <label class="admin-field">
               <span>模式名称</span>
-              <input v-model="form.name" type="text" maxlength="100" />
+              <input v-model="form.name" type="text" maxlength="100" :disabled="saving" />
+              <small>{{ errors.name }}</small>
             </label>
             <label class="admin-field">
               <span>排序值</span>
-              <input v-model.number="form.sortOrder" type="number" min="-9999" max="9999" />
+              <input
+                v-model.number="form.sortOrder"
+                type="number"
+                min="-9999"
+                max="9999"
+                :disabled="saving"
+              />
+              <small>{{ errors.sortOrder }}</small>
             </label>
           </div>
 
           <label class="admin-field">
             <span>模式说明</span>
-            <textarea v-model="form.description" maxlength="500" rows="3" />
+            <textarea
+              v-model="form.description"
+              maxlength="500"
+              rows="3"
+              :disabled="copying || saving"
+            />
+            <small>{{ errors.description }}</small>
           </label>
 
           <div class="admin-form-grid admin-form-grid--two">
             <label class="admin-field">
               <span>校验策略</span>
-              <select v-model="form.validationProfile">
+              <select v-model="form.validationProfile" :disabled="copying || saving">
                 <option
                   v-for="profile in AI_VALIDATION_PROFILES"
                   :key="profile.value"
@@ -253,10 +444,11 @@ onBeforeRouteLeave(() => {
                   {{ profile.label }}
                 </option>
               </select>
+              <small>{{ errors.validationProfile }}</small>
             </label>
             <label class="admin-field admin-ai-enabled">
               <span>启用状态</span>
-              <input v-model="form.enabled" type="checkbox" />
+              <input v-model="form.enabled" type="checkbox" :disabled="copying || saving" />
               <em>{{ form.enabled ? '启用' : '停用' }}</em>
             </label>
           </div>
@@ -269,8 +461,41 @@ onBeforeRouteLeave(() => {
               maxlength="20000"
               rows="14"
               spellcheck="false"
+              :disabled="copying || saving"
             />
+            <small>{{ errors.systemPrompt }}</small>
           </label>
+
+          <div class="admin-management-panel__actions admin-ai-form-actions">
+            <button
+              v-if="selectedMode && !creating && !copying"
+              class="button button--quiet"
+              type="button"
+              :disabled="saving"
+              @click="openCopy"
+            >
+              复制模式
+            </button>
+            <button
+              class="button button--quiet"
+              type="button"
+              :disabled="saving || !dirty"
+              @click="discardChanges"
+            >
+              放弃修改
+            </button>
+            <button class="button button--primary" type="submit" :disabled="saving">
+              {{
+                saving
+                  ? '正在保存'
+                  : creating
+                    ? '创建模式'
+                    : copying
+                      ? '复制模式'
+                      : '保存修改'
+              }}
+            </button>
+          </div>
         </form>
       </section>
     </div>
