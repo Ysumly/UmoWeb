@@ -46,6 +46,7 @@ const routes = [
       { path: 'categories',   name: 'admin-cats',      component: () => import('@/views/admin/CategoryManagePage.vue') },
       { path: 'tags',         name: 'admin-tags',      component: () => import('@/views/admin/TagManagePage.vue') },
       { path: 'images',       name: 'admin-images',    component: () => import('@/views/admin/ImageManagePage.vue') },
+      { path: 'ai-settings',  name: 'admin-ai-settings', component: () => import('@/views/admin/AiSettingsPage.vue') },
       { path: 'options',      name: 'admin-options',   component: () => import('@/views/admin/OptionPage.vue') },
       { path: 'password',     name: 'admin-password',  component: () => import('@/views/admin/ChangePasswordPage.vue') },
     ]
