@@ -75,6 +75,85 @@ test('未登录时重定向登录页，登录后可退出', async ({ page, apiMo
   expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull()
 })
 
+test('AI 设置支持创建、编辑、复制、排序、启停和版本回滚', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/ai-settings')
+
+  await expect(page.getByRole('heading', { name: 'AI 设置' })).toBeVisible()
+  const modeRows = page.locator('.admin-ai-mode-table tbody tr')
+  await expect(modeRows).toHaveCount(5)
+
+  await page.getByRole('button', { name: '新建模式' }).click()
+  await page.getByLabel('模式标识').fill('E2E_CUSTOM_MODE')
+  await page.getByLabel('模式名称').fill('E2E 自定义模式')
+  await page.getByLabel('模式说明').fill('用于浏览器回归。')
+  await page.getByLabel('系统提示词').fill('Mock 提示词：保持原意。')
+  await page.getByRole('button', { name: '创建模式' }).click()
+
+  await expect(page.getByText('模式已创建，默认停用')).toBeVisible()
+  const customRow = page.getByRole('row', { name: /E2E 自定义模式/ })
+  await expect(customRow).toContainText('停用')
+
+  await customRow.getByRole('button', { name: '启用' }).click()
+  await expect(page.getByText('模式已启用')).toBeVisible()
+  await expect(page.getByRole('row', { name: /E2E 自定义模式/ })).toContainText('启用')
+
+  await page.getByLabel('系统提示词').fill('Mock 提示词：改写后保持事实。')
+  await page.getByRole('button', { name: '保存修改' }).click()
+  await expect(page.getByText('当前版本 v2')).toBeVisible()
+
+  await page.getByLabel('模式名称').fill('E2E 自定义模式已改名')
+  await page.getByRole('button', { name: '保存修改' }).click()
+  await expect(page.getByText('当前版本 v2')).toBeVisible()
+
+  await page.getByRole('button', { name: '复制模式' }).click()
+  await page.getByLabel('模式标识').fill('E2E_COPIED_MODE')
+  await page.getByLabel('模式名称').fill('E2E 复制模式')
+  await page.getByRole('button', { name: '复制模式' }).click()
+  await expect(page.getByText('模式已复制，默认停用')).toBeVisible()
+
+  await page.getByLabel('排序值').fill('-20')
+  await page.getByRole('button', { name: '保存修改' }).click()
+  await expect(modeRows.first()).toContainText('E2E 复制模式')
+
+  await page.getByLabel('系统提示词').fill('Mock 提示词：复制后再次修改。')
+  await page.getByRole('button', { name: '保存修改' }).click()
+  await expect(page.getByText('当前版本 v2')).toBeVisible()
+
+  await page.getByRole('button', { name: '查看提示词' }).first().click()
+  await expect(page.locator('.admin-ai-version-preview pre')).toContainText('Mock 提示词')
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '回滚到此版本' }).click()
+
+  await expect(page.getByText('已生成新版本')).toBeVisible()
+  await expect(page.getByText('当前版本 v3')).toBeVisible()
+})
+
+test('AI 设置遇到版本冲突时保留草稿并支持移动端单列布局', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/ai-settings')
+
+  await page.getByLabel('系统提示词').fill('Mock 提示词：这份草稿不能被冲突覆盖。')
+  apiMock.conflictNextAiModeUpdate()
+  await page.getByRole('button', { name: '保存修改' }).click()
+
+  await expect(page.getByText('提示词已在其他窗口更新，请重新加载后再保存。')).toBeVisible()
+  await expect(page.getByLabel('系统提示词')).toHaveValue('Mock 提示词：这份草稿不能被冲突覆盖。')
+  await page.getByRole('button', { name: '重新加载' }).click()
+  await expect(page.getByText('提示词已在其他窗口更新，请重新加载后再保存。')).toHaveCount(0)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  const nameBox = await page.getByLabel('模式名称').boundingBox()
+  const sortBox = await page.getByLabel('排序值').boundingBox()
+  expect(sortBox.y).toBeGreaterThan(nameBox.y)
+
+  const viewport = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }))
+  expect(viewport.scrollWidth).toBeLessThanOrEqual(viewport.clientWidth)
+})
+
 test('文章列表支持筛选并完成新建、编辑、发布和删除', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/contents')

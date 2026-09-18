@@ -99,6 +99,17 @@ test('管理端文章列表视觉基线', async ({ page, apiMock }) => {
   await expect(page).toHaveScreenshot('admin-contents.png', { fullPage: true })
 })
 
+test('管理端 AI 设置视觉基线', async ({ page, apiMock }) => {
+  await prepareScreenshot(page)
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/ai-settings')
+  await expect(page.getByRole('heading', { name: 'AI 设置' })).toBeVisible()
+  await expect(page.locator('.admin-ai-mode-table tbody tr')).toHaveCount(5)
+  await waitForStablePage(page)
+
+  await expect(page).toHaveScreenshot('admin-ai-settings.png', { fullPage: true })
+})
+
 test('游戏中心视觉基线', async ({ page, apiMock }) => {
   void apiMock
   await prepareScreenshot(page)

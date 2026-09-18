@@ -150,9 +150,90 @@ function createContentState() {
   return contents
 }
 
+function createAiModeState() {
+  const modes = [
+    {
+      id: 1,
+      modeKey: 'STRUCTURE_CLEANUP',
+      name: '结构整理',
+      description: 'Mock 模式：整理标题和段落结构。',
+      enabled: true,
+      sortOrder: 10,
+      currentVersion: 1,
+      systemPrompt: 'Mock 提示词：整理结构，不改变事实。',
+      validationProfile: 'EXACT_CONTENT',
+      createdAt: '2026-09-18T08:00:00',
+      updatedAt: '2026-09-18T08:00:00',
+    },
+    {
+      id: 2,
+      modeKey: 'MODERN_TO_CLASSICAL',
+      name: '现代文转文言',
+      description: 'Mock 模式：转换为简洁文言表达。',
+      enabled: true,
+      sortOrder: 20,
+      currentVersion: 1,
+      systemPrompt: 'Mock 提示词：转换为文言表达。',
+      validationProfile: 'EXACT_CONTENT',
+      createdAt: '2026-09-18T08:00:00',
+      updatedAt: '2026-09-18T08:00:00',
+    },
+    {
+      id: 3,
+      modeKey: 'ENGLISH_TO_CHINESE',
+      name: '英译中',
+      description: 'Mock 模式：英文翻译为中文。',
+      enabled: false,
+      sortOrder: 30,
+      currentVersion: 1,
+      systemPrompt: 'Mock 提示词：忠实翻译为中文。',
+      validationProfile: 'TRANSLATION',
+      createdAt: '2026-09-18T08:00:00',
+      updatedAt: '2026-09-18T08:00:00',
+    },
+    {
+      id: 4,
+      modeKey: 'CHINESE_TO_ENGLISH',
+      name: '中译英',
+      description: 'Mock 模式：中文翻译为英文。',
+      enabled: false,
+      sortOrder: 40,
+      currentVersion: 1,
+      systemPrompt: 'Mock 提示词：忠实翻译为英文。',
+      validationProfile: 'TRANSLATION',
+      createdAt: '2026-09-18T08:00:00',
+      updatedAt: '2026-09-18T08:00:00',
+    },
+    {
+      id: 5,
+      modeKey: 'LIGHT_NOVELIZATION',
+      name: '轻度小说化',
+      description: 'Mock 模式：在不改变事实的前提下增加叙事感。',
+      enabled: false,
+      sortOrder: 50,
+      currentVersion: 1,
+      systemPrompt: 'Mock 提示词：轻度增加叙事感。',
+      validationProfile: 'LIGHT_EXPANSION',
+      createdAt: '2026-09-18T08:00:00',
+      updatedAt: '2026-09-18T08:00:00',
+    },
+  ]
+  const versions = Object.fromEntries(modes.map((mode) => [
+    mode.id,
+    [{
+      versionNo: 1,
+      systemPrompt: mode.systemPrompt,
+      validationProfile: mode.validationProfile,
+      createdAt: mode.createdAt,
+    }],
+  ]))
+  return { modes, versions, conflictOnce: false }
+}
+
 function createState() {
   return {
     contents: createContentState(),
+    aiModes: createAiModeState(),
     categories: [
       { id: 1, name: '技术笔记', slug: 'notes', type: 'NOTE', parentId: null, sortOrder: 1 },
       { id: 2, name: 'Vue', slug: 'vue', type: 'NOTE', parentId: 1, sortOrder: 1 },
@@ -376,6 +457,54 @@ function nextId(items) {
   return Math.max(0, ...items.map((item) => item.id)) + 1
 }
 
+function sortAiModes(modes) {
+  return [...modes].sort((left, right) => {
+    return left.sortOrder - right.sortOrder || left.id - right.id
+  })
+}
+
+function addAiModeVersion(state, mode, version) {
+  const versions = state.aiModes.versions[mode.id] || []
+  state.aiModes.versions[mode.id] = [...versions, version]
+    .sort((left, right) => right.versionNo - left.versionNo)
+    .slice(0, 10)
+}
+
+function currentAiModeVersion(state, mode) {
+  return state.aiModes.versions[mode.id]
+    .find((version) => version.versionNo === mode.currentVersion)
+}
+
+function updateAiModeFromPayload(state, mode, payload) {
+  if (payload.expectedVersion !== mode.currentVersion) {
+    return false
+  }
+
+  const promptChanged = payload.systemPrompt !== mode.systemPrompt
+    || payload.validationProfile !== mode.validationProfile
+  Object.assign(mode, {
+    name: payload.name.trim(),
+    description: (payload.description || '').trim(),
+    enabled: payload.enabled === true,
+    sortOrder: Number(payload.sortOrder),
+    systemPrompt: payload.systemPrompt.trim(),
+    validationProfile: payload.validationProfile,
+    updatedAt: '2026-09-18T12:30:00',
+  })
+  if (!promptChanged) {
+    return true
+  }
+
+  mode.currentVersion += 1
+  addAiModeVersion(state, mode, {
+    versionNo: mode.currentVersion,
+    systemPrompt: mode.systemPrompt,
+    validationProfile: mode.validationProfile,
+    createdAt: mode.updatedAt,
+  })
+  return true
+}
+
 function normalizeContentPayload(payload, existing = {}) {
   const status = payload.status || existing.status || 'DRAFT'
   return {
@@ -495,6 +624,129 @@ async function handleAdminApi(route, state, pathname, searchParams) {
 
   if (!(await hasValidToken(route, state))) {
     return error(route, 401, 'Missing or invalid Authorization header')
+  }
+
+  if (pathname === '/api/admin/ai/modes' && method === 'GET') {
+    return json(route, clone(sortAiModes(state.aiModes.modes)))
+  }
+  if (pathname === '/api/admin/ai/modes' && method === 'POST') {
+    const payload = route.request().postDataJSON()
+    if (state.aiModes.modes.some((mode) => mode.modeKey === payload.modeKey)) {
+      return error(route, 409, `AI mode key already exists: ${payload.modeKey}`)
+    }
+    const mode = {
+      id: nextId(state.aiModes.modes),
+      modeKey: payload.modeKey,
+      name: payload.name.trim(),
+      description: (payload.description || '').trim(),
+      enabled: payload.enabled === true,
+      sortOrder: Number(payload.sortOrder ?? 0),
+      currentVersion: 1,
+      systemPrompt: payload.systemPrompt.trim(),
+      validationProfile: payload.validationProfile,
+      createdAt: '2026-09-18T12:30:00',
+      updatedAt: '2026-09-18T12:30:00',
+    }
+    state.aiModes.modes.push(mode)
+    addAiModeVersion(state, mode, {
+      versionNo: 1,
+      systemPrompt: mode.systemPrompt,
+      validationProfile: mode.validationProfile,
+      createdAt: mode.createdAt,
+    })
+    return json(route, clone(mode))
+  }
+  if (pathname.match(/^\/api\/admin\/ai\/modes\/\d+\/copy$/) && method === 'POST') {
+    const id = Number(pathname.split('/').at(-2))
+    const source = state.aiModes.modes.find((mode) => mode.id === id)
+    if (!source) {
+      return error(route, 404, `AI mode not found: id=${id}`)
+    }
+    const payload = route.request().postDataJSON()
+    if (state.aiModes.modes.some((mode) => mode.modeKey === payload.modeKey)) {
+      return error(route, 409, `AI mode key already exists: ${payload.modeKey}`)
+    }
+    const current = currentAiModeVersion(state, source)
+    const copied = {
+      id: nextId(state.aiModes.modes),
+      modeKey: payload.modeKey,
+      name: payload.name.trim(),
+      description: source.description,
+      enabled: false,
+      sortOrder: 0,
+      currentVersion: 1,
+      systemPrompt: current.systemPrompt,
+      validationProfile: current.validationProfile,
+      createdAt: '2026-09-18T12:30:00',
+      updatedAt: '2026-09-18T12:30:00',
+    }
+    state.aiModes.modes.push(copied)
+    addAiModeVersion(state, copied, {
+      versionNo: 1,
+      systemPrompt: copied.systemPrompt,
+      validationProfile: copied.validationProfile,
+      createdAt: copied.createdAt,
+    })
+    return json(route, clone(copied))
+  }
+  if (pathname.match(/^\/api\/admin\/ai\/modes\/\d+\/versions$/) && method === 'GET') {
+    const id = Number(pathname.split('/').at(-2))
+    const mode = state.aiModes.modes.find((item) => item.id === id)
+    if (!mode) {
+      return error(route, 404, `AI mode not found: id=${id}`)
+    }
+    return json(route, clone(state.aiModes.versions[id] || []))
+  }
+  if (
+    pathname.match(/^\/api\/admin\/ai\/modes\/\d+\/rollback\/\d+$/)
+    && method === 'POST'
+  ) {
+    const parts = pathname.split('/')
+    const id = Number(parts.at(-3))
+    const versionNo = Number(parts.at(-1))
+    const mode = state.aiModes.modes.find((item) => item.id === id)
+    if (!mode) {
+      return error(route, 404, `AI mode not found: id=${id}`)
+    }
+    if (state.aiModes.conflictOnce) {
+      state.aiModes.conflictOnce = false
+      return error(route, 409, '模式已在其他窗口更新，请重新加载')
+    }
+    const payload = route.request().postDataJSON()
+    if (payload.expectedVersion !== mode.currentVersion) {
+      return error(route, 409, '模式已在其他窗口更新，请重新加载')
+    }
+    const target = (state.aiModes.versions[id] || [])
+      .find((version) => version.versionNo === versionNo)
+    if (!target) {
+      return error(route, 404, `AI mode version not found: ${versionNo}`)
+    }
+    mode.currentVersion += 1
+    mode.systemPrompt = target.systemPrompt
+    mode.validationProfile = target.validationProfile
+    mode.updatedAt = '2026-09-18T12:35:00'
+    addAiModeVersion(state, mode, {
+      versionNo: mode.currentVersion,
+      systemPrompt: target.systemPrompt,
+      validationProfile: target.validationProfile,
+      createdAt: mode.updatedAt,
+    })
+    return json(route, clone(mode))
+  }
+  if (pathname.match(/^\/api\/admin\/ai\/modes\/\d+$/) && method === 'PUT') {
+    const id = Number(pathname.split('/').at(-1))
+    const mode = state.aiModes.modes.find((item) => item.id === id)
+    if (!mode) {
+      return error(route, 404, `AI mode not found: id=${id}`)
+    }
+    if (state.aiModes.conflictOnce) {
+      state.aiModes.conflictOnce = false
+      return error(route, 409, '模式已在其他窗口更新，请重新加载')
+    }
+    if (!updateAiModeFromPayload(state, mode, route.request().postDataJSON())) {
+      return error(route, 409, '模式已在其他窗口更新，请重新加载')
+    }
+    return json(route, clone(mode))
   }
 
   if (pathname === '/api/admin/change-password' && method === 'PUT') {
@@ -782,6 +1034,9 @@ export const test = base.extend({
         await page.addInitScript((token) => {
           localStorage.setItem('token', token)
         }, E2E_TOKEN)
+      },
+      conflictNextAiModeUpdate() {
+        state.aiModes.conflictOnce = true
       },
     }
 
