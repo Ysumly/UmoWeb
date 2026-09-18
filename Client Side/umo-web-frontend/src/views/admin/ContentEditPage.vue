@@ -11,12 +11,14 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 
 import {
   createContent,
+  getAiCapabilities,
   getAdminCats,
   getAdminContent,
   listAdminTags,
   updateContent,
   uploadImage,
 } from '@/api/admin'
+import AiTransformDrawer from '@/components/admin/AiTransformDrawer.vue'
 import MarkdownArticle from '@/components/public/MarkdownArticle.vue'
 import ContentState from '@/components/public/ContentState.vue'
 import { useSyncedScroll } from '@/composables/useSyncedScroll'
@@ -55,6 +57,7 @@ const textareaRef = ref(null)
 const previewRef = ref(null)
 const fileInputRef = ref(null)
 const markdownFileInputRef = ref(null)
+const aiOpenButtonRef = ref(null)
 const initialSnapshot = ref('')
 const pendingSelection = ref(null)
 const categoryPage = ref(1)
@@ -63,6 +66,8 @@ const importMessage = ref('')
 const importWarnings = ref([])
 const importErrors = ref({})
 const originalContent = ref(null)
+const aiCapabilities = ref(null)
+const aiDrawerOpen = ref(false)
 
 useSyncedScroll(textareaRef, previewRef, {
   mediaQuery: '(min-width: 701px)',
@@ -126,6 +131,7 @@ const dirty = computed(() => {
     && initialSnapshot.value
     && JSON.stringify(form) !== initialSnapshot.value
 })
+const aiAvailable = computed(() => aiCapabilities.value?.enabled === true)
 
 function snapshotForm() {
   initialSnapshot.value = JSON.stringify(form)
@@ -250,6 +256,24 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function loadAiCapabilities() {
+  try {
+    const response = await getAiCapabilities()
+    aiCapabilities.value = response.data
+  } catch {
+    aiCapabilities.value = null
+  }
+}
+
+function openAiDrawer() {
+  aiDrawerOpen.value = true
+}
+
+function closeAiDrawer() {
+  aiDrawerOpen.value = false
+  nextTick(() => aiOpenButtonRef.value?.focus())
 }
 
 async function handleSubmit() {
@@ -384,6 +408,7 @@ onBeforeRouteLeave(() => {
 onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
   load()
+  loadAiCapabilities()
 })
 
 onBeforeUnmount(() => {
@@ -674,14 +699,26 @@ onBeforeUnmount(() => {
               <span class="filter-label">正文 Markdown</span>
               <small v-if="uploadMessage">{{ uploadMessage }}</small>
             </div>
-            <button
-              class="button button--outline"
-              type="button"
-              :disabled="uploading"
-              @click="openImagePicker"
-            >
-              {{ uploading ? '上传中...' : '上传图片' }}
-            </button>
+            <div class="admin-editor-toolbar__actions">
+              <button
+                class="button button--outline"
+                type="button"
+                :disabled="uploading"
+                @click="openImagePicker"
+              >
+                {{ uploading ? '上传中...' : '上传图片' }}
+              </button>
+              <button
+                v-if="aiAvailable"
+                ref="aiOpenButtonRef"
+                class="button button--outline"
+                type="button"
+                :disabled="uploading"
+                @click="openAiDrawer"
+              >
+                AI 转换
+              </button>
+            </div>
             <input
               ref="fileInputRef"
               class="sr-only"
@@ -735,6 +772,14 @@ onBeforeUnmount(() => {
           </div>
         </form>
       </div>
+
+      <AiTransformDrawer
+        v-if="aiAvailable"
+        :open="aiDrawerOpen"
+        :current-source="form.body || ''"
+        :capabilities="aiCapabilities"
+        @close="closeAiDrawer"
+      />
     </template>
   </section>
 </template>

@@ -234,6 +234,12 @@ function createState() {
   return {
     contents: createContentState(),
     aiModes: createAiModeState(),
+    aiRuntime: {
+      enabled: true,
+      maxInputChars: 20_000,
+      transformDelayMs: 0,
+      nextTransformError: null,
+    },
     categories: [
       { id: 1, name: '技术笔记', slug: 'notes', type: 'NOTE', parentId: null, sortOrder: 1 },
       { id: 2, name: 'Vue', slug: 'vue', type: 'NOTE', parentId: 1, sortOrder: 1 },
@@ -626,6 +632,46 @@ async function handleAdminApi(route, state, pathname, searchParams) {
     return error(route, 401, 'Missing or invalid Authorization header')
   }
 
+  if (pathname === '/api/admin/ai/capabilities' && method === 'GET') {
+    return json(route, {
+      enabled: state.aiRuntime.enabled,
+      maxInputChars: state.aiRuntime.maxInputChars,
+      modes: state.aiModes.modes
+        .filter((mode) => mode.enabled)
+        .map(({ modeKey, name, description }) => ({ modeKey, name, description })),
+    })
+  }
+  if (pathname === '/api/admin/ai/transform' && method === 'POST') {
+    if (state.aiRuntime.transformDelayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, state.aiRuntime.transformDelayMs))
+    }
+    const transformError = state.aiRuntime.nextTransformError
+    if (transformError) {
+      state.aiRuntime.nextTransformError = null
+      return error(route, transformError.status, transformError.message)
+    }
+
+    const payload = route.request().postDataJSON()
+    const mode = state.aiModes.modes.find((item) => (
+      item.modeKey === payload.modeKey && item.enabled
+    ))
+    if (!mode) {
+      return error(route, 404, `AI mode not found: ${payload.modeKey}`)
+    }
+    const content = `转换结果：${payload.content}`
+    return json(route, {
+      requestId: 'e2e-ai-request',
+      modeKey: mode.modeKey,
+      modeVersion: mode.currentVersion,
+      content,
+      model: 'mock-model',
+      usage: {
+        inputTokens: 12,
+        outputTokens: 18,
+        totalTokens: 30,
+      },
+    })
+  }
   if (pathname === '/api/admin/ai/modes' && method === 'GET') {
     return json(route, clone(sortAiModes(state.aiModes.modes)))
   }
@@ -1037,6 +1083,15 @@ export const test = base.extend({
       },
       conflictNextAiModeUpdate() {
         state.aiModes.conflictOnce = true
+      },
+      disableAi() {
+        state.aiRuntime.enabled = false
+      },
+      delayNextAiTransform(delayMs) {
+        state.aiRuntime.transformDelayMs = delayMs
+      },
+      failNextAiTransform(status, message) {
+        state.aiRuntime.nextTransformError = { status, message }
       },
     }
 

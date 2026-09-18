@@ -154,6 +154,203 @@ test('AI 设置遇到版本冲突时保留草稿并支持移动端单列布局',
   expect(viewport.scrollWidth).toBeLessThanOrEqual(viewport.clientWidth)
 })
 
+test('AI 转换抽屉在能力关闭时完全隐藏且不发送转换请求', async ({ page, apiMock }) => {
+  apiMock.disableAi()
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  await expect(page.getByLabel('Markdown 正文')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'AI 转换' })).toHaveCount(0)
+  expect(apiMock.state.requests.filter((request) => (
+    request.pathname === '/api/admin/ai/transform'
+  ))).toHaveLength(0)
+})
+
+test('AI 转换抽屉带入正文、转换、编辑和复制时不修改文章正文', async ({ page, apiMock }) => {
+  await page.addInitScript(() => {
+    window.__copiedAiResult = ''
+    window.__clipboardShouldFail = false
+    window.__copyFallbackUsed = false
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (value) => {
+          if (window.__clipboardShouldFail) {
+            throw new Error('clipboard denied')
+          }
+          window.__copiedAiResult = value
+        },
+      },
+    })
+  })
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  const body = page.getByLabel('Markdown 正文')
+  await body.fill('# 原始正文\n\n保留这一段。')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await expect(dialog.getByLabel('AI 源草稿')).toHaveValue('# 原始正文\n\n保留这一段。')
+  await expect(dialog.getByText('14 / 20000')).toBeVisible()
+
+  await dialog.getByLabel('转换模式').selectOption('STRUCTURE_CLEANUP')
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue(
+    '转换结果：# 原始正文\n\n保留这一段。',
+  )
+  await expect(dialog.getByRole('status')).toContainText('转换完成')
+
+  await dialog.getByLabel('AI 转换结果').fill('人工修改后的结果')
+  await expect(dialog.getByText('结果已手动修改')).toBeVisible()
+  await dialog.getByRole('button', { name: '复制结果' }).click()
+  await expect(dialog.getByRole('status')).toContainText('已复制')
+  expect(await page.evaluate(() => window.__copiedAiResult)).toBe('人工修改后的结果')
+  await expect(body).toHaveValue('# 原始正文\n\n保留这一段。')
+
+  await dialog.getByLabel('AI 转换结果').fill('回退复制结果')
+  await page.evaluate(() => {
+    window.__clipboardShouldFail = true
+    document.execCommand = () => {
+      window.__copyFallbackUsed = true
+      return true
+    }
+  })
+  await dialog.getByRole('button', { name: '复制结果' }).click()
+  await expect(dialog.getByRole('status')).toContainText('已复制')
+  expect(await page.evaluate(() => window.__copyFallbackUsed)).toBe(true)
+})
+
+test('AI 转换抽屉阻止空输入和超过能力上限的正文', async ({ page, apiMock }) => {
+  apiMock.state.aiRuntime.maxInputChars = 4
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  await expect(dialog.getByRole('alert')).toContainText('请先输入或带入正文')
+
+  await page.getByLabel('Markdown 正文').fill('12345')
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  await expect(dialog.getByRole('alert')).toContainText('正文不能超过 4 字符')
+  expect(apiMock.state.requests.filter((request) => (
+    request.pathname === '/api/admin/ai/transform'
+  ))).toHaveLength(0)
+})
+
+test('AI 重新转换仅在人工编辑后确认并可通过取消保留旧结果', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  await page.getByLabel('Markdown 正文').fill('原文')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  const result = dialog.getByLabel('AI 转换结果')
+  await expect(result).toHaveValue('转换结果：原文')
+
+  await result.fill('人工修改')
+  let dialogMessage = ''
+  page.once('dialog', async (browserDialog) => {
+    dialogMessage = browserDialog.message()
+    await browserDialog.dismiss()
+  })
+  await dialog.getByRole('button', { name: '重新转换' }).click()
+  await expect(result).toHaveValue('人工修改')
+  expect(dialogMessage).toContain('覆盖')
+
+  apiMock.delayNextAiTransform(5_000)
+  page.once('dialog', (browserDialog) => browserDialog.accept())
+  await dialog.getByRole('button', { name: '重新转换' }).click()
+  await expect(dialog.getByRole('button', { name: '取消请求' })).toBeVisible()
+  await dialog.getByRole('button', { name: '取消请求' }).click()
+  await expect(dialog.getByRole('status')).toContainText('已取消')
+  await expect(result).toHaveValue('人工修改')
+})
+
+test('AI 转换抽屉映射限流、无效响应、不可用和超时错误', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  await page.getByLabel('Markdown 正文').fill('原文')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  const result = dialog.getByLabel('AI 转换结果')
+  await expect(result).toHaveValue('转换结果：原文')
+
+  const cases = [
+    [429, 'AI 服务请求过于频繁（请求 ID: e2e-ai-request）', '请求过于频繁'],
+    [502, 'AI 服务返回无效响应（请求 ID: e2e-ai-request）', '返回无效'],
+    [503, 'AI 服务暂时不可用（请求 ID: e2e-ai-request）', '暂时不可用'],
+    [504, 'AI 服务响应超时（请求 ID: e2e-ai-request）', '响应超时'],
+  ]
+  for (const [status, message, expected] of cases) {
+    apiMock.failNextAiTransform(status, message)
+    await dialog.getByRole('button', { name: '重新转换' }).click()
+    await expect(dialog.getByRole('alert')).toContainText(expected)
+    await expect(dialog.getByRole('alert')).toContainText('请求 ID: e2e-ai-request')
+    await expect(result).toHaveValue('转换结果：原文')
+  }
+})
+
+test('AI 转换抽屉支持浮动恢复、本地恢复和焦点返回', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  const body = page.getByLabel('Markdown 正文')
+  await body.fill('需要恢复的正文')
+  const openButton = page.getByRole('button', { name: 'AI 转换' })
+  await openButton.click()
+
+  let dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue('转换结果：需要恢复的正文')
+
+  await dialog.getByRole('button', { name: '缩成小窗' }).click()
+  await expect(dialog).toBeHidden()
+  const restoreButton = page.getByRole('button', { name: '恢复 AI 转换' })
+  await expect(restoreButton).toBeVisible()
+  await restoreButton.click()
+  dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await expect(dialog.getByLabel('AI 源草稿')).toHaveValue('需要恢复的正文')
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue('转换结果：需要恢复的正文')
+
+  await dialog.getByRole('button', { name: '关闭 AI 转换' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(openButton).toBeFocused()
+
+  await page.reload()
+  await expect(body).toHaveValue('')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+  dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await expect(dialog.getByLabel('AI 源草稿')).toHaveValue('需要恢复的正文')
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue('转换结果：需要恢复的正文')
+})
+
+test('AI 转换抽屉在 390px 下不横向溢出且保持正文快照', async ({ page, apiMock }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  const body = page.getByLabel('Markdown 正文')
+  await body.fill('移动端正文')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await body.fill('文章已被其他操作修改')
+  await expect(dialog.getByLabel('AI 源草稿')).toHaveValue('移动端正文')
+  expect(await page.evaluate(() => (
+    document.documentElement.scrollWidth <= window.innerWidth
+  ))).toBe(true)
+})
+
 test('文章列表支持筛选并完成新建、编辑、发布和删除', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/contents')
