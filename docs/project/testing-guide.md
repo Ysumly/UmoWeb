@@ -163,8 +163,11 @@ cd "Server Side\UmoWebBackend"
 - 复制演示 Markdown 后连续执行两次正文回填脚本，校验索引行数等于已发布内容数，
   并验证正文全文和标题/摘要搜索。
 - 使用 Java 17 构建并启动后端，使用独立临时存储和运行时测试凭据执行 `api-smoke.py`。
-- 兼容冒烟仍为 31/31，断言覆盖公开筛选、详情分类/标签、前后文章、相关文章、草稿/待发布隔离、密码失效、
+- 默认兼容冒烟仍为 31/31，断言覆盖公开筛选、详情分类/标签、前后文章、相关文章、草稿/待发布隔离、密码失效、
   批量文章操作、图片完整生命周期、图片一致性来源查询和 429。
+- AI 开启模式使用 `--include-ai`，新增 9 个管理端 AI 接口并报告 40/40；实际 HTTP 请求数
+  只作为独立诊断输出，不与接口数混淆。AI 场景覆盖五个默认模式、模式创建、提示词版本、
+  旧版本冲突、复制停用、回滚生成新版本、能力查询、假 Provider 正文回显和停用后 409。
 - 冒烟通过后校验图片记录、清理队列与临时存储文件；job 退出时销毁后端进程、测试数据和临时文件。
 
 ### 2.3 前端
@@ -326,9 +329,19 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
   --env-file ".env.docker"
 ```
 
-该脚本与 PowerShell 版本均覆盖 31 个接口；会从 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASS`
-读取管理员凭据，不输出密码值。2026-09-12 正式数据候选包、生产切换和最终备份恢复均通过
-`27/27`。
+PowerShell 版本使用 `-IncludeAI`，Python 版本使用 `--include-ai`；默认都只覆盖
+原有 31 个接口，显式开启后覆盖全部 40 个接口。脚本会从 `INIT_ADMIN_USER` 和
+`INIT_ADMIN_PASS` 读取管理员凭据，不输出密码值。2026-09-12 正式数据候选包、生产切换和
+最终备份恢复均通过 `27/27`。
+
+本地不启动真实后端运行冒烟脚本自测：
+
+```bash
+python3 -m unittest scripts/ci/tests/api-smoke-test.py
+```
+
+该测试使用 Python mock HTTP 响应覆盖 AI 契约、失败脱敏和接口数与请求数分离；PowerShell
+与 Python 的实际一致性由启用假供应商的 MySQL CI job 验证。
 
 ### 2.8 GitHub Actions
 
@@ -339,8 +352,8 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
 - `backend`：使用 Temurin Java 17 执行 `mvn -B test`，覆盖 AI 模式目录、DeepSeek
   Provider、请求限流、结果校验、转换 Service、Controller 和边界规则。
 - `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，运行分类层级与
-  图片管理及 AI 模式 Mapper 集成测试，再启动真实后端执行兼容的 31/31 接口冒烟并校验图片记录、
-  清理队列和文件回收；完整 40 接口 AI HTTP 冒烟由后续 5.1F 扩展。
+  图片管理及 AI 模式 Mapper 集成测试，再启动真实后端和回环假供应商执行 `--include-ai`
+  的 40/40 接口冒烟，并校验图片记录、清理队列和文件回收。
 - `frontend`：使用 Node 24.12.0 执行 `npm ci`、`npm test` 和 `npm run build`。
 - `browser`：使用 Node 24.12.0 安装锁定版本 Chromium，执行 `npm run test:e2e`；
   失败时上传 `playwright-report-<attempt>` artifact。

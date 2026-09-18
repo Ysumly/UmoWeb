@@ -2,16 +2,65 @@
 param(
     [string]$BaseUrl = "http://localhost:8080",
     [string]$Username = "admin",
-    [string]$Password = "admin123"
+    [string]$Password = "admin123",
+    [switch]$IncludeAI = $false
 )
 
 $ErrorActionPreference = "Stop"
 $script:BaseUrl = $BaseUrl.TrimEnd("/")
 $script:StepCount = 0
+$script:RequestCount = 0
+$script:TotalEndpoints = if ($IncludeAI) { 40 } else { 31 }
 $script:LastResponse = $null
 $originalPassword = $Password
 $newPassword = $null
 $passwordChangePending = $false
+
+function Get-FailureSummary {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Method,
+        [Parameter(Mandatory)]
+        [string]$Path,
+        [Parameter(Mandatory)]
+        [int]$ExpectedStatus,
+        [Parameter(Mandatory)]
+        [int]$ActualStatus,
+        [string]$Content
+    )
+
+    $prefix = "$Method $Path expected HTTP $ExpectedStatus but returned $ActualStatus"
+    if ([string]::IsNullOrWhiteSpace($Content)) {
+        return "$prefix`: empty response"
+    }
+
+    try {
+        $payload = $Content | ConvertFrom-Json
+    }
+    catch {
+        return "$prefix`: response body omitted"
+    }
+
+    if ($null -eq $payload) {
+        return "$prefix`: JSON response omitted"
+    }
+
+    if ($payload -isnot [System.Management.Automation.PSCustomObject]) {
+        return "$prefix`: JSON response omitted"
+    }
+
+    $codeProperty = $payload.PSObject.Properties["code"]
+    $messageProperty = $payload.PSObject.Properties["message"]
+    $code = if ($null -ne $codeProperty) { $codeProperty.Value } else { $null }
+    $message = if ($null -ne $messageProperty) { $messageProperty.Value } else { $null }
+    if ($null -ne $code -and $null -ne $message) {
+        return "$prefix`: code=$code message=$message"
+    }
+    if ($null -ne $message) {
+        return "$prefix`: message=$message"
+    }
+    return "$prefix`: JSON object omitted"
+}
 
 function Invoke-Checked {
     param(
@@ -35,9 +84,15 @@ function Invoke-Checked {
         $request.Body = $Body | ConvertTo-Json -Depth 20 -Compress
     }
 
+    $script:RequestCount++
     $response = Invoke-WebRequest @request
     if ($response.StatusCode -ne $ExpectedStatus) {
-        throw "$Method $Path expected HTTP $ExpectedStatus but returned $($response.StatusCode): $($response.Content)"
+        throw (Get-FailureSummary `
+                -Method $Method `
+                -Path $Path `
+                -ExpectedStatus $ExpectedStatus `
+                -ActualStatus $response.StatusCode `
+                -Content $response.Content)
     }
     $script:LastResponse = $response
     return $response
@@ -73,7 +128,7 @@ function Step {
     if ($script:StepCount -ne $Number) {
         throw "Smoke step ordering error: expected $Number but got $($script:StepCount)"
     }
-    Write-Host ("[{0}/31] PASS {1}" -f $Number, $Name)
+    Write-Host ("[{0}/{1}] PASS {2}" -f $Number, $script:TotalEndpoints, $Name)
 }
 
 function Invoke-ImageUpload {
@@ -84,6 +139,7 @@ function Invoke-ImageUpload {
 
     $responseFile = [IO.Path]::GetTempFileName()
     try {
+        $script:RequestCount++
         $statusText = & curl.exe -sS -o $responseFile -w "%{http_code}" `
             -H "Authorization: Bearer $Token" `
             -F "file=@$ImagePath;type=image/png" `
@@ -91,7 +147,12 @@ function Invoke-ImageUpload {
         $status = [int]$statusText
         $content = Get-Content -LiteralPath $responseFile -Raw
         if ($status -ne 200) {
-            throw "POST /api/admin/images/upload expected HTTP 200 but returned $status`: $content"
+            throw (Get-FailureSummary `
+                    -Method POST `
+                    -Path "/api/admin/images/upload" `
+                    -ExpectedStatus 200 `
+                    -ActualStatus $status `
+                    -Content $content)
         }
         return $content | ConvertFrom-Json
     }
@@ -143,6 +204,8 @@ $integrityContentId = $null
 $bulkContentId = $null
 $bulkTagId = $null
 $imageId = $null
+$aiModeId = $null
+$aiCopyModeId = $null
 
 try {
     $site = Get-Json (Invoke-Checked -Method GET -Path "/api/public/site-info")
@@ -538,10 +601,166 @@ try {
         "bulk archive must report one changed content item"
     Step 31 "POST /api/admin/contents/bulk"
 
-    if ($script:StepCount -ne 31) {
-        throw "Expected 31 endpoints but covered $($script:StepCount)"
+    if ($IncludeAI) {
+        $defaultModeKeys = @(
+            "STRUCTURE_CLEANUP",
+            "MODERN_TO_CLASSICAL",
+            "ENGLISH_TO_CHINESE",
+            "CHINESE_TO_ENGLISH",
+            "LIGHT_NOVELIZATION"
+        )
+        $originalPrompt = "你是测试转换器。"
+        $updatedPrompt = "你是测试转换器第二版。"
+        $testModeKey = "CI_AI_MODE_$runId"
+        $copyModeKey = "CI_AI_COPY_$runId"
+
+        $modes = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/ai/modes" -Headers $authHeaders)
+        Assert-True ($null -ne $modes) "AI mode catalog must be an array"
+        $modeKeys = @($modes | ForEach-Object { $_.modeKey })
+        foreach ($defaultKey in $defaultModeKeys) {
+            Assert-True ($modeKeys -contains $defaultKey) "AI mode catalog must contain $defaultKey"
+        }
+        Step 32 "GET /api/admin/ai/modes"
+
+        $created = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/ai/modes" -Headers $authHeaders `
+                -Body @{
+                    modeKey = $testModeKey
+                    name = "Smoke AI Mode $runId"
+                    description = "Temporary API smoke mode"
+                    systemPrompt = $originalPrompt
+                    validationProfile = "NONE"
+                    enabled = $false
+                    sortOrder = 999
+                })
+        $aiModeId = $created.id
+        Assert-True ($aiModeId -gt 0) "created AI mode must have id"
+        Assert-True ($created.currentVersion -eq 1) "created AI mode must start at version 1"
+        Assert-True ($created.systemPrompt -eq $originalPrompt) "created AI mode must persist the initial prompt"
+        Step 33 "POST /api/admin/ai/modes"
+
+        $updated = Get-Json (Invoke-Checked -Method PUT -Path "/api/admin/ai/modes/$aiModeId" -Headers $authHeaders `
+                -Body @{
+                    name = "Smoke AI Mode Updated $runId"
+                    description = "Temporary API smoke mode"
+                    systemPrompt = $updatedPrompt
+                    validationProfile = "NONE"
+                    enabled = $true
+                    sortOrder = 999
+                    expectedVersion = 1
+                })
+        Assert-True ($updated.currentVersion -eq 2) "prompt update must advance mode version from 1 to 2"
+        Assert-True ($updated.systemPrompt -eq $updatedPrompt) "prompt update must persist the new prompt"
+        Assert-True ($updated.enabled -eq $true) "test mode must be enabled for transform smoke"
+        Step 34 "PUT /api/admin/ai/modes/{id}"
+
+        $conflictResponse = Invoke-Checked -Method PUT -Path "/api/admin/ai/modes/$aiModeId" `
+            -Headers $authHeaders -ExpectedStatus 409 `
+            -Body @{
+                name = "Smoke AI Mode Updated $runId"
+                description = "Temporary API smoke mode"
+                systemPrompt = $updatedPrompt
+                validationProfile = "NONE"
+                enabled = $true
+                sortOrder = 999
+                expectedVersion = 1
+            }
+        Assert-True ((Get-Json $conflictResponse).code -eq 409) "stale prompt update must return 409"
+
+        $copied = Get-Json (Invoke-Checked -Method POST -Path "/api/admin/ai/modes/$aiModeId/copy" `
+                -Headers $authHeaders -Body @{
+                    modeKey = $copyModeKey
+                    name = "Smoke AI Mode Copy $runId"
+                })
+        $aiCopyModeId = $copied.id
+        Assert-True ($aiCopyModeId -gt 0) "copied AI mode must have id"
+        Assert-True ($copied.enabled -eq $false) "copied AI mode must be disabled"
+        Assert-True ($copied.currentVersion -eq 1) "copied AI mode must start at version 1"
+        Step 35 "POST /api/admin/ai/modes/{id}/copy"
+
+        $versions = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/ai/modes/$aiModeId/versions" `
+                -Headers $authHeaders)
+        Assert-True ($null -ne $versions) "AI mode versions must be an array"
+        $versionOne = $versions | Where-Object {
+            $_.versionNo -eq 1 -and $_.systemPrompt -eq $originalPrompt
+        }
+        $versionTwo = $versions | Where-Object {
+            $_.versionNo -eq 2 -and $_.systemPrompt -eq $updatedPrompt
+        }
+        Assert-True ($null -ne $versionOne) "AI mode versions must contain version 1"
+        Assert-True ($null -ne $versionTwo) "AI mode versions must contain version 2"
+        Step 36 "GET /api/admin/ai/modes/{id}/versions"
+
+        $rolledBack = Get-Json (Invoke-Checked -Method POST `
+                -Path "/api/admin/ai/modes/$aiModeId/rollback/1" `
+                -Headers $authHeaders `
+                -Body @{ expectedVersion = 2 })
+        Assert-True ($rolledBack.currentVersion -eq 3) "rollback to version 1 must generate version 3"
+        Assert-True ($rolledBack.systemPrompt -eq $originalPrompt) "rollback must restore the version 1 prompt"
+        Step 37 "POST /api/admin/ai/modes/{id}/rollback/{versionNo}"
+
+        $settings = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/ai/settings" -Headers $authHeaders)
+        Assert-True ($settings.enabled -eq $true) "AI settings must report the enabled provider"
+        Assert-True ($settings.provider -eq "deepseek") "AI settings must report the DeepSeek provider"
+        Assert-True (-not [string]::IsNullOrWhiteSpace($settings.model)) "AI settings must report a model"
+        Step 38 "GET /api/admin/ai/settings"
+
+        $capabilities = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/ai/capabilities" -Headers $authHeaders)
+        $capabilityModes = @($capabilities.modes)
+        $capabilityKeys = @($capabilityModes | ForEach-Object { $_.modeKey })
+        Assert-True ($capabilities.enabled -eq $true) "AI capabilities must report the enabled provider"
+        Assert-True ($capabilityKeys -contains $testModeKey) "enabled test mode must appear in AI capabilities"
+        Assert-True ($capabilityKeys -notcontains $copyModeKey) "disabled copied mode must not appear in AI capabilities"
+        Step 39 "GET /api/admin/ai/capabilities"
+
+        $transformBody = "# 转换正文`n`nSmoke protocol body"
+        $transformResponse = Invoke-Checked -Method POST -Path "/api/admin/ai/transform" `
+            -Headers $authHeaders -Body @{ modeKey = $testModeKey; content = $transformBody }
+        $transformRaw = $transformResponse.Content
+        Assert-True ($transformRaw -notlike "*$originalPrompt*" -and $transformRaw -notlike "*$updatedPrompt*") `
+            "transform response must not expose system prompts"
+        $transform = Get-Json $transformResponse
+        Assert-True ($transform.modeKey -eq $testModeKey) "transform result must return the selected mode"
+        Assert-True ($transform.modeVersion -eq 3) "transform result must return the current mode version"
+        Assert-True ($transform.content -eq $transformBody) "fake provider transform result must equal the submitted body"
+        Assert-True ($transform.model -eq $settings.model) "transform result must return the configured model"
+        $usage = $transform.usage
+        Assert-True ($usage.inputTokens -gt 0) "transform result must return positive input usage"
+        Assert-True ($usage.outputTokens -gt 0) "transform result must return positive output usage"
+        Assert-True ($usage.totalTokens -eq ($usage.inputTokens + $usage.outputTokens)) `
+            "transform usage total must equal input plus output"
+        Step 40 "POST /api/admin/ai/transform"
+
+        $disabled = Get-Json (Invoke-Checked -Method PUT -Path "/api/admin/ai/modes/$aiModeId" `
+                -Headers $authHeaders -Body @{
+                    name = "Smoke AI Mode Disabled $runId"
+                    description = "Temporary API smoke mode"
+                    systemPrompt = $originalPrompt
+                    validationProfile = "NONE"
+                    enabled = $false
+                    sortOrder = 999
+                    expectedVersion = 3
+                })
+        Assert-True ($disabled.enabled -eq $false) "disabled test mode must no longer report enabled"
+        Assert-True ($disabled.currentVersion -eq 3) "disabling unchanged mode must keep version 3"
+
+        $disabledResponse = Invoke-Checked -Method POST -Path "/api/admin/ai/transform" `
+            -Headers $authHeaders -ExpectedStatus 409 `
+            -Body @{ modeKey = $testModeKey; content = $transformBody }
+        $disabledRaw = $disabledResponse.Content
+        Assert-True ((Get-Json $disabledResponse).code -eq 409) "disabled transform must return error code 409"
+        Assert-True ($disabledRaw -notlike "*$transformBody*" -and $disabledRaw -notlike "*$originalPrompt*") `
+            "disabled transform response must not expose body or prompt"
     }
-    Write-Host "API smoke passed: 31/31 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, related contents, password invalidation, image lifecycle, image integrity, scheduled isolation, bulk operations, and search rate limit."
+
+    if ($script:StepCount -ne $script:TotalEndpoints) {
+        throw "Expected $($script:TotalEndpoints) endpoints but covered $($script:StepCount)"
+    }
+    if ($IncludeAI) {
+        Write-Host "API smoke passed: 40/40 endpoints, $($script:RequestCount) HTTP requests, authentication guard, draft isolation, public filters, content associations, previous/next navigation, related contents, password invalidation, image lifecycle, image integrity, scheduled isolation, bulk operations, search rate limit, AI mode CRUD, capability query, and transform contract."
+    }
+    else {
+        Write-Host "API smoke passed: 31/31 endpoints, authentication guard, draft isolation, public filters, content associations, previous/next navigation, related contents, password invalidation, image lifecycle, image integrity, scheduled isolation, bulk operations, and search rate limit."
+    }
 }
 finally {
     if ($passwordChangePending) {

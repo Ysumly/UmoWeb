@@ -26,14 +26,18 @@ class SmokeFailure(RuntimeError):
 
 
 class Smoke:
-    def __init__(self, base_url: str, username: str, password: str):
+    def __init__(self, base_url: str, username: str, password: str, include_ai: bool = False):
         self.base_url = base_url.rstrip("/")
         self.username = username
         self.password = password
         self.original_password = password
+        self.include_ai = include_ai
+        self.total_endpoints = 40 if include_ai else 31
         self.smoke_password: str | None = None
         self.password_change_pending = False
         self.steps = 0
+        self.request_count = 0
+        self.run_id = ""
         self.token: str | None = None
         self.category_id: int | None = None
         self.child_category_id: int | None = None
@@ -45,9 +49,12 @@ class Smoke:
         self.bulk_content_id: int | None = None
         self.bulk_tag_id: int | None = None
         self.image_id: int | None = None
+        self.ai_mode_id: int | None = None
+        self.ai_copy_mode_id: int | None = None
 
     def run(self) -> None:
         run_id = str(uuid.uuid4())
+        self.run_id = run_id
         try:
             site = self.expect_json("GET", "/api/public/site-info")
             self.require(site.get("siteTitle"), "site-info must contain siteTitle")
@@ -793,18 +800,322 @@ class Smoke:
             )
             self.step(31, "POST /api/admin/contents/bulk")
 
-            print(
-                "API smoke passed: 31/31 endpoints, authentication guard, "
-                "draft isolation, public filters, content associations, "
-                "previous/next navigation, related contents, password invalidation, "
-                "image lifecycle, image integrity, scheduled isolation, bulk operations, "
-                "and search rate limit."
-            )
+            if self.include_ai:
+                self.run_ai_flow()
+                print(
+                    f"API smoke passed: 40/40 endpoints, "
+                    f"{self.request_count} HTTP requests, "
+                    "authentication guard, draft isolation, public filters, "
+                    "content associations, previous/next navigation, related contents, "
+                    "password invalidation, image lifecycle, image integrity, "
+                    "scheduled isolation, bulk operations, search rate limit, "
+                    "AI mode CRUD, capability query, and transform contract."
+                )
+            else:
+                print(
+                    "API smoke passed: 31/31 endpoints, authentication guard, "
+                    "draft isolation, public filters, content associations, "
+                    "previous/next navigation, related contents, password invalidation, "
+                    "image lifecycle, image integrity, scheduled isolation, bulk operations, "
+                    "and search rate limit."
+                )
         finally:
             try:
                 self.restore_password()
             finally:
                 self.cleanup()
+
+    def run_ai_flow(self) -> None:
+        suffix = self.run_id.replace("-", "")
+        if not suffix:
+            suffix = str(uuid.uuid4()).replace("-", "")
+        test_mode_key = f"CI_AI_MODE_{suffix}"
+        copy_mode_key = f"CI_AI_COPY_{suffix}"
+        original_prompt = "你是测试转换器。"
+        updated_prompt = "你是测试转换器第二版。"
+        default_mode_keys = {
+            "STRUCTURE_CLEANUP",
+            "MODERN_TO_CLASSICAL",
+            "ENGLISH_TO_CHINESE",
+            "CHINESE_TO_ENGLISH",
+            "LIGHT_NOVELIZATION",
+        }
+
+        modes = self.expect_json(
+            "GET",
+            "/api/admin/ai/modes",
+            token=self.token,
+        )
+        self.require(isinstance(modes, list), "AI mode catalog must be an array")
+        self.require(
+            default_mode_keys.issubset(
+                {mode.get("modeKey") for mode in modes}
+            ),
+            "AI mode catalog must contain the five default modes",
+        )
+        self.step(32, "GET /api/admin/ai/modes")
+
+        created = self.expect_json(
+            "POST",
+            "/api/admin/ai/modes",
+            {
+                "modeKey": test_mode_key,
+                "name": f"Smoke AI Mode {self.run_id}",
+                "description": "Temporary API smoke mode",
+                "systemPrompt": original_prompt,
+                "validationProfile": "NONE",
+                "enabled": False,
+                "sortOrder": 999,
+            },
+            token=self.token,
+        )
+        self.ai_mode_id = created.get("id")
+        self.require(self.ai_mode_id, "created AI mode must have id")
+        self.require(
+            created.get("currentVersion") == 1,
+            "created AI mode must start at version 1",
+        )
+        self.require(
+            created.get("systemPrompt") == original_prompt,
+            "created AI mode must persist the initial prompt",
+        )
+        self.step(33, "POST /api/admin/ai/modes")
+
+        updated = self.expect_json(
+            "PUT",
+            f"/api/admin/ai/modes/{self.ai_mode_id}",
+            {
+                "name": f"Smoke AI Mode Updated {self.run_id}",
+                "description": "Temporary API smoke mode",
+                "systemPrompt": updated_prompt,
+                "validationProfile": "NONE",
+                "enabled": True,
+                "sortOrder": 999,
+                "expectedVersion": 1,
+            },
+            token=self.token,
+        )
+        self.require(
+            updated.get("currentVersion") == 2,
+            "prompt update must advance mode version from 1 to 2",
+        )
+        self.require(
+            updated.get("systemPrompt") == updated_prompt,
+            "prompt update must persist the new prompt",
+        )
+        self.require(
+            updated.get("enabled") is True,
+            "test mode must be enabled for transform smoke",
+        )
+        self.step(34, "PUT /api/admin/ai/modes/{id}")
+
+        conflict = self.expect_json(
+            "PUT",
+            f"/api/admin/ai/modes/{self.ai_mode_id}",
+            {
+                "name": f"Smoke AI Mode Updated {self.run_id}",
+                "description": "Temporary API smoke mode",
+                "systemPrompt": updated_prompt,
+                "validationProfile": "NONE",
+                "enabled": True,
+                "sortOrder": 999,
+                "expectedVersion": 1,
+            },
+            token=self.token,
+            expected=409,
+        )
+        self.require(
+            conflict.get("code") == 409,
+            "stale prompt update must return 409",
+        )
+
+        copied = self.expect_json(
+            "POST",
+            f"/api/admin/ai/modes/{self.ai_mode_id}/copy",
+            {
+                "modeKey": copy_mode_key,
+                "name": f"Smoke AI Mode Copy {self.run_id}",
+            },
+            token=self.token,
+        )
+        self.ai_copy_mode_id = copied.get("id")
+        self.require(self.ai_copy_mode_id, "copied AI mode must have id")
+        self.require(
+            copied.get("enabled") is False,
+            "copied AI mode must be disabled",
+        )
+        self.require(
+            copied.get("currentVersion") == 1,
+            "copied AI mode must start at version 1",
+        )
+        self.step(35, "POST /api/admin/ai/modes/{id}/copy")
+
+        versions = self.expect_json(
+            "GET",
+            f"/api/admin/ai/modes/{self.ai_mode_id}/versions",
+            token=self.token,
+        )
+        self.require(isinstance(versions, list), "AI mode versions must be an array")
+        self.require(
+            any(
+                version.get("versionNo") == 1
+                and version.get("systemPrompt") == original_prompt
+                for version in versions
+            ),
+            "AI mode versions must contain version 1",
+        )
+        self.require(
+            any(
+                version.get("versionNo") == 2
+                and version.get("systemPrompt") == updated_prompt
+                for version in versions
+            ),
+            "AI mode versions must contain version 2",
+        )
+        self.step(36, "GET /api/admin/ai/modes/{id}/versions")
+
+        rolled_back = self.expect_json(
+            "POST",
+            f"/api/admin/ai/modes/{self.ai_mode_id}/rollback/1",
+            {"expectedVersion": 2},
+            token=self.token,
+        )
+        self.require(
+            rolled_back.get("currentVersion") == 3,
+            "rollback to version 1 must generate version 3",
+        )
+        self.require(
+            rolled_back.get("systemPrompt") == original_prompt,
+            "rollback must restore the version 1 prompt",
+        )
+        self.step(37, "POST /api/admin/ai/modes/{id}/rollback/{versionNo}")
+
+        settings = self.expect_json(
+            "GET",
+            "/api/admin/ai/settings",
+            token=self.token,
+        )
+        self.require(
+            settings.get("enabled") is True,
+            "AI settings must report the enabled provider",
+        )
+        self.require(
+            settings.get("provider") == "deepseek",
+            "AI settings must report the DeepSeek provider",
+        )
+        self.require(settings.get("model"), "AI settings must report a model")
+        self.step(38, "GET /api/admin/ai/settings")
+
+        capabilities = self.expect_json(
+            "GET",
+            "/api/admin/ai/capabilities",
+            token=self.token,
+        )
+        capability_modes = capabilities.get("modes", [])
+        capability_keys = {
+            mode.get("modeKey") for mode in capability_modes
+        }
+        self.require(
+            capabilities.get("enabled") is True,
+            "AI capabilities must report the enabled provider",
+        )
+        self.require(
+            test_mode_key in capability_keys,
+            "enabled test mode must appear in AI capabilities",
+        )
+        self.require(
+            copy_mode_key not in capability_keys,
+            "disabled copied mode must not appear in AI capabilities",
+        )
+        self.step(39, "GET /api/admin/ai/capabilities")
+
+        transform_body = "# 转换正文\n\nSmoke protocol body"
+        status, raw = self.request(
+            "POST",
+            "/api/admin/ai/transform",
+            {"modeKey": test_mode_key, "content": transform_body},
+            token=self.token,
+        )
+        self.require(status == 200, "enabled transform must return HTTP 200")
+        self.require(
+            original_prompt not in raw and updated_prompt not in raw,
+            "transform response must not expose system prompts",
+        )
+        transform = json.loads(raw)
+        self.require(
+            transform.get("modeKey") == test_mode_key,
+            "transform result must return the selected mode",
+        )
+        self.require(
+            transform.get("modeVersion") == 3,
+            "transform result must return the current mode version",
+        )
+        self.require(
+            transform.get("content") == transform_body,
+            "fake provider transform result must equal the submitted body",
+        )
+        self.require(
+            transform.get("model") == settings.get("model"),
+            "transform result must return the configured model",
+        )
+        usage = transform.get("usage") or {}
+        self.require(
+            isinstance(usage.get("inputTokens"), int)
+            and usage["inputTokens"] > 0,
+            "transform result must return positive input usage",
+        )
+        self.require(
+            isinstance(usage.get("outputTokens"), int)
+            and usage["outputTokens"] > 0,
+            "transform result must return positive output usage",
+        )
+        self.require(
+            usage.get("totalTokens")
+            == usage.get("inputTokens") + usage.get("outputTokens"),
+            "transform usage total must equal input plus output",
+        )
+        self.step(40, "POST /api/admin/ai/transform")
+
+        disabled = self.expect_json(
+            "PUT",
+            f"/api/admin/ai/modes/{self.ai_mode_id}",
+            {
+                "name": f"Smoke AI Mode Disabled {self.run_id}",
+                "description": "Temporary API smoke mode",
+                "systemPrompt": original_prompt,
+                "validationProfile": "NONE",
+                "enabled": False,
+                "sortOrder": 999,
+                "expectedVersion": 3,
+            },
+            token=self.token,
+        )
+        self.require(
+            disabled.get("enabled") is False,
+            "disabled test mode must no longer report enabled",
+        )
+        self.require(
+            disabled.get("currentVersion") == 3,
+            "disabling unchanged mode must keep version 3",
+        )
+
+        status, raw = self.request(
+            "POST",
+            "/api/admin/ai/transform",
+            {"modeKey": test_mode_key, "content": transform_body},
+            token=self.token,
+            expected=409,
+        )
+        self.require(status == 409, "disabled transform must return HTTP 409")
+        disabled_error = json.loads(raw)
+        self.require(
+            disabled_error.get("code") == 409,
+            "disabled transform must return error code 409",
+        )
+        self.require(
+            transform_body not in raw and original_prompt not in raw,
+            "disabled transform response must not expose body or prompt",
+        )
 
     def restore_password(self) -> None:
         if not self.password_change_pending or not self.smoke_password:
@@ -904,7 +1215,7 @@ class Smoke:
             raise SmokeFailure(
                 f"Smoke step ordering error: expected {number}, got {self.steps}"
             )
-        print(f"[{number}/31] PASS {name}")
+        print(f"[{number}/{self.total_endpoints}] PASS {name}")
 
     def require(self, condition: Any, message: str) -> None:
         if not condition:
@@ -939,6 +1250,7 @@ class Smoke:
         token: str | None = None,
         expected: int | None = 200,
     ) -> tuple[int, str]:
+        self.request_count += 1
         headers = {}
         data = None
         if token:
@@ -961,12 +1273,45 @@ class Smoke:
             content = exc.read().decode("utf-8")
         if expected is not None and status != expected:
             raise SmokeFailure(
-                f"{method} {path} expected HTTP {expected} but returned "
-                f"{status}: {content}"
+                self.failure_summary(
+                    method,
+                    path,
+                    expected,
+                    status,
+                    content,
+                )
             )
         return status, content
 
+    def failure_summary(
+        self,
+        method: str,
+        path: str,
+        expected: int | None,
+        status: int,
+        content: str,
+    ) -> str:
+        prefix = (
+            f"{method} {path} expected HTTP {expected} but returned {status}"
+        )
+        try:
+            payload = json.loads(content)
+        except (TypeError, json.JSONDecodeError):
+            return f"{prefix}: response body omitted"
+
+        if not isinstance(payload, dict):
+            return f"{prefix}: JSON response omitted"
+
+        code = payload.get("code")
+        message = payload.get("message")
+        if isinstance(code, int) and isinstance(message, str):
+            return f"{prefix}: code={code} message={message}"
+        if isinstance(message, str):
+            return f"{prefix}: message={message}"
+        return f"{prefix}: JSON object omitted"
+
     def upload_image(self, run_id: str) -> dict[str, Any]:
+        self.request_count += 1
         boundary = f"----umoweb-smoke-{run_id}"
         body = (
             f"--{boundary}\r\n"
@@ -990,9 +1335,15 @@ class Smoke:
                     )
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
+            content = exc.read().decode("utf-8")
             raise SmokeFailure(
-                f"image upload returned HTTP {exc.code}: "
-                f"{exc.read().decode('utf-8')}"
+                self.failure_summary(
+                    "POST",
+                    "/api/admin/images/upload",
+                    200,
+                    exc.code,
+                    content,
+                )
             ) from exc
 
 
@@ -1010,6 +1361,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--password")
     parser.add_argument("--env-file", type=Path)
     parser.add_argument("--env-key", default="INIT_ADMIN_PASS")
+    parser.add_argument(
+        "--include-ai",
+        action="store_true",
+        help="include the nine admin AI endpoints and report 40/40",
+    )
     return parser.parse_args()
 
 
@@ -1027,7 +1383,12 @@ def main() -> int:
         username = read_env_value(env_path, "INIT_ADMIN_USER")
     username = username or "admin"
     try:
-        Smoke(args.base_url, username, password).run()
+        Smoke(
+            args.base_url,
+            username,
+            password,
+            include_ai=args.include_ai,
+        ).run()
     except SmokeFailure as exc:
         print(f"API smoke failed: {exc}")
         return 1

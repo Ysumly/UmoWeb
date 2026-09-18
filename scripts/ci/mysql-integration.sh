@@ -211,7 +211,8 @@ fi
 if ! "$python_bin" scripts/api-smoke.py \
   --base-url "http://127.0.0.1:8080" \
   --username "$INIT_ADMIN_USER" \
-  --password "$INIT_ADMIN_PASS"; then
+  --password "$INIT_ADMIN_PASS" \
+  --include-ai; then
   echo "API smoke failed. Backend log:" >&2
   cat "$backend_log" >&2
   exit 1
@@ -232,4 +233,4 @@ if [[ "$image_files" -ne 0 ]]; then
   exit 1
 fi
 
-echo "MySQL integration passed with schema, seed, migrations, and 31/31 API smoke."
+echo "MySQL integration passed with schema, seed, migrations, and 40/40 API smoke."
