@@ -70,6 +70,49 @@ assert payload["usage"]["input_tokens"] == 4, payload["usage"]
 assert payload["usage"]["output_tokens"] == 2, payload["usage"]
 PY
 
+"$python_bin" - "$port" <<'PY'
+import http.client
+import json
+import sys
+
+body = json.dumps(
+    {
+        "model": "fake-model",
+        "messages": [
+            {"role": "system", "content": "系统"},
+            {"role": "user", "content": "正文"},
+        ],
+        "stream": False,
+    },
+    ensure_ascii=False,
+).encode("utf-8")
+
+connection = http.client.HTTPConnection("127.0.0.1", int(sys.argv[1]), timeout=5)
+connection.request(
+    "POST",
+    "/chat/completions",
+    body=[body],
+    headers={
+        "Content-Type": "application/json",
+        "Transfer-Encoding": "chunked",
+    },
+    encode_chunked=True,
+)
+response = connection.getresponse()
+payload = json.loads(response.read().decode("utf-8"))
+connection.close()
+
+assert response.status == 200, (response.status, payload)
+choice = payload["choices"][0]
+assert choice["message"]["content"] == "正文", choice["message"]["content"]
+assert choice["finish_reason"] == "stop", choice["finish_reason"]
+assert payload["usage"]["input_tokens"] == 4, payload["usage"]
+assert payload["usage"]["output_tokens"] == 2, payload["usage"]
+assert payload["usage"]["prompt_tokens"] == 4, payload["usage"]
+assert payload["usage"]["completion_tokens"] == 2, payload["usage"]
+assert payload["usage"]["total_tokens"] == 6, payload["usage"]
+PY
+
 assert_invalid_json_body() {
     local label="$1"
     local body="$2"

@@ -31,14 +31,21 @@ class FakeOpenAiHandler(BaseHTTPRequestHandler):
             )
             return
 
-        content_length = self.headers.get("Content-Length", "0")
-        try:
-            length = int(content_length)
-        except ValueError:
-            self._send_invalid_json()
-            return
-
-        raw_body = self.rfile.read(length)
+        transfer_encoding = self.headers.get("Transfer-Encoding", "")
+        if transfer_encoding.strip().lower() == "chunked":
+            try:
+                raw_body = self._read_chunked_body()
+            except ValueError:
+                self._send_invalid_json()
+                return
+        else:
+            content_length = self.headers.get("Content-Length", "0")
+            try:
+                length = int(content_length)
+            except ValueError:
+                self._send_invalid_json()
+                return
+            raw_body = self.rfile.read(length)
         try:
             request: dict[str, Any] = json.loads(raw_body.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
@@ -121,6 +128,34 @@ class FakeOpenAiHandler(BaseHTTPRequestHandler):
                 }
             },
         )
+
+    def _read_chunked_body(self) -> bytes:
+        chunks: list[bytes] = []
+        while True:
+            size_line = self.rfile.readline()
+            if not size_line:
+                raise ValueError("unexpected end of chunk size")
+            size_token = size_line.split(b";", 1)[0].strip()
+            try:
+                chunk_size = int(size_token, 16)
+            except ValueError as exc:
+                raise ValueError("invalid chunk size") from exc
+            if chunk_size < 0:
+                raise ValueError("negative chunk size")
+            if chunk_size == 0:
+                while True:
+                    trailer = self.rfile.readline()
+                    if not trailer:
+                        raise ValueError("unexpected end of chunk trailer")
+                    if trailer in (b"\r\n", b"\n"):
+                        return b"".join(chunks)
+
+            chunk = self.rfile.read(chunk_size)
+            if len(chunk) != chunk_size:
+                raise ValueError("unexpected end of chunk data")
+            if self.rfile.read(2) != b"\r\n":
+                raise ValueError("invalid chunk terminator")
+            chunks.append(chunk)
 
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
