@@ -8,9 +8,15 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  allowRemoteImages: {
+    type: Boolean,
+    default: true,
+  },
 })
 
-const html = computed(() => renderMarkdown(props.source))
+const html = computed(() => renderMarkdown(props.source, {
+  allowRemoteImages: props.allowRemoteImages,
+}))
 </script>
 
 <template>

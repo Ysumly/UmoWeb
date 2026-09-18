@@ -167,6 +167,12 @@ test('AI 转换抽屉在能力关闭时完全隐藏且不发送转换请求', as
 })
 
 test('AI 转换抽屉带入正文、转换、编辑和复制时不修改文章正文', async ({ page, apiMock }) => {
+  const externalRequests = []
+  page.on('request', (request) => {
+    if (request.url().includes('tracker.example')) {
+      externalRequests.push(request.url())
+    }
+  })
   await page.addInitScript(() => {
     window.__copiedAiResult = ''
     window.__clipboardShouldFail = false
@@ -221,6 +227,13 @@ test('AI 转换抽屉带入正文、转换、编辑和复制时不修改文章�
   await dialog.getByRole('button', { name: '复制结果' }).click()
   await expect(dialog.getByRole('status')).toContainText('已复制')
   expect(await page.evaluate(() => window.__copyFallbackUsed)).toBe(true)
+
+  await dialog.getByLabel('AI 转换结果').fill(
+    '![远程图片](https://tracker.example/pixel.png)',
+  )
+  await expect(dialog.locator('.admin-ai-drawer__preview')).toContainText('远程图片')
+  expect(await dialog.locator('.admin-ai-drawer__preview img').count()).toBe(0)
+  expect(externalRequests).toEqual([])
 })
 
 test('AI 转换抽屉阻止空输入和超过能力上限的正文', async ({ page, apiMock }) => {
@@ -313,6 +326,11 @@ test('AI 转换抽屉支持浮动恢复、本地恢复和焦点返回', async ({
   await dialog.getByRole('button', { name: '开始转换' }).click()
   await expect(dialog.getByLabel('AI 转换结果')).toHaveValue('转换结果：需要恢复的正文')
 
+  const drawerBody = dialog.locator('.admin-ai-drawer__body')
+  await drawerBody.evaluate((element) => {
+    element.scrollTop = Math.min(120, element.scrollHeight - element.clientHeight)
+  })
+  const scrollTop = await drawerBody.evaluate((element) => element.scrollTop)
   await dialog.getByRole('button', { name: '缩成小窗' }).click()
   await expect(dialog).toBeHidden()
   const restoreButton = page.getByRole('button', { name: '恢复 AI 转换' })
@@ -321,6 +339,7 @@ test('AI 转换抽屉支持浮动恢复、本地恢复和焦点返回', async ({
   dialog = page.getByRole('dialog', { name: 'AI 转换' })
   await expect(dialog.getByLabel('AI 源草稿')).toHaveValue('需要恢复的正文')
   await expect(dialog.getByLabel('AI 转换结果')).toHaveValue('转换结果：需要恢复的正文')
+  await expect(dialog.locator('.admin-ai-drawer__body')).toHaveJSProperty('scrollTop', scrollTop)
 
   await dialog.getByRole('button', { name: '关闭 AI 转换' }).click()
   await expect(dialog).toBeHidden()
@@ -332,6 +351,67 @@ test('AI 转换抽屉支持浮动恢复、本地恢复和焦点返回', async ({
   dialog = page.getByRole('dialog', { name: 'AI 转换' })
   await expect(dialog.getByLabel('AI 源草稿')).toHaveValue('需要恢复的正文')
   await expect(dialog.getByLabel('AI 转换结果')).toHaveValue('转换结果：需要恢复的正文')
+})
+
+test('AI 转换抽屉恢复时丢弃已停用模式并阻止请求中路由离开', async ({ page, apiMock }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('umo-admin-ai-source-v1', JSON.stringify({
+      schemaVersion: 1,
+      content: '恢复的草稿',
+      updatedAt: 1,
+    }))
+    localStorage.setItem('umo-admin-ai-result-v1', JSON.stringify({
+      schemaVersion: 1,
+      modeKey: 'REMOVED_MODE',
+      modeVersion: 3,
+      originalContent: '旧结果',
+      content: '旧结果',
+      usage: null,
+      updatedAt: 1,
+    }))
+  })
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents')
+  await page.getByRole('link', { name: '新建文章' }).click()
+  await expect(page).toHaveURL(/\/secret-admin\/contents\/new$/)
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await expect(dialog.getByLabel('转换模式')).toHaveValue('STRUCTURE_CLEANUP')
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue('旧结果')
+
+  apiMock.delayNextAiTransform(5_000)
+  await dialog.getByRole('button', { name: '重新转换' }).click()
+  await expect(dialog.getByRole('button', { name: '取消请求' })).toBeVisible()
+
+  page.once('dialog', (browserDialog) => browserDialog.dismiss())
+  await page.goBack()
+  await expect(page).toHaveURL(/\/secret-admin\/contents\/new$/)
+
+  page.once('dialog', (browserDialog) => browserDialog.accept())
+  await page.goBack()
+  await expect(page).toHaveURL(/\/secret-admin\/contents$/)
+})
+
+test('AI 转换抽屉将键盘焦点限制在对话框内并支持小窗 Escape 关闭', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  const openButton = page.getByRole('button', { name: 'AI 转换' })
+  await openButton.click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  const lastButton = dialog.locator('button:not([disabled])').last()
+  await lastButton.focus()
+  await expect(lastButton).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(dialog.getByRole('button', { name: '缩成小窗' })).toBeFocused()
+
+  await dialog.getByRole('button', { name: '缩成小窗' }).click()
+  const restoreButton = page.getByRole('button', { name: '恢复 AI 转换' })
+  await restoreButton.focus()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(openButton).toBeFocused()
 })
 
 test('AI 转换抽屉在 390px 下不横向溢出且保持正文快照', async ({ page, apiMock }) => {

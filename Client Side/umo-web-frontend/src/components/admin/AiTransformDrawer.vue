@@ -19,6 +19,7 @@ import {
   getAiMaxInputChars,
   isAiResultEdited,
   parseAiStoredState,
+  resolveAiModeKey,
   serializeAiState,
   shouldConfirmResultOverwrite,
   shouldWarnBeforeClose,
@@ -40,7 +41,10 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'minimize'])
 
+const drawerRef = ref(null)
+const drawerBodyRef = ref(null)
 const sourceRef = ref(null)
+const resultRef = ref(null)
 const source = ref('')
 const sourceDirty = ref(false)
 const selectedModeKey = ref('')
@@ -52,6 +56,11 @@ const minimized = ref(false)
 
 let abortController = null
 let previousFocus = null
+let preservedScroll = {
+  body: 0,
+  source: 0,
+  result: 0,
+}
 
 const modes = computed(() => (
   Array.isArray(props.capabilities?.modes) ? props.capabilities.modes : []
@@ -92,8 +101,10 @@ function persistSource() {
       AI_SOURCE_STORAGE_KEY,
       serializeAiState(createAiSourceState(source.value)),
     )
+    return true
   } catch {
     statusMessage.value = '本地保存不可用，当前会话仍可继续编辑'
+    return false
   }
 }
 
@@ -143,9 +154,7 @@ function restoreLocalState() {
   }
   if (storedResult) {
     resultState.value = storedResult
-    if (storedResult.modeKey) {
-      selectedModeKey.value = storedResult.modeKey
-    }
+    selectedModeKey.value = resolveAiModeKey(storedResult.modeKey, modes.value)
   }
   if (storedSource || storedResult) {
     const labels = [
@@ -157,8 +166,7 @@ function restoreLocalState() {
 }
 
 function handleSourceInput() {
-  sourceDirty.value = true
-  persistSource()
+  sourceDirty.value = !persistSource()
 }
 
 function bringCurrentSource() {
@@ -172,10 +180,9 @@ function bringCurrentSource() {
   }
 
   source.value = nextSource
-  sourceDirty.value = false
   errorMessage.value = ''
   statusMessage.value = '已带入当前正文'
-  persistSource()
+  sourceDirty.value = !persistSource()
 }
 
 function mapRequestError(error) {
@@ -216,7 +223,7 @@ async function executeTransform() {
     errorMessage.value = validation.message
     return
   }
-  if (!selectedModeKey.value) {
+  if (!selectedMode.value) {
     errorMessage.value = '请选择一个可用的转换模式'
     return
   }
@@ -303,13 +310,59 @@ async function copyResult() {
 }
 
 function minimize() {
+  preservedScroll = {
+    body: drawerBodyRef.value?.scrollTop || 0,
+    source: sourceRef.value?.scrollTop || 0,
+    result: resultRef.value?.scrollTop || 0,
+  }
   minimized.value = true
   emit('minimize')
 }
 
-function restore() {
+async function restore() {
   minimized.value = false
-  nextTick(() => sourceRef.value?.focus())
+  await nextTick()
+  await new Promise((resolve) => requestAnimationFrame(resolve))
+  if (sourceRef.value) {
+    sourceRef.value.focus()
+    sourceRef.value.scrollTop = preservedScroll.source
+  }
+  if (drawerBodyRef.value) {
+    drawerBodyRef.value.scrollTop = preservedScroll.body
+  }
+  if (resultRef.value) {
+    resultRef.value.scrollTop = preservedScroll.result
+  }
+}
+
+function handleDialogKeydown(event) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    requestClose()
+    return
+  }
+  if (event.key !== 'Tab' || !drawerRef.value) {
+    return
+  }
+
+  const focusable = Array.from(drawerRef.value.querySelectorAll(
+    'button:not([disabled]), textarea:not([disabled]), select:not([disabled]), '
+      + 'a[href], [tabindex]:not([tabindex="-1"])',
+  )).filter((element) => element.getClientRects().length > 0)
+  if (!focusable.length) {
+    event.preventDefault()
+    return
+  }
+
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
 }
 
 function requestClose() {
@@ -351,6 +404,20 @@ onBeforeUnmount(() => {
   abortController?.abort()
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
+
+defineExpose({
+  shouldBlockNavigation() {
+    return shouldWarnBeforeClose({
+      sourceState: { dirty: sourceDirty.value },
+      inFlight: inFlight.value,
+    })
+  },
+  cancelActiveRequest() {
+    if (inFlight.value) {
+      abortController?.abort()
+    }
+  },
+})
 </script>
 
 <template>
@@ -360,6 +427,7 @@ onBeforeUnmount(() => {
     type="button"
     aria-label="恢复 AI 转换"
     @click="restore"
+    @keydown.esc="requestClose"
   >
     <strong>{{ selectedMode?.name || 'AI 转换' }}</strong>
     <span>{{ inFlight ? '转换中...' : '恢复 AI 转换' }}</span>
@@ -370,11 +438,12 @@ onBeforeUnmount(() => {
     class="admin-ai-drawer-layer"
   >
     <section
+      ref="drawerRef"
       class="admin-ai-drawer"
       role="dialog"
       aria-modal="true"
       aria-label="AI 转换"
-      @keydown.esc="requestClose"
+      @keydown="handleDialogKeydown"
     >
       <header class="admin-ai-drawer__header">
         <div>
@@ -388,7 +457,7 @@ onBeforeUnmount(() => {
         </div>
       </header>
 
-      <div class="admin-ai-drawer__body">
+      <div ref="drawerBodyRef" class="admin-ai-drawer__body">
         <section class="admin-ai-drawer__section">
           <header>
             <div>
@@ -402,7 +471,6 @@ onBeforeUnmount(() => {
             v-model="source"
             aria-label="AI 源草稿"
             spellcheck="false"
-            :maxlength="maxInputChars + 1"
             @input="handleSourceInput"
           />
         </section>
@@ -479,6 +547,7 @@ onBeforeUnmount(() => {
             <label>
               <span>Markdown 源码</span>
               <textarea
+                ref="resultRef"
                 v-model="resultState.content"
                 aria-label="AI 转换结果"
                 spellcheck="false"
@@ -487,7 +556,10 @@ onBeforeUnmount(() => {
             </label>
             <div class="admin-ai-drawer__preview">
               <span>只读预览</span>
-              <MarkdownArticle :source="resultContent" />
+              <MarkdownArticle
+                :source="resultContent"
+                :allow-remote-images="false"
+              />
             </div>
           </div>
           <p v-else class="admin-ai-drawer__empty">执行转换后，结果会显示在这里。</p>

@@ -239,6 +239,7 @@ function createState() {
       maxInputChars: 20_000,
       transformDelayMs: 0,
       nextTransformError: null,
+      nextTransformResponse: null,
     },
     categories: [
       { id: 1, name: '技术笔记', slug: 'notes', type: 'NOTE', parentId: null, sortOrder: 1 },
@@ -658,7 +659,12 @@ async function handleAdminApi(route, state, pathname, searchParams) {
     if (!mode) {
       return error(route, 404, `AI mode not found: ${payload.modeKey}`)
     }
-    const content = `转换结果：${payload.content}`
+    if (Array.from(payload.content || '').length > state.aiRuntime.maxInputChars) {
+      return error(route, 400, `正文不能超过 ${state.aiRuntime.maxInputChars} 字符`)
+    }
+    const content = state.aiRuntime.nextTransformResponse?.content
+      || `转换结果：${payload.content}`
+    state.aiRuntime.nextTransformResponse = null
     return json(route, {
       requestId: 'e2e-ai-request',
       modeKey: mode.modeKey,
@@ -1092,6 +1098,9 @@ export const test = base.extend({
       },
       failNextAiTransform(status, message) {
         state.aiRuntime.nextTransformError = { status, message }
+      },
+      setNextAiTransformContent(content) {
+        state.aiRuntime.nextTransformResponse = { content }
       },
     }
 

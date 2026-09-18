@@ -11,6 +11,7 @@ import {
   getAiMaxInputChars,
   isAiResultEdited,
   parseAiStoredState,
+  resolveAiModeKey,
   serializeAiState,
   shouldConfirmResultOverwrite,
   shouldWarnBeforeClose,
@@ -41,12 +42,24 @@ test('validates empty and oversized AI source content', () => {
     valid: true,
     message: '',
   })
+  assert.equal(validateAiSource('🙂'.repeat(20_000), 20_000).valid, true)
 })
 
 test('uses the capability limit when it is a positive integer', () => {
   assert.equal(getAiMaxInputChars({ maxInputChars: 12_000 }), 12_000)
   assert.equal(getAiMaxInputChars({ maxInputChars: 0 }), AI_MAX_INPUT_CHARS)
   assert.equal(getAiMaxInputChars(null), AI_MAX_INPUT_CHARS)
+})
+
+test('restores a mode only when it is still enabled', () => {
+  const modes = [
+    { modeKey: 'STRUCTURE_CLEANUP' },
+    { modeKey: 'TRANSLATION' },
+  ]
+
+  assert.equal(resolveAiModeKey('TRANSLATION', modes), 'TRANSLATION')
+  assert.equal(resolveAiModeKey('REMOVED_MODE', modes), 'STRUCTURE_CLEANUP')
+  assert.equal(resolveAiModeKey('', []), '')
 })
 
 test('creates serializable versioned source and result states', () => {

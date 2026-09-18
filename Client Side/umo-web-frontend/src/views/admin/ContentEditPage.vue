@@ -58,6 +58,7 @@ const previewRef = ref(null)
 const fileInputRef = ref(null)
 const markdownFileInputRef = ref(null)
 const aiOpenButtonRef = ref(null)
+const aiDrawerRef = ref(null)
 const initialSnapshot = ref('')
 const pendingSelection = ref(null)
 const categoryPage = ref(1)
@@ -399,10 +400,28 @@ function handleBeforeUnload(event) {
 }
 
 onBeforeRouteLeave(() => {
-  if (!dirty.value || saving.value) {
+  if (saving.value) {
     return true
   }
-  return window.confirm('当前修改尚未保存，确定离开吗？')
+
+  const articleDirty = dirty.value
+  const aiDrawerBlocked = aiDrawerRef.value?.shouldBlockNavigation() === true
+  if (!articleDirty && !aiDrawerBlocked) {
+    return true
+  }
+
+  const message = articleDirty && aiDrawerBlocked
+    ? '当前文章修改和 AI 转换状态尚未处理，确定离开吗？'
+    : articleDirty
+      ? '当前修改尚未保存，确定离开吗？'
+      : 'AI 转换正在进行或草稿尚未保存，确定离开吗？'
+  if (!window.confirm(message)) {
+    return false
+  }
+  if (aiDrawerBlocked) {
+    aiDrawerRef.value?.cancelActiveRequest()
+  }
+  return true
 })
 
 onMounted(() => {
@@ -775,6 +794,7 @@ onBeforeUnmount(() => {
 
       <AiTransformDrawer
         v-if="aiAvailable"
+        ref="aiDrawerRef"
         :open="aiDrawerOpen"
         :current-source="form.body || ''"
         :capabilities="aiCapabilities"

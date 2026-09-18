@@ -117,6 +117,27 @@ class AiTransformServiceImplTest {
     }
 
     @Test
+    void acceptsInputAtCodePointLimitWithSupplementaryCharacters() {
+        when(modeCatalogService.findByKey("MODE"))
+                .thenReturn(Optional.of(mode(true)));
+        when(requestGuard.acquire()).thenReturn(lease);
+        when(provider.transform(any(AiProviderRequest.class)))
+                .thenReturn(new AiProviderResult(
+                        "RESULT",
+                        "stop",
+                        1,
+                        1,
+                        2,
+                        "upstream-1"));
+
+        var result = service.transform(
+                new AiTransformRequest("MODE", "🙂".repeat(20_000)));
+
+        assertThat(result.content()).isEqualTo("RESULT");
+        verify(provider).transform(any(AiProviderRequest.class));
+    }
+
+    @Test
     void disabledRuntimeReturnsConflict() {
         properties.setEnabled(false);
 

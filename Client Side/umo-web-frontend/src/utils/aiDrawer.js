@@ -13,6 +13,14 @@ export function getAiMaxInputChars(capabilities) {
   return Number.isInteger(value) && value > 0 ? value : AI_MAX_INPUT_CHARS
 }
 
+export function resolveAiModeKey(preferredModeKey, modes = []) {
+  const available = Array.isArray(modes) ? modes : []
+  if (available.some((mode) => mode.modeKey === preferredModeKey)) {
+    return preferredModeKey
+  }
+  return available[0]?.modeKey || ''
+}
+
 export function validateAiSource(value, maxInputChars = AI_MAX_INPUT_CHARS) {
   const content = String(value ?? '')
   if (!content.trim()) {

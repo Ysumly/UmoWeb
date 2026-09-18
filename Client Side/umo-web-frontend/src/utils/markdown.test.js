@@ -42,6 +42,17 @@ test('escapes image alt text before writing an HTML attribute', () => {
   assert.match(html, /alt="x&quot; onerror=&quot;alert\(1\)&quot;"/)
 })
 
+test('can suppress remote images for untrusted previews', () => {
+  const html = renderMarkdown(
+    '![远程](https://tracker.example/pixel.png)\n\n![本地](/images/local.png)',
+    { allowRemoteImages: false },
+  )
+
+  assert.doesNotMatch(html, /tracker\.example/)
+  assert.match(html, /远程/)
+  assert.match(html, /<img src="\/images\/local\.png"/)
+})
+
 test('builds an outline from later H1, H2, and H3 headings', () => {
   const source = [
     '# 文档标题',
