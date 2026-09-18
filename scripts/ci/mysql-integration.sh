@@ -57,6 +57,12 @@ mysql_client < "$repo_root/docs/design/migrations/20260913_content_search.sql"
 mysql_client < "$repo_root/docs/design/migrations/20260915_content_schedule.sql"
 mysql_client < "$repo_root/docs/design/migrations/20260915_content_schedule.sql"
 
+# Simulate an existing pre-AI database, then prove the migration creates and seeds
+# both tables twice without duplicating modes or versions.
+mysql_client -e "SET FOREIGN_KEY_CHECKS = 0; DROP TABLE IF EXISTS umo_blog.ai_transform_mode_versions; DROP TABLE IF EXISTS umo_blog.ai_transform_modes; SET FOREIGN_KEY_CHECKS = 1;"
+mysql_client < "$repo_root/docs/design/migrations/20260918_admin_ai_modes.sql"
+mysql_client < "$repo_root/docs/design/migrations/20260918_admin_ai_modes.sql"
+
 assert_value "database character set" "utf8mb4" \
   "SELECT DEFAULT_CHARACTER_SET_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'umo_blog'"
 assert_value "database collation" "utf8mb4_unicode_ci" \
@@ -65,7 +71,7 @@ assert_value "token_version column" "1" \
   "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'umo_blog' AND TABLE_NAME = 'users' AND COLUMN_NAME = 'token_version'"
 assert_value "migration indexes" "3" \
   "SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'umo_blog' AND INDEX_NAME IN ('idx_published_at', 'idx_content_category_category_id', 'idx_content_tag_tag_id')"
-assert_value "migration foreign keys" "6" \
+assert_value "migration foreign keys" "7" \
   "SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'umo_blog' AND CONSTRAINT_TYPE = 'FOREIGN KEY'"
 assert_value "seed categories" "10" \
   "SELECT COUNT(*) FROM umo_blog.categories"
@@ -89,6 +95,12 @@ assert_value "scheduled_at column" "1" \
   "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'umo_blog' AND TABLE_NAME = 'contents' AND COLUMN_NAME = 'scheduled_at'"
 assert_value "schedule status index" "1" \
   "SELECT COUNT(DISTINCT INDEX_NAME) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'umo_blog' AND TABLE_NAME = 'contents' AND INDEX_NAME = 'idx_status_scheduled_at'"
+assert_value "ai mode rows" "5" \
+  "SELECT COUNT(*) FROM umo_blog.ai_transform_modes"
+assert_value "ai mode version rows" "5" \
+  "SELECT COUNT(*) FROM umo_blog.ai_transform_mode_versions WHERE version_no = 1"
+assert_value "disabled ai modes" "5" \
+  "SELECT COUNT(*) FROM umo_blog.ai_transform_modes WHERE enabled = 0"
 assert_value "orphan relations after migration" "0" \
   "SELECT (SELECT COUNT(*) FROM umo_blog.content_category cc LEFT JOIN umo_blog.contents c ON c.id = cc.content_id LEFT JOIN umo_blog.categories category ON category.id = cc.category_id WHERE c.id IS NULL OR category.id IS NULL) + (SELECT COUNT(*) FROM umo_blog.content_tag ct LEFT JOIN umo_blog.contents c ON c.id = ct.content_id LEFT JOIN umo_blog.tags tag ON tag.id = ct.tag_id WHERE c.id IS NULL OR tag.id IS NULL) + (SELECT COUNT(*) FROM umo_blog.categories child LEFT JOIN umo_blog.categories parent ON parent.id = child.parent_id WHERE child.parent_id IS NOT NULL AND parent.id IS NULL)"
 
@@ -101,7 +113,7 @@ export DB_PASS="$mysql_password"
 export APP_STORAGE_PATH="$storage_dir"
 export MYSQL_INTEGRATION=true
 "$maven_bin" -B \
-  -Dtest=ContentCategoryFilterIntegrationTest,ImageManagementIntegrationTest,ContentSearchIntegrationTest,RelatedContentIntegrationTest,ScheduledContentIntegrationTest \
+  -Dtest=ContentCategoryFilterIntegrationTest,ImageManagementIntegrationTest,ContentSearchIntegrationTest,RelatedContentIntegrationTest,ScheduledContentIntegrationTest,AiModeCatalogIntegrationTest \
   test
 "$maven_bin" -B -DskipTests package
 

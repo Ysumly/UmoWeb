@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -41,6 +42,8 @@ class BoundaryTest {
     private final ImageService imageService = mock(ImageService.class);
     private final ImageIntegrityService imageIntegrityService =
             mock(ImageIntegrityService.class);
+    private final AiModeCatalogService aiModeCatalogService =
+            mock(AiModeCatalogService.class);
 
     private final MockMvc mvc = MockMvcBuilders
             .standaloneSetup(
@@ -53,7 +56,8 @@ class BoundaryTest {
                     new CategoryManageController(categoryManageService),
                     new TagManageController(tagManageService),
                     new ImageController(imageService, imageIntegrityService),
-                    new OptionController(siteOptionService)
+                    new OptionController(siteOptionService),
+                    new AiModeCatalogController(aiModeCatalogService)
             )
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();
@@ -429,5 +433,56 @@ class BoundaryTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value(500))
                 .andExpect(jsonPath("$.message").value("图片一致性检查失败"));
+    }
+
+    @Test
+    @DisplayName("34. AI 模式: 空字段 → 400")
+    void aiModeCreateMissingFields() throws Exception {
+        mvc.perform(post("/api/admin/ai/modes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "modeKey": "",
+                                  "name": "",
+                                  "systemPrompt": "",
+                                  "validationProfile": null
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    @DisplayName("35. AI 模式: ID 不存在 → 404")
+    void aiModeNotFound() throws Exception {
+        when(aiModeCatalogService.listVersions(999L))
+                .thenThrow(new NotFoundException("AI mode not found: id=999"));
+
+        mvc.perform(get("/api/admin/ai/modes/999/versions"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(404));
+    }
+
+    @Test
+    @DisplayName("36. AI 模式: 版本过期 → 409")
+    void aiModeStaleVersion() throws Exception {
+        when(aiModeCatalogService.update(anyLong(), any()))
+                .thenThrow(new BusinessException(409, "模式已在其他窗口更新，请重新加载"));
+
+        mvc.perform(put("/api/admin/ai/modes/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "模式",
+                                  "description": "",
+                                  "systemPrompt": "prompt",
+                                  "validationProfile": "NONE",
+                                  "enabled": false,
+                                  "sortOrder": 0,
+                                  "expectedVersion": 1
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(409));
     }
 }

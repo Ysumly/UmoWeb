@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ysumly.umowebbackend.mapper.AiTransformModeVersionMapper">
+
+    <sql id="baseColumns">
+        id, mode_id, version_no, system_prompt, validation_profile, created_at
+    </sql>
+
+    <select id="findVersion" resultType="AiTransformModeVersion">
+        SELECT <include refid="baseColumns"/>
+        FROM ai_transform_mode_versions
+        WHERE mode_id = #{modeId}
+          AND version_no = #{versionNo}
+    </select>
+
+    <select id="findCurrentVersion" resultType="AiTransformModeVersion">
+        SELECT v.id, v.mode_id, v.version_no, v.system_prompt,
+               v.validation_profile, v.created_at
+        FROM ai_transform_mode_versions v
+        INNER JOIN ai_transform_modes m
+            ON m.id = v.mode_id
+           AND m.current_version = v.version_no
+        WHERE v.mode_id = #{modeId}
+    </select>
+
+    <select id="findVersions" resultType="AiTransformModeVersion">
+        SELECT <include refid="baseColumns"/>
+        FROM ai_transform_mode_versions
+        WHERE mode_id = #{modeId}
+        ORDER BY version_no DESC
+    </select>
+
+    <insert id="insertVersion" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_transform_mode_versions
+            (mode_id, version_no, system_prompt, validation_profile)
+        VALUES
+            (#{modeId}, #{versionNo}, #{systemPrompt}, #{validationProfile})
+    </insert>
+
+    <delete id="deleteVersionsBefore">
+        DELETE FROM ai_transform_mode_versions
+        WHERE mode_id = #{modeId}
+          AND version_no &lt; #{minimumVersionNo}
+    </delete>
+
+</mapper>

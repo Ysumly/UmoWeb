@@ -154,7 +154,39 @@ CREATE TABLE content_search (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------
--- 10. site_options — 站点配置 KV
+-- 10. ai_transform_modes — AI 转换模式
+-- -----------------------------------------------------------
+CREATE TABLE ai_transform_modes (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    mode_key        VARCHAR(64)  NOT NULL UNIQUE,
+    name            VARCHAR(100) NOT NULL,
+    description     VARCHAR(500) NOT NULL DEFAULT '',
+    enabled         TINYINT(1)   NOT NULL DEFAULT 0,
+    sort_order      INT          NOT NULL DEFAULT 0,
+    current_version INT          NOT NULL,
+    created_at      DATETIME     NOT NULL DEFAULT NOW(),
+    updated_at      DATETIME     NOT NULL DEFAULT NOW() ON UPDATE NOW(),
+    INDEX idx_ai_transform_modes_enabled_sort (enabled, sort_order, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------
+-- 11. ai_transform_mode_versions — AI 转换模式提示词版本
+-- -----------------------------------------------------------
+CREATE TABLE ai_transform_mode_versions (
+    id                 BIGINT AUTO_INCREMENT PRIMARY KEY,
+    mode_id            BIGINT       NOT NULL,
+    version_no         INT          NOT NULL,
+    system_prompt      MEDIUMTEXT   NOT NULL,
+    validation_profile VARCHAR(32)  NOT NULL,
+    created_at         DATETIME     NOT NULL DEFAULT NOW(),
+    UNIQUE KEY uk_ai_mode_version (mode_id, version_no),
+    CONSTRAINT fk_ai_mode_version_mode
+        FOREIGN KEY (mode_id) REFERENCES ai_transform_modes(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------
+-- 12. site_options — 站点配置 KV
 -- -----------------------------------------------------------
 CREATE TABLE site_options (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,

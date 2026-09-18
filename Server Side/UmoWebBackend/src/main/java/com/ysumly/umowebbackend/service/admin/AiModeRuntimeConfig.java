@@ -1,0 +1,13 @@
+package com.ysumly.umowebbackend.service.admin;
+
+import com.ysumly.umowebbackend.common.constant.AiValidationProfile;
+
+public record AiModeRuntimeConfig(
+        Long modeId,
+        String modeKey,
+        String name,
+        int versionNo,
+        String systemPrompt,
+        AiValidationProfile validationProfile
+) {
+}

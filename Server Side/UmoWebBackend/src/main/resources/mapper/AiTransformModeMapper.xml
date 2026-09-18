@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ysumly.umowebbackend.mapper.AiTransformModeMapper">
+
+    <sql id="baseColumns">
+        id, mode_key, name, description, enabled, sort_order,
+        current_version, created_at, updated_at
+    </sql>
+
+    <select id="findAll" resultType="AiTransformMode">
+        SELECT <include refid="baseColumns"/>
+        FROM ai_transform_modes
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="findById" resultType="AiTransformMode">
+        SELECT <include refid="baseColumns"/>
+        FROM ai_transform_modes
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByKey" resultType="AiTransformMode">
+        SELECT <include refid="baseColumns"/>
+        FROM ai_transform_modes
+        WHERE mode_key = #{modeKey}
+    </select>
+
+    <select id="findEnabledByKey" resultType="AiTransformMode">
+        SELECT <include refid="baseColumns"/>
+        FROM ai_transform_modes
+        WHERE mode_key = #{modeKey}
+          AND enabled = 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_transform_modes
+            (mode_key, name, description, enabled, sort_order, current_version)
+        VALUES
+            (#{modeKey}, #{name}, #{description}, #{enabled}, #{sortOrder}, #{currentVersion})
+    </insert>
+
+    <update id="updateMetadata">
+        UPDATE ai_transform_modes
+        SET name = #{name},
+            description = #{description},
+            enabled = #{enabled},
+            sort_order = #{sortOrder}
+        WHERE id = #{id}
+          AND current_version = #{currentVersion}
+    </update>
+
+    <update id="updateCurrentVersion">
+        UPDATE ai_transform_modes
+        SET current_version = #{newVersion}
+        WHERE id = #{id}
+          AND current_version = #{expectedVersion}
+    </update>
+
+</mapper>
