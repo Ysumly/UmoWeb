@@ -1,6 +1,6 @@
 # UmoWeb 代码基线记忆
 
-> 基线日期: 2026-09-17
+> 基线日期: 2026-09-18
 > 范围: 当前工作区中的前端、后端、数据库脚本和文档
 > 原则: 代码行为优先；计划能力与已实现能力必须分开记录
 
@@ -74,6 +74,9 @@ UmoWeb/
 | 编辑器 | 原生 textarea；未安装 CodeMirror/Monaco |
 | 浏览器测试 | Playwright Test 1.63；Windows Chrome channel、Linux Chromium，Mock API |
 | 容器构建 | Node 24.12 Alpine、Maven 3.9.11/JDK 17、JRE 17、Nginx 1.29 |
+
+- 管理端 AI 尚未实现；已拆分计划见
+  `docs/superpowers/plans/2026-09-18-admin-ai-index.md`。
 
 ### 2.3 持续集成
 
