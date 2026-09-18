@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS ai_transform_modes (
     sort_order      INT          NOT NULL DEFAULT 0,
     current_version INT          NOT NULL,
     created_at      DATETIME     NOT NULL DEFAULT NOW(),
-    updated_at      DATETIME     NOT NULL DEFAULT NOW() ON UPDATE NOW(),
+    updated_at      DATETIME(6)  NOT NULL DEFAULT NOW(6) ON UPDATE NOW(6),
     INDEX idx_ai_transform_modes_enabled_sort (enabled, sort_order, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

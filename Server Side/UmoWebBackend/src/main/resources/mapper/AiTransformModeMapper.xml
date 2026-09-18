@@ -45,9 +45,11 @@
         SET name = #{name},
             description = #{description},
             enabled = #{enabled},
-            sort_order = #{sortOrder}
+            sort_order = #{sortOrder},
+            updated_at = NOW(6)
         WHERE id = #{id}
           AND current_version = #{currentVersion}
+          AND updated_at = #{updatedAt}
     </update>
 
     <update id="updateCurrentVersion">

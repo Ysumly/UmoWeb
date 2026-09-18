@@ -114,7 +114,7 @@ public class AiModeCatalogServiceImpl implements AiModeCatalogService {
         }
 
         if (!promptChanged) {
-            return toSettingsVO(mode, current);
+            return getById(id);
         }
 
         int newVersion = request.expectedVersion() + 1;

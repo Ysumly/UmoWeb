@@ -75,6 +75,20 @@ class AiModeCatalogIntegrationTest {
     }
 
     @Test
+    void metadataUpdateTokenAllowsOnlyOneWriterWithoutAdvancingPromptVersion() {
+        AiTransformMode mode = insertMode(false);
+        AiTransformMode first = modeMapper.findById(mode.getId());
+        AiTransformMode second = modeMapper.findById(mode.getId());
+        first.setName("First metadata");
+        second.setName("Second metadata");
+
+        assertThat(modeMapper.updateMetadata(first)).isEqualTo(1);
+        assertThat(modeMapper.updateMetadata(second)).isZero();
+        assertThat(modeMapper.findById(mode.getId()).getName()).isEqualTo("First metadata");
+        assertThat(modeMapper.findById(mode.getId()).getCurrentVersion()).isEqualTo(1);
+    }
+
+    @Test
     void deletingModeCascadesPromptVersions() {
         AiTransformMode mode = insertMode(false);
 

@@ -19,7 +19,7 @@
 
 | 验证 | 结果 |
 |---|---|
-| 后端全量测试 | `mvn test`，194 个测试，0 失败，0 错误，17 跳过 |
+| 后端全量测试 | `mvn test`，195 个测试，0 失败，0 错误，18 跳过 |
 | 后端打包 | `mvn -DskipTests package` 通过 |
 | 默认提示词源码隔离 | Java/Vue 源码无输出 |
 | 敏感信息扫描 | `bash scripts/ci/scan-sensitive-info.sh` 通过 |

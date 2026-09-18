@@ -125,10 +125,14 @@ class AiModeCatalogServiceImplTest {
     @Test
     void metadataOnlyUpdateDoesNotCreateVersion() {
         AiTransformMode mode = mode(1L, "CUSTOM_MODE", false, 2);
+        mode.setUpdatedAt(LocalDateTime.of(2026, 9, 18, 12, 0));
         when(modeMapper.findById(1L)).thenReturn(mode);
         when(versionMapper.findCurrentVersion(1L)).thenReturn(version(
                 1L, 2, "same-prompt", AiValidationProfile.NONE));
-        when(modeMapper.updateMetadata(any(AiTransformMode.class))).thenReturn(1);
+        when(modeMapper.updateMetadata(any(AiTransformMode.class))).thenAnswer(invocation -> {
+            mode.setUpdatedAt(LocalDateTime.of(2026, 9, 18, 12, 1));
+            return 1;
+        });
 
         var result = service.update(1L, new AiModeUpdateRequest(
                 "新名称",
@@ -142,6 +146,7 @@ class AiModeCatalogServiceImplTest {
         assertThat(result.currentVersion()).isEqualTo(2);
         assertThat(result.enabled()).isTrue();
         assertThat(result.sortOrder()).isEqualTo(4);
+        assertThat(result.updatedAt()).isEqualTo(LocalDateTime.of(2026, 9, 18, 12, 1));
         verify(versionMapper, never()).insertVersion(any(AiTransformModeVersion.class));
         verify(modeMapper, never()).updateCurrentVersion(anyLong(), anyInt(), anyInt());
     }

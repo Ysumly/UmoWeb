@@ -460,7 +460,9 @@ ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)
 
 ### 6.9 AI 模式版本
 
-模式元数据更新也使用 `current_version = expectedVersion` 条件，避免同版本并发覆盖。
+模式元数据更新使用 `current_version = expectedVersion` 和数据库加载时的
+`updated_at` 作为 CAS 条件。元数据更新不会增加提示词版本，但首次写入会更新微秒级
+`updated_at`，因此同一快照上的并发元数据写入只有第一个成功，第二个返回 409。
 提示词或校验策略变化时：
 
 ```sql
