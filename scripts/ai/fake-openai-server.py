@@ -45,6 +45,10 @@ class FakeOpenAiHandler(BaseHTTPRequestHandler):
             self._send_invalid_json()
             return
 
+        if not isinstance(request, dict):
+            self._send_invalid_json()
+            return
+
         messages = request.get("messages")
         if not isinstance(messages, list):
             self._send_invalid_json()

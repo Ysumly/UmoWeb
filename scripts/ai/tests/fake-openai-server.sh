@@ -8,6 +8,7 @@ curl_bin="${CURL_BIN:-curl}"
 port="${FAKE_OPENAI_PORT:-19090}"
 log_file="$(mktemp)"
 request_file="$(mktemp)"
+response_file="$(mktemp)"
 
 server_pid=""
 
@@ -17,6 +18,7 @@ cleanup() {
         wait "$server_pid" 2>/dev/null || true
     fi
     rm -f "$request_file"
+    rm -f "$response_file"
     rm -f "$log_file"
 }
 trap cleanup EXIT
@@ -68,17 +70,39 @@ assert payload["usage"]["input_tokens"] == 4, payload["usage"]
 assert payload["usage"]["output_tokens"] == 2, payload["usage"]
 PY
 
-invalid_status="$(
-    "$curl_bin" --noproxy '*' --silent --max-time 5 \
-        --output /dev/null --write-out '%{http_code}' \
-        --header 'Content-Type: application/json' \
-        --data '{invalid-json' \
-        "http://127.0.0.1:$port/chat/completions"
-)"
-if [[ "$invalid_status" != "400" ]]; then
-    echo "Expected invalid JSON to return 400, got $invalid_status" >&2
-    exit 1
-fi
+assert_invalid_json_body() {
+    local label="$1"
+    local body="$2"
+    local status
+
+    status="$(
+        "$curl_bin" --noproxy '*' --silent --max-time 5 \
+            --output "$response_file" --write-out '%{http_code}' \
+            --header 'Content-Type: application/json' \
+            --data-binary "$body" \
+            "http://127.0.0.1:$port/chat/completions"
+    )" || true
+
+    if [[ "$status" != "400" ]]; then
+        echo "$label: expected HTTP 400, got ${status:-request failure}" >&2
+        exit 1
+    fi
+
+    "$python_bin" - "$response_file" "$label" <<'PY'
+import json
+import sys
+
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+label = sys.argv[2]
+error = payload.get("error")
+assert isinstance(error, dict), f"{label}: error object missing"
+assert error.get("code") == "invalid_json", error
+PY
+}
+
+assert_invalid_json_body "invalid JSON text" '{invalid-json'
+assert_invalid_json_body "JSON array" '[]'
+assert_invalid_json_body "JSON null" 'null'
 
 unknown_status="$(
     "$curl_bin" --noproxy '*' --silent --max-time 5 \
