@@ -70,11 +70,12 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 | 站点设置 | `/secret-admin/options` | 站点标题、页面 Markdown | 已接入真实 API |
 | 修改密码 | `/secret-admin/password` | 修改管理员密码 | 已接入真实 API |
 
-管理端 AI 目前属于计划能力：
+管理端 AI 已完成后端模式目录，前端能力仍属于计划：
 
 | 能力 | 状态 | 说明 |
 |---|---|---|
-| 管理端 AI 抽屉与可配置转换模式 | 计划，尚未实现 | 契约见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md` |
+| 管理端 AI 模式目录 | 后端已实现，前端设置页尚未实现 | 契约见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md` |
+| 管理端 AI 抽屉与转换运行时 | 计划，尚未实现 | 契约见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md` |
 
 ---
 

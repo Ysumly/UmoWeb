@@ -1,9 +1,10 @@
 # UmoWeb API 接口参考
 
-> 基线日期: 2026-09-16
+> 基线日期: 2026-09-18
 > 事实来源: `controller/`、`model/dto/`、`model/vo/`、`GlobalExceptionHandler`、Mapper XML
-> 接口总数: 公开端 8 个，管理端 23 个，共 31 个
-> 实测状态: 2026-09-16 新增批量文章接口；真实 MySQL 集成与公开/管理接口执行 31/31 冒烟
+> 接口总数: 公开端 8 个，管理端 29 个，共 37 个
+> 实测状态: 2026-09-18 新增 6 个 AI 模式目录接口；既有 31/31 冒烟继续作为兼容基线，
+> 六个新接口由 Controller 测试和 MySQL 门控 Mapper 测试覆盖，完整 AI HTTP 冒烟由 5.1F 扩展
 
 ---
 
@@ -30,8 +31,8 @@
 | 204 | 删除、修改密码、更新配置成功 |
 | 400 | 请求体缺失、参数校验失败、非法枚举/JSON、图片类型或文件签名不支持 |
 | 401 | 未认证、JWT 无效或过期、用户名密码错误 |
-| 404 | 内容、分类、标签不存在 |
-| 409 | 唯一键冲突、关联内容/子分类删除保护、数据关联冲突 |
+| 404 | 内容、分类、标签或 AI 模式/版本不存在 |
+| 409 | 唯一键冲突、关联内容/子分类删除保护、AI 模式版本冲突或数据关联冲突 |
 | 413 | Multipart 文件或请求超过 50MB |
 | 429 | 搜索同 IP 10 秒内重复请求，或同一用户名/IP 连续登录失败过多 |
 | 500 | 未处理异常 |
@@ -353,6 +354,111 @@ Authorization: Bearer <token>
 约束：`newPassword` 至少 6 位。修改成功后数据库 `token_version` 递增，旧 JWT 立即失效。
 
 成功返回 `204 No Content`。
+
+---
+
+## 8. 管理端 AI 模式目录
+
+六个接口均要求 `Authorization: Bearer <token>`。模式写入成功统一返回 HTTP 200；
+`modeKey` 格式为 `[A-Z][A-Z0-9_]{2,63}`，创建后不可修改。
+
+### 8.1 查询模式
+
+```http
+GET /api/admin/ai/modes
+Authorization: Bearer <token>
+```
+
+返回 `AiModeSettingsVO` 数组，按 `sortOrder ASC, id ASC` 排序。每项包含
+`id`、`modeKey`、`name`、`description`、`enabled`、`sortOrder`、`currentVersion`、
+`systemPrompt`、`validationProfile`、`createdAt` 和 `updatedAt`。
+
+### 8.2 新建模式
+
+```http
+POST /api/admin/ai/modes
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "modeKey": "CUSTOM_MODE",
+  "name": "自定义模式",
+  "description": "说明",
+  "systemPrompt": "系统提示词",
+  "validationProfile": "NONE",
+  "enabled": false,
+  "sortOrder": 0
+}
+```
+
+模式在创建时始终写入 version 1；`enabled` 和 `sortOrder` 未传时分别为 `false` 和 `0`。
+重复 `modeKey` 返回 409。
+
+### 8.3 复制模式
+
+```http
+POST /api/admin/ai/modes/{id}/copy
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "modeKey": "COPIED_MODE",
+  "name": "复制模式"
+}
+```
+
+复制当前版本的说明、系统提示词和校验策略，新模式从 version 1 开始且保持停用。
+源模式不存在返回 404，重复 `modeKey` 返回 409。
+
+### 8.4 更新模式
+
+```http
+PUT /api/admin/ai/modes/{id}
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "name": "自定义模式",
+  "description": "说明",
+  "systemPrompt": "更新后的系统提示词",
+  "validationProfile": "NONE",
+  "enabled": true,
+  "sortOrder": 1,
+  "expectedVersion": 1
+}
+```
+
+只修改名称、说明、启停或排序时不生成新版本；系统提示词或校验策略变化时生成
+`expectedVersion + 1`，并只保留最近 10 版。`expectedVersion` 与当前版本不一致返回 409。
+
+### 8.5 查询历史版本
+
+```http
+GET /api/admin/ai/modes/{id}/versions
+Authorization: Bearer <token>
+```
+
+返回按 `versionNo DESC` 排序的版本数组，每项包含 `versionNo`、`systemPrompt`、
+`validationProfile` 和 `createdAt`。模式不存在返回 404。
+
+### 8.6 回滚提示词
+
+```http
+POST /api/admin/ai/modes/{id}/rollback/{versionNo}
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "expectedVersion": 3
+}
+```
+
+回滚会复制目标历史内容生成 `expectedVersion + 1`，不改写历史记录，并返回新的
+`AiModeSettingsVO`。模式或版本不存在返回 404，版本冲突返回 409。
 
 ---
 

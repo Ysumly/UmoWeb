@@ -1,7 +1,7 @@
 # UmoWeb 接口与构建测试指南
 
-> 基线日期: 2026-09-15
-> 接口数: 公开 8 个，管理 22 个，共 30 个
+> 基线日期: 2026-09-18
+> 接口数: 公开 8 个，管理 29 个，共 37 个
 > 关键约定: 正常响应没有 `{ code, data }` 包装层
 
 ---
@@ -93,10 +93,10 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 164 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 194 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析、
-正文索引、摘要提取、图片清理和图片一致性测试。
-其中 10 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
+正文索引、摘要提取、图片清理、图片一致性和 AI 模式目录测试。
+其中 16 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
 不连接 MySQL，`UmoWebBackendApplicationTests` 仍是一条空测试。
 
 ### 2.2 数据库迁移副本 + 全接口冒烟
@@ -146,11 +146,12 @@ cd "Server Side\UmoWebBackend"
   种子行数和迁移后孤儿关系为 0。
 - 在真实库执行分类、正文搜索、相关文章和图片管理集成测试，覆盖根/子/孙内容、精确/后代模式、
   管理端草稿、空结果、稳定排序、循环拒绝、中文 ngram 查询、索引幂等、
-  相关文章权重与排除规则、调度发布、图片排序和清理队列失败记录。
+  相关文章权重与排除规则、调度发布、图片排序、清理队列失败记录，以及 AI 默认模式、
+  停用过滤、条件版本更新和级联删除。
 - 复制演示 Markdown 后连续执行两次正文回填脚本，校验索引行数等于已发布内容数，
   并验证正文全文和标题/摘要搜索。
 - 使用 Java 17 构建并启动后端，使用独立临时存储和运行时测试凭据执行 `api-smoke.py`。
-- 冒烟断言覆盖公开筛选、详情分类/标签、前后文章、相关文章、草稿/待发布隔离、密码失效、
+- 兼容冒烟仍为 31/31，断言覆盖公开筛选、详情分类/标签、前后文章、相关文章、草稿/待发布隔离、密码失效、
   批量文章操作、图片完整生命周期、图片一致性来源查询和 429。
 - 冒烟通过后校验图片记录、清理队列与临时存储文件；job 退出时销毁后端进程、测试数据和临时文件。
 
@@ -321,9 +322,11 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
 
 - `repository`：检查变更范围空白错误，运行敏感信息扫描器、发布脚本、访问聚合/保留测试和
   Nginx 六字段日志容器测试，并扫描全部已跟踪文件。
-- `backend`：使用 Temurin Java 17 执行 `mvn -B test`。
+- `backend`：使用 Temurin Java 17 执行 `mvn -B test`，覆盖 AI 模式目录 Service、Controller
+  和边界规则。
 - `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，运行分类层级与
-  图片管理 Mapper 集成测试，再启动真实后端执行 31/31 接口冒烟并校验图片记录、清理队列和文件回收。
+  图片管理及 AI 模式 Mapper 集成测试，再启动真实后端执行兼容的 31/31 接口冒烟并校验图片记录、
+  清理队列和文件回收；完整 37 接口 AI HTTP 冒烟由后续 5.1F 扩展。
 - `frontend`：使用 Node 24.12.0 执行 `npm ci`、`npm test` 和 `npm run build`。
 - `browser`：使用 Node 24.12.0 安装锁定版本 Chromium，执行 `npm run test:e2e`；
   失败时上传 `playwright-report-<attempt>` artifact。

@@ -1,8 +1,8 @@
 # 管理端 API 实现
 
-> 基线日期: 2026-09-16
+> 基线日期: 2026-09-18
 > 前缀: `/api/admin`
-> 接口数: 23，其中登录无需 JWT
+> 接口数: 29，其中登录无需 JWT
 
 ---
 
@@ -16,6 +16,7 @@
 | `OptionController` | 配置查询、配置更新 |
 | `TagManageController` | 标签列表、新建、编辑、删除 |
 | `ImageController` | 图片上传、列表、一致性检查、删除 |
+| `AiModeCatalogController` | AI 模式列表、新建、复制、编辑、版本查询、回滚 |
 
 除 `/api/admin/login` 外，所有接口都由 `AdminInterceptor` 检查 JWT。
 
@@ -353,12 +354,34 @@ PUT /api/admin/options/{key}
 
 ---
 
-## 8. 测试现状
+## 8. AI 模式目录
+
+### 8.1 模式查询与写入
+
+```http
+GET  /api/admin/ai/modes
+POST /api/admin/ai/modes
+POST /api/admin/ai/modes/{id}/copy
+PUT  /api/admin/ai/modes/{id}
+GET  /api/admin/ai/modes/{id}/versions
+POST /api/admin/ai/modes/{id}/rollback/{versionNo}
+```
+
+Controller 只做请求校验和 VO 响应，不读取数据库、不访问模型供应商、不记录提示词。
+创建和复制从 version 1 开始；复制保持停用。更新使用 `expectedVersion` 乐观锁，冲突返回 409。
+提示词或校验策略变化时创建新版本，每模式只保留最近 10 版；回滚复制历史版本为新版本。
+
+模式列表按 `sort_order ASC, id ASC` 返回。运行时 Service 只读取启用模式当前版本；
+模式或版本不存在返回 404，`modeKey` 冲突或版本过期返回 409。
+
+---
+
+## 9. 测试现状
 
 `BoundaryTest` 仍使用 Mock Service 覆盖接口边界，另有 Service/Util 单元测试覆盖真实文件、
 路径、JWT、限流、可信代理 CIDR、容器装配和批量查询行为；MySQL 8.4 环境门控测试覆盖真实
 分类层级 SQL、正文全文索引、相关文章排序、调度发布、图片来源查询和图片清理队列。
-当前后端测试共 164 个，其中 11 个由 MySQL 8.4 环境门控，默认本地跳过。
+当前后端测试共 194 个，其中 16 个由 MySQL 8.4 环境门控，默认本地跳过。
 
 `BoundaryTest` 覆盖：
 
@@ -374,6 +397,7 @@ PUT /api/admin/options/{key}
 - 有关联分类删除返回 409 的 Service 异常路径。
 - 非法 page/size/type/metadata 返回 400。
 - 公开详情返回 categories/tags 数组。
+- AI 模式空字段返回 400、模式不存在返回 404、版本过期返回 409。
 
 文件、路径、JWT、上传和 VO 组装测试使用真实临时文件或真实工具类。2026-09-13 起
 GitHub Actions 使用 MySQL 8.4 启动真实后端并执行管理端全部接口冒烟；此前

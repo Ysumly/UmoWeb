@@ -1,6 +1,6 @@
 # Data 层实现
 
-> 基线日期: 2026-09-15
+> 基线日期: 2026-09-18
 > 路径: `model/`、`mapper/`、`resources/mapper/`
 
 ---
@@ -9,11 +9,11 @@
 
 | 类别 | 数量 |
 |---|---:|
-| Entity | 6 |
-| DTO | 10 |
-| VO | 8 |
-| Mapper 接口 | 8 |
-| Mapper XML | 8 |
+| Entity | 9 |
+| DTO | 15 |
+| VO | 18 |
+| Mapper 接口 | 12 |
+| Mapper XML | 12 |
 
 ---
 
@@ -121,6 +121,36 @@ LocalDateTime updatedAt;
 待清理队列不设置指向 `images` 的外键，因为图片记录和队列任务在同一事务中写入，
 前者的删除是预期行为。
 
+### 2.8 AiTransformMode
+
+```java
+Long id;
+String modeKey;
+String name;
+String description;
+Boolean enabled;
+Integer sortOrder;
+Integer currentVersion;
+LocalDateTime createdAt;
+LocalDateTime updatedAt;
+```
+
+对应 `ai_transform_modes`。`mode_key` 创建后不可修改；`current_version` 指向当前启用的
+提示词版本。
+
+### 2.9 AiTransformModeVersion
+
+```java
+Long id;
+Long modeId;
+Integer versionNo;
+String systemPrompt;
+AiValidationProfile validationProfile;
+LocalDateTime createdAt;
+```
+
+对应 `ai_transform_mode_versions`。历史版本不可改写；删除模式时级联删除版本。
+
 ---
 
 ## 3. DTO
@@ -136,6 +166,9 @@ LocalDateTime updatedAt;
 | `TagSaveRequest` | `name`、`slug` | 必填、长度、安全 slug |
 | `OptionSaveRequest` | `value` | 必填 |
 | `PageResult<T>` | `items`、`page`、`size`、`total` | 分页包装 |
+| `AiModeCreateRequest` | `modeKey`、`name`、`description`、`systemPrompt`、`validationProfile`、`enabled`、`sortOrder` | `modeKey` 大写格式、名称/说明/提示词长度和枚举校验 |
+| `AiModeCopyRequest` | `modeKey`、`name` | `modeKey` 大写格式和名称长度校验 |
+| `AiModeUpdateRequest` | `name`、`description`、`systemPrompt`、`validationProfile`、`enabled`、`sortOrder`、`expectedVersion` | 文本长度、枚举和乐观锁版本 |
 
 `ContentQuery.getOffset()` 在合法输入下计算：
 
@@ -163,6 +196,8 @@ Controller 的 `@Valid` 会在进入 Service 前拒绝非法 page/size。
 | `ImageVO` | `id`、`url`、`originalName`、`size` |
 | `ImageManageVO` | `id`、`url`、`originalName`、`size`、`contentType`、`createdAt`、`referenced` |
 | `SiteInfoVO` | `siteTitle`、`siteSubtitle`、`aboutHtml`、`projectHtml` |
+| `AiModeSettingsVO` | `id`、`modeKey`、`name`、`description`、`enabled`、`sortOrder`、`currentVersion`、`systemPrompt`、`validationProfile`、`createdAt`、`updatedAt` |
+| `AiModeVersionVO` | `versionNo`、`systemPrompt`、`validationProfile`、`createdAt` |
 
 `metadata` 是 `Map<String, Object>`；数据库字符串解析失败时返回空 Map。
 
@@ -279,6 +314,28 @@ void upsert(Long contentId, String bodyText);
 void deleteByContentId(Long contentId);
 void deleteNotPublished();
 long count();
+```
+
+### 5.11 AiTransformModeMapper
+
+```java
+List<AiTransformMode> findAll();
+AiTransformMode findById(Long id);
+AiTransformMode findByKey(String modeKey);
+AiTransformMode findEnabledByKey(String modeKey);
+int insert(AiTransformMode mode);
+int updateMetadata(AiTransformMode mode);
+int updateCurrentVersion(Long id, int expectedVersion, int newVersion);
+```
+
+### 5.12 AiTransformModeVersionMapper
+
+```java
+AiTransformModeVersion findVersion(Long modeId, int versionNo);
+AiTransformModeVersion findCurrentVersion(Long modeId);
+List<AiTransformModeVersion> findVersions(Long modeId);
+int insertVersion(AiTransformModeVersion version);
+int deleteVersionsBefore(Long modeId, int minimumVersionNo);
 ```
 
 ---
@@ -401,6 +458,26 @@ ON DUPLICATE KEY UPDATE option_value = VALUES(option_value)
 
 可以插入数据库中尚不存在的配置 key。
 
+### 6.9 AI 模式版本
+
+模式元数据更新也使用 `current_version = expectedVersion` 条件，避免同版本并发覆盖。
+提示词或校验策略变化时：
+
+```sql
+INSERT INTO ai_transform_mode_versions
+    (mode_id, version_no, system_prompt, validation_profile)
+VALUES
+    (#{modeId}, #{newVersion}, #{systemPrompt}, #{validationProfile});
+
+UPDATE ai_transform_modes
+SET current_version = #{newVersion}
+WHERE id = #{id}
+  AND current_version = #{expectedVersion};
+```
+
+条件更新影响 0 行时返回 409 并回滚事务。新版本写入后删除
+`version_no < currentVersion - 9` 的历史记录。回滚读取历史版本并复制为新版本。
+
 ---
 
 ## 7. 关联删除
@@ -443,13 +520,16 @@ countContentsByTagId(tagId)
 - `contents.published_at` 索引。
 - `contents(status, scheduled_at)` 调度索引。
 - `categories.parent_id` 自引用外键。
+- `ai_transform_modes(mode_key)` 唯一键和 `(enabled, sort_order, id)` 索引。
+- `ai_transform_mode_versions(mode_id, version_no)` 唯一键和模式外键级联删除。
 
 其中内容外键使用 `ON DELETE CASCADE`，分类和标签外键使用 `ON DELETE RESTRICT`。
 已有数据库使用 `docs/design/migrations/20260911_integrity_security.sql` 先清理孤儿行、再补列、
 索引和外键。`users.token_version` 也由该脚本兼容添加；
 `docs/design/migrations/20260913_image_cleanup_queue.sql` 通过 `CREATE TABLE IF NOT EXISTS`
 兼容新增图片清理队列表；`docs/design/migrations/20260915_content_schedule.sql`
-兼容新增调度时间和状态索引。
+兼容新增调度时间和状态索引；`docs/design/migrations/20260918_admin_ai_modes.sql`
+以幂等方式新增 AI 模式表、五个默认停用模式和 version 1。
 
 ---
 
@@ -461,8 +541,9 @@ GitHub Actions 的 MySQL 8.4 job 另行启动真实后端并验证 Mapper SQL：
 - 没有 Entity 与 Schema 的自动一致性测试。
 - 没有 SQL 注入和分页边界测试。
 
-2026-09-16 起 CI 会从空库执行 Schema、种子数据和全部兼容迁移，再执行当前 31/31 接口冒烟；
-覆盖 Mapper 查询、分类/标签关联、详情前后文章、相关文章排序与排除、图片生命周期与清理队列；
+2026-09-18 起 CI 会从空库执行 Schema、种子数据和全部兼容迁移，再执行当前 31/31 兼容接口冒烟；
+新增 `AiModeCatalogIntegrationTest` 覆盖默认模式、停用过滤、条件版本更新和级联删除；
+既有覆盖包括 Mapper 查询、分类/标签关联、详情前后文章、相关文章排序与排除、图片生命周期与清理队列；
 2026-09-11 隔离 MySQL 5.7 副本记录继续保留。
 
 构建和测试命令见 [codebase-memory.md](../project/codebase-memory.md)。

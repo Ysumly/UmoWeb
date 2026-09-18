@@ -57,8 +57,8 @@ UmoWeb/
 | JWT | JJWT 0.12.6，默认 24 小时 |
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
-| AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter，当前无业务调用 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；164 个测试（11 个 MySQL 环境门控） |
+| AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter；已完成模式目录持久化，供应商调用尚未接入 |
+| 测试 | Spring Boot Test、Mockito、MockMvc；194 个测试（16 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -75,8 +75,8 @@ UmoWeb/
 | 浏览器测试 | Playwright Test 1.63；Windows Chrome channel、Linux Chromium，Mock API |
 | 容器构建 | Node 24.12 Alpine、Maven 3.9.11/JDK 17、JRE 17、Nginx 1.29 |
 
-- 管理端 AI 尚未实现；已拆分计划见
-  `docs/superpowers/plans/2026-09-18-admin-ai-index.md`。
+- 管理端 AI 已完成 5.1B 模式目录后端；供应商转换、设置页和文章 AI 抽屉仍待实施，
+  入口见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md`。
 
 ### 2.3 持续集成
 
@@ -184,12 +184,12 @@ com.ysumly.umowebbackend/
 
 | 层 | 数量 |
 |---|---|
-| Controller | 10（公开 4、管理 6） |
-| Service 接口/实现 | 14/14（含调度发布器和定时扫描器等内部辅助 Service） |
-| Mapper 接口/XML | 8/8 |
-| Entity | 7 |
-| DTO | 12 |
-| VO | 16 |
+| Controller | 11（公开 4、管理 7） |
+| Service 接口/实现 | 15/15（含调度发布器和定时扫描器等内部辅助 Service） |
+| Mapper 接口/XML | 12/12 |
+| Entity | 9 |
+| DTO | 15 |
+| VO | 18 |
 | Config | 12 |
 | 边界测试 | 35 |
 
@@ -244,7 +244,7 @@ HTTP 状态与返回：
 | GET | `/api/public/contents/{slug}` |
 | GET | `/api/public/contents/search` |
 
-管理端共 23 个：
+管理端共 29 个：
 
 | 方法 | 路径 |
 |---|---|
@@ -263,6 +263,12 @@ HTTP 状态与返回：
 | DELETE | `/api/admin/images/{id}` |
 | GET | `/api/admin/options` |
 | PUT | `/api/admin/options/{key}` |
+| GET | `/api/admin/ai/modes` |
+| POST | `/api/admin/ai/modes` |
+| POST | `/api/admin/ai/modes/{id}/copy` |
+| PUT | `/api/admin/ai/modes/{id}` |
+| GET | `/api/admin/ai/modes/{id}/versions` |
+| POST | `/api/admin/ai/modes/{id}/rollback/{versionNo}` |
 
 ### 4.4 查询语义
 
@@ -337,7 +343,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 
 ## 5. 数据库基线
 
-实际 DDL 定义 10 张表：
+实际 DDL 定义 12 张表：
 
 | 表 | 用途 |
 |---|---|
@@ -351,6 +357,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 | `image_cleanup_queue` | 图片文件待清理与重试队列 |
 | `content_search` | 已发布 Markdown 正文全文索引 |
 | `site_options` | 站点 KV 配置 |
+| `ai_transform_modes` | AI 转换模式元数据与当前版本 |
+| `ai_transform_mode_versions` | 不可变 AI 提示词版本 |
 
 当前 SQL 含必要索引和外键：
 
@@ -361,6 +369,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 正文索引通过 `docs/design/migrations/20260913_content_search.sql` 幂等迁移。
 - 定时发布通过 `docs/design/migrations/20260915_content_schedule.sql` 幂等新增
   `scheduled_at` 与 `(status, scheduled_at)` 索引。
+- AI 模式目录通过 `docs/design/migrations/20260918_admin_ai_modes.sql` 幂等新增两张表、
+  五个默认停用模式和 version 1。
 
 ---
 
@@ -551,6 +561,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 新增正文索引 upsert/剔除、回填容错、摘要提取、正文命中搜索、空查询契约和相关文章排序测试。
 - 新增状态转换、定时时间校验、批量原子预检、分类/标签幂等更新、归档索引剔除和
   调度条件更新/失败重试测试。
+- 新增 AI 模式创建、复制、元数据更新、提示词版本递增、10 版保留、回滚和乐观锁测试；
+  MySQL 门控测试覆盖默认模式、停用过滤、条件版本更新和级联删除。
 - 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
 - PowerShell 与 Bash 发布脚本自测已纳入 `repository` CI job，覆盖 CI 选择、manifest、归档校验、
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
@@ -577,7 +589,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。
 - GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、MySQL 8.4 集成、
   前端测试、生产构建和 Linux Playwright；MySQL job 同时验证 Schema、种子、两次正文回填、
-  中文 ngram 查询和 31/31 冒烟。
+  中文 ngram 查询、AI 模式 Mapper 和 31/31 兼容冒烟。
 
 ### 7.2 当前代码风险
 
