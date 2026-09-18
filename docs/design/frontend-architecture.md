@@ -173,6 +173,7 @@ umo-web-frontend/
 | `/secret-admin/contents/:id/edit` | `content-edit` | `ContentEditPage.vue` | 已接入真实 API |
 | `/secret-admin/categories` | `admin-cats` | `CategoryManagePage.vue` | 已接入真实 API |
 | `/secret-admin/tags` | `admin-tags` | `TagManagePage.vue` | 已接入真实 API |
+| `/secret-admin/ai-settings` | `admin-ai-settings` | `AiSettingsPage.vue` | 已接入六个模式目录 API |
 | `/secret-admin/options` | `admin-options` | `OptionPage.vue` | 已接入真实 API |
 | `/secret-admin/password` | `admin-password` | `ChangePasswordPage.vue` | 已接入真实 API |
 | `/:pathMatch(.*)*` | `not-found` | `NotFoundPage.vue` | 已实现 |
@@ -206,7 +207,7 @@ umo-web-frontend/
 | 文件 | 实际函数数 | 内容 |
 |---|---:|---|
 | `api/public.js` | 8 | 8 个公开端接口 |
-| `api/admin.js` | 22 | 22 个管理端函数，包含图片列表、图片一致性检查、图片删除和修改密码 |
+| `api/admin.js` | 28 | 28 个管理端函数，包含图片、AI 模式设置和修改密码 |
 
 ---
 
@@ -251,6 +252,7 @@ token 来源和存储位置都是 `localStorage`。
 | `CategoryManagePage.vue` | 分类树筛选、父级/排序字段、增改删、409 提示和未保存保护 |
 | `TagManagePage.vue` | 标签增改删、字段校验、409 提示和未保存保护 |
 | `ImageManagePage.vue` | 图片缩略图、引用筛选、分页、删除确认、409 提示和列表刷新 |
+| `AiSettingsPage.vue` | 模式列表、新建、复制、编辑、启停、排序、历史预览、版本回滚和 409 冲突恢复 |
 | `OptionPage.vue` | 站点信息、About/Project Markdown 预览、统一保存和部分失败反馈 |
 | `ChangePasswordPage.vue` | 密码校验、修改后清 token、跳转登录页 |
 | `ToolsPage.vue` | 从工具目录展示本地工具卡片，当前仅包含 Markdown 编辑器 |
@@ -327,12 +329,12 @@ server: {
 }
 ```
 
-2026-09-17 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
-搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 96 个 Node 测试覆盖路由、
+2026-09-18 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
+搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 109 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
 编辑滚动比例、Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
-游戏规则与旧成绩、Markdown 原始 HTML、邻接正文的加粗、危险 URL 协议和图片 alt 转义；
-Playwright 另含 65 个 functional 和 30 个视觉检查。管理端文章生命周期为
+游戏规则与旧成绩、AI 模式表单与版本载荷、Markdown 原始 HTML、邻接正文的加粗、危险 URL 协议和图片 alt 转义；
+Playwright 另含 67 个 functional 和 32 个 Windows 视觉检查。管理端文章生命周期为
 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`，仅未发布草稿可以选择未来计划时间。
 书库选择分类时 URL 使用
 `category=<id>&includeDescendants=true`，显式 `false` 仍可请求精确匹配。
@@ -352,8 +354,8 @@ Playwright 另含 65 个 functional 和 30 个视觉检查。管理端文章生�
 4. 第四阶段 Task 4.1 已完成目录、阅读进度、浏览器原生正文检索和确定性相关阅读；
    Task 4.2 已完成图片一致性检查；Task 4.3 已完成批量管理和定时发布；
    Task 4.4 已完成目录滚动降级、三处编辑器滚动协同和本地工具中心，不包含文章修订历史。
-5. 第五阶段已拆分为 1 个总索引和 6 个子计划；5.1B 已完成模式与提示词版本数据库和
-   管理 API，前端 AI 设置页、供应商转换运行时和文章 AI 抽屉仍待实施。草稿和转换结果只保存在
+5. 第五阶段已拆分为 1 个总索引和 6 个子计划；5.1B 已完成模式与提示词版本数据库和管理 API，
+   5.1C 已完成管理端 AI 设置页；供应商转换运行时和文章 AI 抽屉仍待实施。草稿和转换结果只保存在
    管理员浏览器，AI 结果不自动写入文章。实施入口见
    [`2026-09-18-admin-ai-index.md`](../superpowers/plans/2026-09-18-admin-ai-index.md)。
 6. 公开语义搜索、原文问答和知识图谱继续后置，作为独立项目重新评审。

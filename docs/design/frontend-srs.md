@@ -67,14 +67,15 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 | 编辑文章 | `/secret-admin/contents/:id/edit` | 预填、更新、草稿/待发布/发布/归档 | 已接入真实 API |
 | 分类管理 | `/secret-admin/categories` | 树形 CRUD | 已接入真实 API |
 | 标签管理 | `/secret-admin/tags` | 列表 CRUD | 已接入真实 API |
+| AI 设置 | `/secret-admin/ai-settings` | 模式 CRUD、启停、排序、版本预览与回滚 | 已接入真实 API |
 | 站点设置 | `/secret-admin/options` | 站点标题、页面 Markdown | 已接入真实 API |
 | 修改密码 | `/secret-admin/password` | 修改管理员密码 | 已接入真实 API |
 
-管理端 AI 已完成后端模式目录，前端能力仍属于计划：
+管理端 AI 模式目录已完成端到端接入，其余 AI 能力仍属于计划：
 
 | 能力 | 状态 | 说明 |
 |---|---|---|
-| 管理端 AI 模式目录 | 后端已实现，前端设置页尚未实现 | 契约见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md` |
+| 管理端 AI 模式目录 | 后端和 AI 设置页均已实现 | 契约见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md` |
 | 管理端 AI 抽屉与转换运行时 | 计划，尚未实现 | 契约见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md` |
 
 ---
@@ -96,7 +97,7 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 | GET | `/public/contents/{slug}` |
 | GET | `/public/contents/search` |
 
-管理端当前已封装的 22 个函数覆盖：
+管理端当前已封装的 28 个函数覆盖：
 
 - 登录。
 - 文章 CRUD。
@@ -104,6 +105,7 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 - 标签 CRUD。
 - 图片上传、引用状态列表、一致性检查和受保护删除。
 - 站点配置查询和更新。
+- AI 模式列表、新建、复制、更新、历史版本查询和回滚。
 
 修改密码已接入独立受保护页面；成功后清理本地 token，要求使用新密码重新登录。
 
@@ -239,6 +241,8 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 - 在线编辑器支持 `.md` 导入/下载、实时预览、本地草稿恢复、移动端切换和安全 Markdown 渲染。
 - 公开编辑器、管理端文章编辑器和 About/Project 设置编辑器等高，并通过桌面双向按比例滚动回归。
 - 管理端新建文章支持 YAML front matter 导入、无 front matter 回退、字段错误提示、相对图片警告和重复 slug 就地修正。
+- 管理端 AI 设置支持模式新建、复制、编辑、快速启停、排序、历史提示词预览和回滚；
+  提示词或校验策略变化才生成新版本，409 冲突保留本地表单等待重新加载。
 - 页头、移动菜单、页脚和首页工具模块均可进入 `/tools` 或 `/editor`，工具激活态正确。
 - 游戏中心四款入口可达；四款游戏开始、作答、结果、重开及旧成绩恢复通过。
 - 游戏路由即时进入，减少动态偏好下不播放结果彩纸，规则计时保持有效。
@@ -247,8 +251,8 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 ### 6.2 浏览器回归
 
 - Playwright functional 用例覆盖公开端错误态、429、390px 布局及管理端核心流程。
-- visual-desktop 和 visual-mobile 保存 30 张核心页面截图基线。
+- visual-desktop 和 visual-mobile 保存 32 张核心页面截图基线。
 - 浏览器套件使用 Mock API，本机 Chrome 和 Windows 基线；真实后端继续由 MySQL 冒烟脚本验证。
 
-当前已有 96 个 Node 内置测试；现代 Playwright 套件包含每个平台 95 个浏览器检查
-（65 functional + 30 visual）。尚无组件级单元测试框架。
+当前已有 109 个 Node 内置测试；现代 Playwright 套件包含每个平台 99 个浏览器检查
+（67 functional + 32 visual）。尚无组件级单元测试框架。

@@ -28,7 +28,7 @@
 
 - 公开端 8 个接口。
 - 管理端 29 个接口，包含批量文章操作、图片列表、图片一致性检查、图片删除、修改密码和
-  AI 模式目录；AI 设置页与文章 AI 抽屉仍待后续实现。
+  AI 模式目录；AI 设置页已实现，文章 AI 抽屉与转换运行时仍待后续实现。
 - 管理端除登录外都需要 Bearer JWT。
 - 正常响应不套 `{ code, data }`。
 - 错误响应是 `{ code, message }`。
@@ -49,12 +49,13 @@
 | `src/router/index.js` | 路由和 Token 守卫已实现 |
 | `src/api/client.js` | Axios、JWT、401 处理已实现 |
 | `src/api/public.js` | 8 个公开 API 函数 |
-| `src/api/admin.js` | 19 个管理 API 函数，包含 `changePassword` |
+| `src/api/admin.js` | 28 个管理 API 函数，包含 `changePassword` 和六个 AI 模式接口 |
 | `src/stores/auth.js` | token、login、logout |
 | `src/stores/site.js` | siteTitle、siteSubtitle、状态和缓存加载 |
 | `src/utils/adminContent.js` | 管理端查询、表单、metadata、分类顺序和图片插入规则 |
 | `src/utils/markdownImport.js` | Markdown 文件校验、YAML front matter 解析、字段回退和图片引用警告 |
 | `src/utils/adminManagement.js` | 分类父级、分类/标签/站点/改密校验和删除错误映射 |
+| `src/utils/aiModeSettings.js` | AI 模式表单、校验、创建/复制/更新载荷、排序和版本格式化 |
 | `src/utils/articleOutline.js` | 目录路径、扁平化和展开行计算 |
 | `src/utils/editor.js` | 本地编辑器文件名、草稿序列化和 Markdown Blob |
 | `src/views/admin/LoginPage.vue` | 已实现 |
@@ -63,6 +64,7 @@
 | `src/views/admin/ContentEditPage.vue` | 已接入新建/编辑、Markdown 导入、预览和图片上传 |
 | `src/views/admin/CategoryManagePage.vue` | 已接入树形 CRUD |
 | `src/views/admin/TagManagePage.vue` | 已接入列表 CRUD |
+| `src/views/admin/AiSettingsPage.vue` | 已接入模式 CRUD、启停、排序、版本预览和回滚 |
 | `src/views/admin/OptionPage.vue` | 已接入站点配置读写和 Markdown 预览 |
 | `src/views/admin/ChangePasswordPage.vue` | 已接入密码修改和会话清理 |
 | `src/views/public/NotFoundPage.vue` | 已实现基础 404 |
@@ -91,6 +93,7 @@
 | `ContentEditPage.vue` | 已接入新建/编辑、Markdown front matter 导入、分类标签、预览和图片上传 |
 | `CategoryManagePage.vue` | 已接入树形 CRUD、父级防循环和 409 提示 |
 | `TagManagePage.vue` | 已接入列表 CRUD 和 409 提示 |
+| `AiSettingsPage.vue` | 已接入模式列表、创建、复制、编辑、启停、排序、版本预览和回滚 |
 | `OptionPage.vue` | 已接入站点标题、副标题、About/Project 编辑与保存 |
 | `ChangePasswordPage.vue` | 已接入密码修改、旧 token 清理和重新登录提示 |
 
