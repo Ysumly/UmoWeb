@@ -34,6 +34,29 @@ class AiResultValidatorImplTest {
     }
 
     @Test
+    void exactContentDoesNotTreatCommentsInsideCodeBlocksAsHeadings() {
+        assertThatThrownBy(() -> validator.validate(
+                AiValidationProfile.EXACT_CONTENT,
+                """
+                        # 标题
+                        ```bash
+                        # 原命令注释
+                        echo hello
+                        ```
+                        """,
+                """
+                        ## 新标题
+                        ```bash
+                        # 被改写的命令注释
+                        echo hello
+                        ```
+                        """,
+                60_000))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("结构整理改变了正文");
+    }
+
+    @Test
     void translationRequiresSameCodeBlockAndLinkCounts() {
         assertThatCode(() -> validator.validate(
                 AiValidationProfile.TRANSLATION,

@@ -15,6 +15,8 @@ public class AiResultValidatorImpl implements AiResultValidator {
             Pattern.compile("\\[[^\\]]*\\]\\([^)]+\\)");
     private static final Pattern FENCE_DELIMITER =
             Pattern.compile("(?m)^ {0,3}(`{3,}|~{3,})");
+    private static final Pattern FENCE_LINE =
+            Pattern.compile("^ {0,3}(`{3,}|~{3,}).*$");
 
     @Override
     public void validate(AiValidationProfile profile,
@@ -85,15 +87,44 @@ public class AiResultValidatorImpl implements AiResultValidator {
             return "";
         }
         StringBuilder canonical = new StringBuilder();
+        boolean inFence = false;
+        char fenceCharacter = 0;
         for (String line : markdown.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1)) {
-            if (isAtxHeading(line)) {
+            Matcher fenceMatcher = FENCE_LINE.matcher(line);
+            if (fenceMatcher.matches()) {
+                char currentFenceCharacter = firstFenceCharacter(line);
+                if (!inFence) {
+                    inFence = true;
+                    fenceCharacter = currentFenceCharacter;
+                } else if (fenceCharacter == currentFenceCharacter) {
+                    inFence = false;
+                    fenceCharacter = 0;
+                }
+                appendWithoutWhitespace(canonical, line);
                 continue;
             }
-            line.codePoints()
-                    .filter(codePoint -> !Character.isWhitespace(codePoint))
-                    .forEach(canonical::appendCodePoint);
+            if (!inFence && isAtxHeading(line)) {
+                continue;
+            }
+            appendWithoutWhitespace(canonical, line);
         }
         return canonical.toString();
+    }
+
+    private void appendWithoutWhitespace(StringBuilder target, String line) {
+        line.codePoints()
+                .filter(codePoint -> !Character.isWhitespace(codePoint))
+                .forEach(target::appendCodePoint);
+    }
+
+    private char firstFenceCharacter(String line) {
+        for (int index = 0; index < line.length(); index++) {
+            char value = line.charAt(index);
+            if (value == '`' || value == '~') {
+                return value;
+            }
+        }
+        return 0;
     }
 
     private boolean isAtxHeading(String line) {
