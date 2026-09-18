@@ -24,7 +24,8 @@
 | 默认提示词源码隔离 | Java/Vue 源码无输出 |
 | 敏感信息扫描 | `bash scripts/ci/scan-sensitive-info.sh` 通过 |
 | 差异格式检查 | `git diff --check` 通过 |
-| MySQL 8.4 门控 | 已接入 `scripts/ci/mysql-integration.sh`，包含删除 AI 表后的旧库迁移路径 |
+| MySQL 8.4 门控 | Push CI run `35307939024` 成功，包含删除 AI 表后的两次旧库迁移路径 |
+| Push CI | run `35307939024`，repository、backend、mysql-integration、frontend、browser 全部成功 |
 
 ### 状态
 
