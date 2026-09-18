@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-09-18 — 5.1D 管理端 AI 转换运行时
+
+- 新增 `GET /api/admin/ai/settings`、`GET /api/admin/ai/capabilities` 和
+  `POST /api/admin/ai/transform`，管理端接口总数由 29 增至 32，API 总数由 37 增至 40。
+- 新增供应商无关 `AiTransformProvider` 和 DeepSeek OpenAI-compatible 适配器；删除未使用的
+  Spring AI BOM、OpenAI Starter 和 `spring.ai.openai` 配置，改用 Spring `RestClient`。
+- 新增 180 秒超时、10 分钟最多 5 次、同时最多 1 个请求的内存控制，以及
+  `EXACT_CONTENT`、`TRANSLATION`、`LIGHT_EXPANSION`、`NONE` 四类结果保真校验。
+- AI 默认关闭且不影响现有站点；启用时要求 DeepSeek 密钥和模型。日志只记录元数据，
+  不记录正文、结果、提示词或密钥，转换结果不写入文章。
+- 验证：后端 `mvn test` 通过，236 个测试、0 失败、0 错误、18 跳过；其中 17 个真实
+  MySQL 测试由环境门控。本次不修改数据库 Schema、前端文章编辑器或 ECS。
+
 ## 2026-09-18 — 5.1C 管理端 AI 模式设置页
 
 - 新增管理端 AI 设置页面，支持模式列表、新建、复制、编辑、快速启停、排序、历史提示词预览和回滚。

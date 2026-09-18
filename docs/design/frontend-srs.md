@@ -76,7 +76,7 @@ UmoWeb 是单管理员个人博客，包含公开阅读端和秘密路径管理�
 | 能力 | 状态 | 说明 |
 |---|---|---|
 | 管理端 AI 模式目录 | 后端和 AI 设置页均已实现 | 契约见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md` |
-| 管理端 AI 抽屉与转换运行时 | 计划，尚未实现 | 契约见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md` |
+| 管理端 AI 抽屉 | 计划，尚未实现；后端转换运行时已由 5.1D 交付 | 契约见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md` |
 
 ---
 

@@ -23,6 +23,10 @@ docker compose --env-file .env.docker up -d --build --wait
 成功后输出站点地址、管理端地址、管理员用户名和密码。真实凭据保存在被 Git 忽略的
 `.env.docker` 中，示例字段见 `.env.docker.example`。
 
+AI 默认关闭。需要启用时，只在服务器侧 `.env.docker` 设置
+`APP_AI_ENABLED=true`、`DEEPSEEK_BASE_URL`、`DEEPSEEK_API_KEY` 和
+`DEEPSEEK_MODEL`；密钥为空时后端拒绝启动。关闭状态下不存在模型网络请求。
+
 如果 Docker Desktop 的 BuildKit 在 `auth.docker.io` IPv6 地址上超时，可先通过守护进程
 代理预拉取基础镜像，再重试脚本：
 
@@ -127,7 +131,8 @@ $password = ((Get-Content .env.docker |
 ```
 
 该脚本覆盖公开 8 个和管理 23 个兼容接口，并验证 401、改密旧 token 失效、搜索 429、图片完整生命周期
-和图片一致性来源定位。脚本会临时修改管理员密码和 `site_title`，完成后恢复并清理测试资源。
+和图片一致性来源定位。新增 9 个 AI 管理接口由 Controller/Service 测试覆盖，真实 HTTP AI
+冒烟由 5.1F 扩展。脚本会临时修改管理员密码和 `site_title`，完成后恢复并清理测试资源。
 
 ---
 
@@ -139,6 +144,7 @@ $password = ((Get-Content .env.docker |
 - 生产环境不要自动导入演示数据，应在空库后导入真实备份或由管理员创建内容。
 - 定期备份 `mysql_data` 和 `app_data`，并在副本验证恢复流程。
 - 当前限流仍是单实例内存状态；多后端实例部署需要共享限流存储或网关限流。
+- AI 默认关闭；启用后新增 `AiRequestGuard` 的单实例限流，生产密钥和模型只放在服务器侧。
 
 ## 7. 阿里云 ECS 公网测试部署（脱敏）
 

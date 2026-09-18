@@ -35,7 +35,7 @@ UmoWeb/
 └── .superpowers/
 ```
 
-后端主源码为 112 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
+后端主源码为 148 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
 本地工具中心、游戏规则与页面、主题与 Markdown 工具和 Node 测试。`Downloads/`、
 `.superpowers/`、`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
@@ -57,8 +57,8 @@ UmoWeb/
 | JWT | JJWT 0.12.6，默认 24 小时 |
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
-| AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter；已完成模式目录持久化，供应商调用尚未接入 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；195 个测试（17 个 MySQL 环境门控） |
+| AI | Spring `RestClient` + DeepSeek OpenAI-compatible；模式目录与转换运行时已接入 |
+| 测试 | Spring Boot Test、Mockito、MockMvc；236 个测试（17 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -75,8 +75,8 @@ UmoWeb/
 | 浏览器测试 | Playwright Test 1.63；Windows Chrome channel、Linux Chromium，Mock API |
 | 容器构建 | Node 24.12 Alpine、Maven 3.9.11/JDK 17、JRE 17、Nginx 1.29 |
 
-- 管理端 AI 已完成 5.1B 模式目录后端和 5.1C 设置页；供应商转换和文章 AI 抽屉仍待实施，
-  入口见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md`。
+- 管理端 AI 已完成 5.1B 模式目录、5.1C 设置页和 5.1D 转换运行时；文章 AI 抽屉与质量发布
+  仍待实施，入口见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md`。
 
 ### 2.3 持续集成
 
@@ -184,14 +184,14 @@ com.ysumly.umowebbackend/
 
 | 层 | 数量 |
 |---|---|
-| Controller | 11（公开 4、管理 7） |
-| Service 接口/实现 | 15/15（含调度发布器和定时扫描器等内部辅助 Service） |
+| Controller | 12（公开 4、管理 8） |
+| Service 接口/实现 | 14 个接口 + 23 个 `service/impl` 实现或辅助类 |
 | Mapper 接口/XML | 12/12 |
 | Entity | 9 |
-| DTO | 15 |
-| VO | 18 |
-| Config | 12 |
-| 边界测试 | 35 |
+| DTO | 16 |
+| VO | 23 |
+| Config | 15 |
+| 边界测试 | 45 |
 
 ### 4.2 正常与异常响应
 
@@ -227,6 +227,9 @@ HTTP 状态与返回：
 | 唯一键冲突/删除受保护资源 | 409 |
 | 上传超过 50MB | 413 |
 | 搜索频率超限 | 429 |
+| AI 上游请求或响应无效 | 502 |
+| AI 上游认证、余额或服务不可用 | 503 |
+| AI 上游响应超时 | 504 |
 | 未处理异常 | 500 |
 
 ### 4.3 API 清单
@@ -244,7 +247,7 @@ HTTP 状态与返回：
 | GET | `/api/public/contents/{slug}` |
 | GET | `/api/public/contents/search` |
 
-管理端共 29 个：
+管理端共 32 个：
 
 | 方法 | 路径 |
 |---|---|
@@ -269,6 +272,9 @@ HTTP 状态与返回：
 | PUT | `/api/admin/ai/modes/{id}` |
 | GET | `/api/admin/ai/modes/{id}/versions` |
 | POST | `/api/admin/ai/modes/{id}/rollback/{versionNo}` |
+| GET | `/api/admin/ai/settings` |
+| GET | `/api/admin/ai/capabilities` |
+| POST | `/api/admin/ai/transform` |
 
 ### 4.4 查询语义
 
@@ -291,7 +297,19 @@ HTTP 状态与返回：
   `PUBLISHED`，管理端返回全部状态和可选 `scheduledAt`。
 - 公开详情返回 `previous` 和 `next` 摘要；前者为更早内容，后者为更新内容，同时间以小 ID 为更早。
 
-### 4.5 内容与文件
+### 4.5 AI 转换运行时
+
+- `AiProperties` 从 `app.ai` 绑定开关、输入/输出上限、180 秒超时、5 次/10 分钟窗口、
+  同时 1 请求和全局 DeepSeek 配置；`APP_AI_ENABLED=false` 时应用可正常启动。
+- `DeepSeekAiTransformProvider` 通过 Spring `RestClient` 调用 `/chat/completions`，
+  system prompt 与正文分开发送，`stream=false`，不自动重试。
+- `AiRequestGuardImpl` 使用进程内 `Semaphore` 和时钟窗口；异常路径释放并发许可，
+  单实例边界与现有搜索/登录限流一致。
+- `AiResultValidatorImpl` 支持 `EXACT_CONTENT`、`TRANSLATION`、`LIGHT_EXPANSION` 和 `NONE`；
+  `AiTransformServiceImpl` 负责模式状态、错误状态归一化、结果字段和脱敏元数据日志。
+- 转换结果不自动写入文章；正文、结果、提示词和 API Key 不进入日志或数据库。
+
+### 4.6 内容与文件
 
 `contents.body_path` 的生成规则：
 
@@ -327,7 +345,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 数据库回滚时恢复旧内容或删除新文件；提交后清理失败会记录日志。
 - 删除先提交数据库，再清理 Markdown；数据库失败不会丢文件。
 
-### 4.6 认证与初始化
+### 4.7 认证与初始化
 
 - `AdminInterceptor` 拦截 `/api/admin/**`，排除 `/api/admin/login`。
 - JWT 放在 `Authorization: Bearer <token>`，包含 `ver` tokenVersion。
@@ -565,6 +583,8 @@ Spring Multipart 限制单文件和请求均为 50MB。
   调度条件更新/失败重试测试。
 - 新增 AI 模式创建、复制、元数据更新、提示词版本递增、10 版保留、回滚和乐观锁测试；
   MySQL 门控测试覆盖默认模式、停用过滤、条件版本更新和级联删除。
+- 新增 DeepSeek Mock HTTP 请求/响应、错误分类、超时、请求窗口/并发、四类结果校验、
+  转换错误映射和脱敏日志测试。
 - 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
 - PowerShell 与 Bash 发布脚本自测已纳入 `repository` CI job，覆盖 CI 选择、manifest、归档校验、
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。

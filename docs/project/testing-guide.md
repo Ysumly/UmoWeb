@@ -1,7 +1,7 @@
 # UmoWeb 接口与构建测试指南
 
 > 基线日期: 2026-09-18
-> 接口数: 公开 8 个，管理 29 个，共 37 个
+> 接口数: 公开 8 个，管理 32 个，共 40 个
 > 关键约定: 正常响应没有 `{ code, data }` 包装层
 
 ---
@@ -38,6 +38,17 @@ $env:INIT_ADMIN_USER = "<管理员用户名>"
 $env:INIT_ADMIN_PASS = "<强管理员密码>"
 $env:CORS_ALLOWED_ORIGINS = "https://<正式域名>"
 ```
+
+AI 默认关闭。只有需要真实验证时才设置：
+
+```powershell
+$env:APP_AI_ENABLED = "true"
+$env:DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+$env:DEEPSEEK_API_KEY = "<仅本地或服务器侧密钥>"
+$env:DEEPSEEK_MODEL = "<当前模型标识>"
+```
+
+CI 不读取真实密钥；DeepSeek 协议和错误分类由 Mock HTTP Server 验证。
 
 ### 1.3 数据库
 
@@ -93,9 +104,10 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 195 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 236 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析、
-正文索引、摘要提取、图片清理、图片一致性和 AI 模式目录测试。
+正文索引、摘要提取、图片清理、图片一致性、AI 模式目录、DeepSeek Provider、请求限流和
+结果保真校验测试。
 其中 17 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
 不连接 MySQL，`UmoWebBackendApplicationTests` 仍是一条空测试。
 
@@ -323,11 +335,11 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
 
 - `repository`：检查变更范围空白错误，运行敏感信息扫描器、发布脚本、访问聚合/保留测试和
   Nginx 六字段日志容器测试，并扫描全部已跟踪文件。
-- `backend`：使用 Temurin Java 17 执行 `mvn -B test`，覆盖 AI 模式目录 Service、Controller
-  和边界规则。
+- `backend`：使用 Temurin Java 17 执行 `mvn -B test`，覆盖 AI 模式目录、DeepSeek
+  Provider、请求限流、结果校验、转换 Service、Controller 和边界规则。
 - `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，运行分类层级与
   图片管理及 AI 模式 Mapper 集成测试，再启动真实后端执行兼容的 31/31 接口冒烟并校验图片记录、
-  清理队列和文件回收；完整 37 接口 AI HTTP 冒烟由后续 5.1F 扩展。
+  清理队列和文件回收；完整 40 接口 AI HTTP 冒烟由后续 5.1F 扩展。
 - `frontend`：使用 Node 24.12.0 执行 `npm ci`、`npm test` 和 `npm run build`。
 - `browser`：使用 Node 24.12.0 安装锁定版本 Chromium，执行 `npm run test:e2e`；
   失败时上传 `playwright-report-<attempt>` artifact。

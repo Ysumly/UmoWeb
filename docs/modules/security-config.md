@@ -1,6 +1,6 @@
 # 安全与配置实现
 
-> 基线日期: 2026-09-13
+> 基线日期: 2026-09-18
 > 路径: `config/`、`common/util/JwtUtil.java`
 
 ---
@@ -16,6 +16,9 @@
 | `LoginAttemptService` | 登录失败次数保护 |
 | `ClientIpResolver` | 可信代理和客户端 IP 解析 |
 | `SecurityConfigValidator` | 生产默认凭据启动校验 |
+| `AiProperties` | AI 开关、限制和全局 DeepSeek 配置 |
+| `AiHttpClientConfig` | 带连接/读取超时的 DeepSeek `RestClient` |
+| `AiRuntimeConfigValidator` | AI 启用时的密钥、模型和正数限制启动校验 |
 | `DataInitializer` | 首次启动创建管理员 |
 
 ---
@@ -155,12 +158,20 @@ spring:
     url: jdbc:mysql://localhost:3306/umo_blog?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
     username: ${DB_USER:root}
     password: ${DB_PASS:}
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY:sk-dummy-placeholder}
-
 app:
   storage-path: ./data
+  ai:
+    enabled: ${APP_AI_ENABLED:false}
+    max-input-chars: 20000
+    max-output-chars: 60000
+    timeout-seconds: 180
+    max-requests-per-window: 5
+    rate-limit-window-seconds: 600
+    max-concurrent-requests: 1
+    deepseek:
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      api-key: ${DEEPSEEK_API_KEY:}
+      model: ${DEEPSEEK_MODEL:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   security:
@@ -180,6 +191,19 @@ app:
 `spring.profiles.default=dev`，`application-dev.yml` 明确允许默认凭据以便本地启动。
 `SPRING_PROFILES_ACTIVE=prod` 时 `application-prod.yml` 禁止默认凭据，
 `SecurityConfigValidator` 会在 JWT secret 或管理员密码仍为默认值时拒绝启动。
+
+### 6.1 AI 运行时边界
+
+- `APP_AI_ENABLED=false` 时不需要密钥或模型，应用正常启动；启用时
+  `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL` 必须非空，否则 `AiRuntimeConfigValidator`
+  在启动阶段失败。
+- 供应商请求使用带连接和读取超时的 Spring `RestClient`，不再依赖 Spring AI；模型配置为全局配置。
+- `AiRequestGuard` 使用进程内信号量和时间窗口：10 分钟最多 5 次且同时最多 1 个请求。
+  多后端实例部署时需要共享限流存储或网关限流。
+- Provider 不自动重试。认证、余额和 500/503 统一返回 503，上游 429 返回 429，
+  非法请求/响应返回 502，超时返回 504。
+- 运行日志只允许请求 ID、模式、版本、字符数、Token、耗时、状态和错误分类；
+  正文、转换结果、系统提示词和 API Key 不进入日志。
 
 Docker Compose 将 Nginx 固定为 `172.30.0.10`，后端只信任 `172.30.0.10/32`。
 Nginx 使用 `$remote_addr` 覆盖客户端请求中的 `X-Forwarded-For`，避免外来转发头绕过限流。

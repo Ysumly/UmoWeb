@@ -11,7 +11,7 @@
 
 - [1. 版本管理策略](#1-版本管理策略)
 - [2. 核心依赖清单](#2-核心依赖清单)
-- [3. BOM 依赖管理](#3-bom-依赖管理)
+- [3. 依赖管理](#3-依赖管理)
 - [4. 构建插件](#4-构建插件)
 - [5. 依赖范围说明](#5-依赖范围说明)
 - [6. 版本兼容性矩阵](#6-版本兼容性矩阵)
@@ -28,14 +28,12 @@
 | Property | 当前值 | 说明 |
 |----------|--------|------|
 | `java.version` | `17` | JDK 编译与运行版本 |
-| `spring-ai.version` | `2.0.0-M4` | Spring AI BOM 版本（里程碑） |
 
 ### 1.2 版本来源
 
 | 来源 | 管理范围 | 说明 |
 |------|---------|------|
 | `spring-boot-starter-parent:4.1.0` | Spring Boot 生态、Jackson、Logback 等 | 继承自父 POM，保证兼容性 |
-| `spring-ai-bom:2.0.0-M4` | Spring AI 组件 | 通过 `<dependencyManagement>` 导入 |
 | **显式声明** | MyBatis Starter、JJWT | 非 Spring 生态组件，需显式指定版本 |
 
 ---
@@ -63,13 +61,11 @@
 
 > **版本说明**: 当前项目显式使用 MyBatis Starter 4.0.1。2026-09-10 使用隔离的临时 Maven settings 完成编译和测试，构建通过。
 
-### 2.3 AI 集成 — Spring AI
+### 2.3 AI 集成 — Spring REST Client
 
-| GroupId | ArtifactId | 版本 | Scope | 用途 |
-|---------|-----------|------|-------|------|
-| `org.springframework.ai` | `spring-ai-starter-model-openai` | *(BOM)* | compile | OpenAI 模型接入（当前业务代码尚未调用） |
-
-> **注意**: Spring AI 当前为 `2.0.0-M4` 里程碑版本，API 可能在正式版发布前发生变动。
+AI 运行时不再引入 Spring AI。`DeepSeekAiTransformProvider` 使用
+`spring-boot-starter-webmvc` 提供的 Spring `RestClient` 调用 DeepSeek OpenAI-compatible
+`/chat/completions`，没有新增第三方模型 SDK。
 
 ### 2.4 认证与安全
 
@@ -127,25 +123,10 @@ Windows 默认本机 Chrome channel，Linux CI 使用锁定 Playwright 版本的
 
 ---
 
-## 3. BOM 依赖管理
+## 3. 依赖管理
 
-项目通过 `<dependencyManagement>` 引入 Spring AI BOM，实现其组件版本的集中管控：
-
-```xml
-<dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-bom</artifactId>
-            <version>${spring-ai.version}</version>  <!-- 2.0.0-M4 -->
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
-</dependencyManagement>
-```
-
-**效果**: `spring-ai-starter-model-openai` 及其所有传递依赖的版本均由 BOM 统一指定，避免版本冲突。
+当前 `pom.xml` 不再导入 Spring AI BOM，也不声明供应商 SDK。Spring Web 版本继续由
+Spring Boot 父 POM 管理，避免出现未使用的第二套模型配置。
 
 ---
 
@@ -180,7 +161,7 @@ Windows 默认本机 Chrome channel，Linux CI 使用锁定 Playwright 版本的
 | **runtime** | 编译不需要，运行和打包需要 | `mysql-connector-j`, `jjwt-impl`, `jjwt-jackson` |
 | **optional** | 默认不传递到下游项目 | `lombok` |
 | **test** | 仅测试编译和运行 | `spring-boot-starter-test`, `mybatis-spring-boot-starter-test` |
-| **import** | BOM 导入，仅用于 `<dependencyManagement>` | `spring-ai-bom` |
+| **import** | BOM 导入，仅用于 `<dependencyManagement>` | 当前无 |
 
 ---
 
@@ -191,7 +172,7 @@ Windows 默认本机 Chrome channel，Linux CI 使用锁定 Playwright 版本的
 | Spring Boot | 4.1.0 | Java 17 | 2025 年发布，Spring Framework 7.x 基线 |
 | MyBatis Spring Boot Starter | 4.0.1 | Java 17 | 当前项目已声明版本 |
 | JJWT | 0.12.6 | Java 8 | 纯 Java 实现，无额外系统依赖 |
-| Spring AI | 2.0.0-M4 | Java 17 | 里程碑版本，谨慎用于生产 |
+| DeepSeek API | OpenAI-compatible HTTP | Java 17（客户端） | 无 Java SDK；由 `RestClient` 调用 |
 | MySQL Connector/J | (继承) | Java 17 | 由 Spring Boot 管理，支持 MySQL 8.0+ |
 | Lombok | (继承) | Java 8 | 需 IDE 插件配合 |
 
@@ -216,7 +197,7 @@ mvn versions:display-plugin-updates
 
 | 关注点 | 原因 | 检查频率 |
 |--------|------|---------|
-| `spring-ai.version` (2.0.0-M4) | 里程碑版本，关注正式版发布 | 每月 |
+| DeepSeek OpenAI-compatible 协议 | 关注模型与接口兼容变化 | 每次真实模型验收 |
 | `jjwt` (0.12.6) | 关注安全漏洞公告 | 每季度 |
 | `mysql-connector-j` | 随 Spring Boot 升级自动更新 | 每次 Boot 升级 |
 | Spring Boot (4.1.0) | 主版本升级需全面回归测试 | 每半年评估 |

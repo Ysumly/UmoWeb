@@ -22,7 +22,7 @@
 | 后端 | Spring Boot 4.1.0、Java 17、Maven |
 | 数据层 | MyBatis 4.0.1、MySQL |
 | 认证 | JJWT 0.12.6、BCrypt、`Authorization: Bearer <token>` |
-| AI | Spring AI BOM 2.0.0-M4、OpenAI Starter（尚未接入业务代码） |
+| AI | Spring `RestClient` + DeepSeek OpenAI-compatible；模式目录和转换运行时已接入 |
 | 前端 | Vue 3.5、Vite 8、Vue Router 5、Pinia 3、Axios 1.18 |
 | Markdown | marked 18、highlight.js 11、yaml 2.9；不使用 CodeMirror |
 | 样式 | Tailwind CSS 4 |
@@ -32,7 +32,7 @@
 
 - 正常响应不套 `{ code, data }`，Controller 直接返回 VO、数组、Map 或 `PageResult`。
 - 异常响应才是 `{ code, message }`。
-- API 共 31 个：公开端 8 个，管理端 23 个（含修改密码和批量文章操作）。
+- API 共 40 个：公开端 8 个，管理端 32 个（含 AI 模式目录与转换运行时）。
 - 管理端新建资源统一返回 HTTP 200，不返回 201；删除和配置更新返回 204。
 - 公开内容只返回 `PUBLISHED`；管理端列表可查全部状态。
 - 搜索匹配 `title`、`summary` 和 Markdown 正文；正文由 MySQL 8.4 ngram 索引支持，
