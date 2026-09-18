@@ -22,7 +22,7 @@
 | 后端 | Spring Boot 4.1.0、Java 17、Maven |
 | 数据层 | MyBatis 4.0.1、MySQL |
 | 认证 | JJWT 0.12.6、BCrypt、`Authorization: Bearer <token>` |
-| AI | Spring `RestClient` + DeepSeek OpenAI-compatible；模式目录和转换运行时已接入 |
+| AI | Spring `RestClient` + DeepSeek OpenAI-compatible；模式目录、转换运行时和文章 AI 抽屉已接入 |
 | 前端 | Vue 3.5、Vite 8、Vue Router 5、Pinia 3、Axios 1.18 |
 | Markdown | marked 18、highlight.js 11、yaml 2.9；不使用 CodeMirror |
 | 样式 | Tailwind CSS 4 |
@@ -32,7 +32,7 @@
 
 - 正常响应不套 `{ code, data }`，Controller 直接返回 VO、数组、Map 或 `PageResult`。
 - 异常响应才是 `{ code, message }`。
-- API 共 40 个：公开端 8 个，管理端 32 个（含 AI 模式目录与转换运行时）。
+- API 共 40 个：公开端 8 个，管理端 32 个（含 AI 模式目录、转换运行时和文章抽屉消费的接口）。
 - 管理端新建资源统一返回 HTTP 200，不返回 201；删除和配置更新返回 204。
 - 公开内容只返回 `PUBLISHED`；管理端列表可查全部状态。
 - 搜索匹配 `title`、`summary` 和 Markdown 正文；正文由 MySQL 8.4 ngram 索引支持，
@@ -41,7 +41,7 @@
   层级循环或超过 32 层返回 409。
 - Markdown 正文保存在 `app.storage-path`，数据库只存 `body_path`；创建/更新使用临时文件和回滚恢复策略，图片限制 50MB。
 - 管理端前端路径由 `VITE_ADMIN_PATH` 控制，默认 `/secret-admin`。
-- 后端当前有 164 个单元/边界/容器装配与真实 MySQL 环境门控测试；默认测试不连接真实 MySQL。
+- 后端当前有 237 个单元/边界/容器装配与真实 MySQL 环境门控测试；默认测试不连接真实 MySQL。
 - 2026-09-11 已用隔离 MySQL 5.7 副本完成旧库迁移演练和 27/27 接口冒烟，脚本位于
   `Server Side/UmoWebBackend/scripts/api-smoke.ps1`。
 - 2026-09-12 已建立 Docker Compose 全栈，MySQL 8.4 首次启动导入演示数据，前端由 Nginx

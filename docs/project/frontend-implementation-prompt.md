@@ -1,6 +1,6 @@
 # UmoWeb 前端续作提示
 
-> 基线日期: 2026-09-15
+> 基线日期: 2026-09-18
 > 目标: 在不误改现有基础设施的前提下维护已完成的公开端、在线编辑器和管理端业务页面
 > 事实来源: `Client Side/umo-web-frontend/src`
 
@@ -28,7 +28,7 @@
 
 - 公开端 8 个接口。
 - 管理端 32 个接口，包含批量文章操作、图片列表、图片一致性检查、图片删除、修改密码、
-  AI 模式目录和转换运行时；AI 设置页已实现，文章 AI 抽屉仍待后续实现。
+  AI 模式目录和转换运行时；AI 设置页和文章 AI 抽屉均已实现。
 - 管理端除登录外都需要 Bearer JWT。
 - 正常响应不套 `{ code, data }`。
 - 错误响应是 `{ code, message }`。
@@ -49,19 +49,21 @@
 | `src/router/index.js` | 路由和 Token 守卫已实现 |
 | `src/api/client.js` | Axios、JWT、401 处理已实现 |
 | `src/api/public.js` | 8 个公开 API 函数 |
-| `src/api/admin.js` | 28 个管理 API 函数，包含 `changePassword` 和六个 AI 模式接口 |
+| `src/api/admin.js` | 30 个管理 API 函数，包含 `changePassword`、六个 AI 模式接口和 AI 能力/转换 |
 | `src/stores/auth.js` | token、login、logout |
 | `src/stores/site.js` | siteTitle、siteSubtitle、状态和缓存加载 |
 | `src/utils/adminContent.js` | 管理端查询、表单、metadata、分类顺序和图片插入规则 |
 | `src/utils/markdownImport.js` | Markdown 文件校验、YAML front matter 解析、字段回退和图片引用警告 |
 | `src/utils/adminManagement.js` | 分类父级、分类/标签/站点/改密校验和删除错误映射 |
 | `src/utils/aiModeSettings.js` | AI 模式表单、校验、创建/复制/更新载荷、排序和版本格式化 |
+| `src/utils/aiDrawer.js` | AI 本地存储、字符计数、源校验、结果编辑和关闭规则 |
 | `src/utils/articleOutline.js` | 目录路径、扁平化和展开行计算 |
 | `src/utils/editor.js` | 本地编辑器文件名、草稿序列化和 Markdown Blob |
 | `src/views/admin/LoginPage.vue` | 已实现 |
 | `src/components/admin/AdminLayout.vue` | 已实现响应式布局 |
 | `src/views/admin/ContentListPage.vue` | 已接入列表、筛选、分页和删除 |
-| `src/views/admin/ContentEditPage.vue` | 已接入新建/编辑、Markdown 导入、预览和图片上传 |
+| `src/views/admin/ContentEditPage.vue` | 已接入新建/编辑、Markdown 导入、预览、图片上传和 AI 抽屉入口 |
+| `src/components/admin/AiTransformDrawer.vue` | 已实现正文带入、模式执行、取消、结果编辑/复制、浮动和本地恢复 |
 | `src/views/admin/CategoryManagePage.vue` | 已接入树形 CRUD |
 | `src/views/admin/TagManagePage.vue` | 已接入列表 CRUD |
 | `src/views/admin/AiSettingsPage.vue` | 已接入模式 CRUD、启停、排序、版本预览和回滚 |
@@ -90,7 +92,7 @@
 | 页面 | 当前状态 |
 |---|---|
 | `ContentListPage.vue` | 已接入文章表格、筛选、删除、分页 |
-| `ContentEditPage.vue` | 已接入新建/编辑、Markdown front matter 导入、分类标签、预览和图片上传 |
+| `ContentEditPage.vue` | 已接入新建/编辑、Markdown front matter 导入、分类标签、预览、图片上传和 AI 转换抽屉 |
 | `CategoryManagePage.vue` | 已接入树形 CRUD、父级防循环和 409 提示 |
 | `TagManagePage.vue` | 已接入列表 CRUD 和 409 提示 |
 | `AiSettingsPage.vue` | 已接入模式列表、创建、复制、编辑、启停、排序、版本预览和回滚 |
@@ -121,11 +123,21 @@
 
 - `metadata` 输入必须提交 JSON 字符串。
 - 文章类型为 `NOTE`、`NOVEL`、`BOOK_REVIEW`。
-- 状态为 `DRAFT`、`PUBLISHED`。
+- 状态为 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`。
 - 小说 `bookSlug` 当前取 `categoryIds[0]` 的 slug，前端应明确选择书级分类。
 - 修改 slug 会移动 Markdown 文件，应提示唯一性和影响。
 - 新建页可导入单个 `.md`/`.markdown` 文件；YAML front matter 缺失时从 H1、文件名和默认值回退。
 - 导入只预填表单，保存仍走现有创建接口；不覆盖已有文章，不批量导入，不自动上传相对图片。
+
+### 5.3.1 AI 转换抽屉
+
+- 仅在 `/admin/ai/capabilities.enabled=true` 时显示“AI 转换”入口。
+- 正文只在用户点击“带入当前正文”时进入源草稿；最多 20,000 字符，执行前校验。
+- 源草稿写入 `sessionStorage["umo-admin-ai-source-v1"]`，结果写入
+  `localStorage["umo-admin-ai-result-v1"]`。
+- 结果支持编辑、只读预览、复制、浮动恢复和重新转换；人工修改后覆盖前必须确认。
+- 取消只中止浏览器请求和等待；429/502/503/504 分别给出限流、无效响应、不可用和超时提示。
+- 结果不得自动插入、替换、保存或发布文章，AI 状态不得修改文章表单 dirty 状态。
 
 ### 5.4 加载与错误态
 
@@ -140,6 +152,7 @@
 
 - 管理侧栏移动端需要折叠方案。
 - Markdown 编辑和预览在小屏切换。
+- AI 抽屉桌面固定右侧，980px 以下切换为全屏面板且不得产生横向溢出。
 - 表格在移动端应转为卡片或允许横向滚动。
 
 ---
@@ -155,7 +168,8 @@
    Task 3.4 正文全文搜索和 Task 3.5 四款训练游戏已完成并合并 master，第三阶段出口条件满足。
 4. 第四阶段 Task 4.1–4.3 已完成并在 `v1.0.0-rc.6` 发布：目录、阅读进度、相关阅读、
    图片一致性、批量管理、归档和定时发布均已交付，不包含文章修订历史。
-5. 第五阶段在需求、隐私和成本明确后评估管理端 AI；草稿和结果只保存在浏览器本地。
+5. 第五阶段 5.1A–5.1E 已完成；5.1F 继续负责假供应商回归、受控真实模型评测和发布收口。
+   草稿和结果只保存在浏览器本地。
 6. 公开 AI 搜索、原文问答和知识图谱继续后置。
 
 完整顺序和出口条件见

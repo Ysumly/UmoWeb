@@ -104,7 +104,7 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 236 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 237 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析、
 正文索引、摘要提取、图片清理、图片一致性、AI 模式目录、DeepSeek Provider、请求限流和
 结果保真校验测试。
@@ -179,14 +179,14 @@ npm run test:e2e
 2026-09-18 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
-- 前端 109 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
+- 前端 120 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、
   API 错误解析、日期格式、书库后代参数、文章目录树/展开状态、标题 ID 与旧锚点兼容、AI 模式表单与
-  载荷、Markdown 安全、邻接正文的加粗和编辑器双向滚动比例。
-- Playwright 99 个浏览器检查，其中 67 个 functional 用例覆盖公开端、文章目录、阅读进度与相关阅读、
+  AI 抽屉本地状态/字符边界、Markdown 安全、邻接正文的加粗和编辑器双向滚动比例。
+- Playwright 110 个浏览器检查，其中 76 个 functional 用例覆盖公开端、文章目录、阅读进度与相关阅读、
   图片一致性检查、隐私说明、工具中心、在线编辑器与三处编辑工作区滚动协同、
-  四款游戏（含高密度网格、长数字、10 张牌、旧成绩和响应式场景）、AI 模式设置和管理端核心流程，
-  32 个视觉断言覆盖 16 个核心页面状态的桌面与 390px 基线。
+  四款游戏（含高密度网格、长数字、10 张牌、旧成绩和响应式场景）、AI 模式设置、AI 转换抽屉和管理端核心流程，
+  34 个视觉断言覆盖 17 个核心页面状态的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
   MySQL 副本、`api-smoke.py`/`api-smoke.ps1` 和第 2.8 节的 CI 集成 job 验证。
 
@@ -215,8 +215,9 @@ npm run test:e2e
 3. Windows 默认使用本机稳定版 Chrome channel，Linux CI 使用锁定 Playwright 版本的
    Chromium；可通过 `PLAYWRIGHT_CHANNEL` 显式覆盖。
 4. 浏览器级路由拦截 `/api/**`，每个测试使用独立的状态化 Mock API。
-5. functional 项目覆盖公开阅读、在线编辑器、管理端认证、Markdown 导入与 CRUD、AI 模式设置，以及 390px 布局。
-6. visual-desktop 和 visual-mobile 项目比较 32 张页面截图。
+5. functional 项目覆盖公开阅读、在线编辑器、管理端认证、Markdown 导入与 CRUD、AI 模式设置、
+   AI 转换抽屉，以及 390px 布局。
+6. visual-desktop 和 visual-mobile 项目比较 34 张页面截图。
 
 更新 Windows 视觉基线：
 
@@ -241,8 +242,8 @@ Linux 工作流不会自动提交或推送文件。浏览器或 Playwright 升�
 npm run test:all
 ```
 
-视觉基线位于 `e2e/visual.spec.js-snapshots/`，当前包含 32 张 `win32` 和 30 张 `linux`
-文件；AI 设置的桌面与移动 Linux 基线由 5.1F 统一审查提交。平台后缀由 Playwright 自动选择，
+视觉基线位于 `e2e/visual.spec.js-snapshots/`，当前包含 34 张 `win32` 和 30 张 `linux`
+文件；AI 设置与 AI 抽屉的四张 Linux 基线由 5.1F 统一审查提交。平台后缀由 Playwright 自动选择，
 不互相覆盖。
 
 游戏专项验证：

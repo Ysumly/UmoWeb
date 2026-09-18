@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-09-18 — 5.1E 管理端文章 AI 抽屉
+
+- 在文章编辑器接入 AI 转换抽屉，支持能力探测、正文带入、模式选择、执行/取消、结果编辑、
+  只读预览、复制回退、重新转换确认和浮动恢复。
+- 源草稿使用 `sessionStorage["umo-admin-ai-source-v1"]`，结果使用
+  `localStorage["umo-admin-ai-result-v1"]`；结果不自动插入、替换、保存或发布文章。
+- 输入按 Unicode code point 限制最多 20,000 字符，并覆盖 429/502/503/504 错误提示；
+  取消只中止浏览器请求和等待，不承诺供应商停止处理或计费。
+- 新增 10 个 AI 抽屉 Node 测试、9 个 functional 用例和 2 张 Windows 视觉基线；
+  API 函数由 28 增至 30，管理端接口总数保持 32。
+- 后端移除与 Service code point 校验重复的 Jakarta `@Size` 注解，使 20,000 字符上限对
+  emoji 等补充平面字符保持一致；不修改数据库 Schema 或 ECS。
+- 远端 AI 结果图片不会在预览中自动请求；Unicode 输入按 code point 限制，浏览器返回或
+  SPA 离开时由抽屉状态参与确认。
+- 验证：前端 Node 120/120、后端 237 个测试且 0 失败/18 跳过、Windows Playwright 110/110
+  （76 functional + 34 visual）和生产构建通过；Linux 视觉基线由 5.1F 统一生成和审查。
+
 ## 2026-09-18 — 5.1D 管理端 AI 转换运行时
 
 - 新增 `GET /api/admin/ai/settings`、`GET /api/admin/ai/capabilities` 和

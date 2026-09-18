@@ -1,8 +1,9 @@
 # UmoWeb 前端架构
 
-> 基线日期: 2026-09-17
+> 基线日期: 2026-09-18
 > 项目路径: `Client Side/umo-web-frontend/`
-> 状态: 公开端阅读增强、本地工具中心、在线编辑器、隐私说明、四款训练游戏和管理端核心业务页均已实现
+> 状态: 公开端阅读增强、本地工具中心、在线编辑器、隐私说明、四款训练游戏和管理端核心业务页均已实现；
+> 管理端文章 AI 抽屉已接入转换运行时
 
 ---
 
@@ -207,7 +208,7 @@ umo-web-frontend/
 | 文件 | 实际函数数 | 内容 |
 |---|---:|---|
 | `api/public.js` | 8 | 8 个公开端接口 |
-| `api/admin.js` | 28 | 28 个管理端函数，包含图片、AI 模式设置和修改密码 |
+| `api/admin.js` | 30 | 30 个管理端函数，包含图片、AI 模式设置、AI 能力/转换和修改密码 |
 
 ---
 
@@ -248,7 +249,7 @@ token 来源和存储位置都是 `localStorage`。
 | `LoginPage.vue` | 表单、调用登录 API、错误提示、跳转 |
 | `AdminLayout.vue` | 桌面侧栏、移动抽屉、主题切换、退出登录和 `router-view` |
 | `ContentListPage.vue` | 四种状态筛选、分页、当前页批量分类/标签、归档/恢复、编辑和删除 |
-| `ContentEditPage.vue` | 新建/编辑、Markdown front matter 导入、分类标签、metadata、分屏预览、图片上传、定时发布和未保存保护 |
+| `ContentEditPage.vue` | 新建/编辑、Markdown front matter 导入、分类标签、metadata、分屏预览、图片上传、定时发布、AI 转换抽屉和未保存保护 |
 | `CategoryManagePage.vue` | 分类树筛选、父级/排序字段、增改删、409 提示和未保存保护 |
 | `TagManagePage.vue` | 标签增改删、字段校验、409 提示和未保存保护 |
 | `ImageManagePage.vue` | 图片缩略图、引用筛选、分页、删除确认、409 提示和列表刷新 |
@@ -305,6 +306,15 @@ Stroop 保留 84 试次和 25% 一致试次，使用 `stroop_84_parchment`；五
 Markdown 编辑器。`/tools` 展示工具卡片和本地保存说明，首页 `home-tools` 模块直接进入编辑器或
 工具中心。工具能力和草稿仍只存在于浏览器，不调用后端。
 
+### 7.6 管理端文章 AI 抽屉
+
+`ContentEditPage.vue` 挂载后只查询一次 `/admin/ai/capabilities`；`enabled=false` 或请求失败时
+不显示 AI 入口，也不影响文章加载、编辑、上传、保存和发布。启用后由
+`AiTransformDrawer.vue` 负责模式选择、正文带入、执行/取消、结果编辑与只读预览、复制和浮动恢复。
+源草稿使用 `sessionStorage["umo-admin-ai-source-v1"]`，结果使用
+`localStorage["umo-admin-ai-result-v1"]`；AI 状态不修改文章表单或 dirty 状态，结果不自动插入正文。
+结果预览禁用远程图片自动加载；进行中请求或未持久化草稿参与路由离开确认。
+
 ---
 
 ## 8. 开发与构建
@@ -330,11 +340,12 @@ server: {
 ```
 
 2026-09-18 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
-搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 109 个 Node 测试覆盖路由、
+搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 120 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
 编辑滚动比例、Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
-游戏规则与旧成绩、AI 模式表单与版本载荷、Markdown 原始 HTML、邻接正文的加粗、危险 URL 协议和图片 alt 转义；
-Playwright 另含 67 个 functional 和 32 个 Windows 视觉检查。管理端文章生命周期为
+游戏规则与旧成绩、AI 模式表单、AI 抽屉本地规则、Markdown 原始 HTML、邻接正文的加粗、
+危险 URL 协议和图片 alt 转义；Playwright 另含 76 个 functional 和 34 个 Windows 视觉检查。
+管理端文章生命周期为
 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`，仅未发布草稿可以选择未来计划时间。
 书库选择分类时 URL 使用
 `category=<id>&includeDescendants=true`，显式 `false` 仍可请求精确匹配。
@@ -355,7 +366,8 @@ Playwright 另含 67 个 functional 和 32 个 Windows 视觉检查。管理端�
    Task 4.2 已完成图片一致性检查；Task 4.3 已完成批量管理和定时发布；
    Task 4.4 已完成目录滚动降级、三处编辑器滚动协同和本地工具中心，不包含文章修订历史。
 5. 第五阶段已拆分为 1 个总索引和 6 个子计划；5.1B 已完成模式与提示词版本数据库和管理 API，
-   5.1C 已完成管理端 AI 设置页，5.1D 已完成转换运行时；文章 AI 抽屉仍待实施。草稿和转换结果只保存在
+   5.1C 已完成管理端 AI 设置页，5.1D 已完成转换运行时，5.1E 已完成文章 AI 抽屉；
+   5.1F 继续负责假供应商回归、Linux 基线、受控真实模型评测和发布收口。草稿和转换结果只保存在
    管理员浏览器，AI 结果不自动写入文章。实施入口见
    [`2026-09-18-admin-ai-index.md`](../superpowers/plans/2026-09-18-admin-ai-index.md)。
 6. 公开语义搜索、原文问答和知识图谱继续后置，作为独立项目重新评审。
