@@ -31,3 +31,7 @@ export const getAiModeVersions = (id) => client.get(`/admin/ai/modes/${id}/versi
 export const rollbackAiMode  = (id,versionNo,expectedVersion) => (
   client.post(`/admin/ai/modes/${id}/rollback/${versionNo}`, { expectedVersion })
 )
+export const getAiCapabilities = () => client.get('/admin/ai/capabilities')
+export const transformAiContent = (data, config = {}) => (
+  client.post('/admin/ai/transform', data, config)
+)
