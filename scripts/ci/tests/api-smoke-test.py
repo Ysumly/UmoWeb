@@ -264,6 +264,14 @@ class ApiSmokeSelfTest(unittest.TestCase):
         self.assertEqual(smoke.ai_mode_id, 501)
         self.assertEqual(smoke.ai_copy_mode_id, 502)
         self.assertFalse(smoke.mode_enabled)
+        self.assertRegex(
+            smoke.test_mode_key,
+            r"^[A-Z][A-Z0-9_]{2,63}$",
+        )
+        self.assertRegex(
+            smoke.copy_mode_key,
+            r"^[A-Z][A-Z0-9_]{2,63}$",
+        )
 
     def test_request_count_is_separate_from_endpoint_count(self):
         smoke = api_smoke.Smoke("http://mock", "admin", "password")

@@ -826,9 +826,9 @@ class Smoke:
                 self.cleanup()
 
     def run_ai_flow(self) -> None:
-        suffix = self.run_id.replace("-", "")
+        suffix = self.run_id.replace("-", "").upper()
         if not suffix:
-            suffix = str(uuid.uuid4()).replace("-", "")
+            suffix = str(uuid.uuid4()).replace("-", "").upper()
         test_mode_key = f"CI_AI_MODE_{suffix}"
         copy_mode_key = f"CI_AI_COPY_{suffix}"
         original_prompt = "你是测试转换器。"

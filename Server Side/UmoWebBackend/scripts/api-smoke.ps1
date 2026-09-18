@@ -611,8 +611,9 @@ try {
         )
         $originalPrompt = "你是测试转换器。"
         $updatedPrompt = "你是测试转换器第二版。"
-        $testModeKey = "CI_AI_MODE_$runId"
-        $copyModeKey = "CI_AI_COPY_$runId"
+        $modeKeySuffix = ($runId -replace "-", "").ToUpperInvariant()
+        $testModeKey = "CI_AI_MODE_$modeKeySuffix"
+        $copyModeKey = "CI_AI_COPY_$modeKeySuffix"
 
         $modes = Get-Json (Invoke-Checked -Method GET -Path "/api/admin/ai/modes" -Headers $authHeaders)
         Assert-True ($null -ne $modes) "AI mode catalog must be an array"
