@@ -31,6 +31,10 @@ import {
   validateContentForm,
   validateImageFile,
 } from '@/utils/adminContent'
+import {
+  syncSlugFromTitle,
+  syncSlugFromUserInput,
+} from '@/utils/adminSlug'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
   parseMarkdownImport,
@@ -69,6 +73,8 @@ const importErrors = ref({})
 const originalContent = ref(null)
 const aiCapabilities = ref(null)
 const aiDrawerOpen = ref(false)
+const slugAutoSync = ref(true)
+const lastGeneratedSlug = ref('')
 
 useMarkdownHeadingSync(textareaRef, previewRef, {
   mediaQuery: '(min-width: 701px)',
@@ -162,6 +168,44 @@ function clearImportError(...fields) {
   }
 }
 
+function applySlugState(nextState) {
+  form.slug = nextState.slug
+  slugAutoSync.value = nextState.autoSync
+  lastGeneratedSlug.value = nextState.lastGeneratedSlug
+}
+
+function handleTitleInput() {
+  clearImportError('title')
+  if (isEdit.value || !slugAutoSync.value) {
+    return
+  }
+
+  applySlugState(syncSlugFromTitle({
+    title: form.title,
+    slug: form.slug,
+    autoSync: true,
+    lastGeneratedSlug: lastGeneratedSlug.value,
+  }))
+}
+
+function handleSlugInput(event) {
+  clearImportError('slug')
+  const nextState = syncSlugFromUserInput({
+    value: event.target.value,
+    generatedSlug: lastGeneratedSlug.value,
+  })
+  applySlugState(nextState)
+
+  if (!isEdit.value && nextState.autoSync && !nextState.slug) {
+    applySlugState(syncSlugFromTitle({
+      title: form.title,
+      slug: '',
+      autoSync: true,
+      lastGeneratedSlug: '',
+    }))
+  }
+}
+
 function clearCategoryImportErrors() {
   clearImportError('categoryIds', 'categorySlugs')
 }
@@ -201,6 +245,8 @@ async function handleMarkdownFileInput(event) {
     }
 
     Object.assign(form, { scheduledAt: '' }, result.form)
+    slugAutoSync.value = !result.form.slug
+    lastGeneratedSlug.value = ''
     importErrors.value = { ...result.errors }
     errors.value = { ...result.errors }
     importWarnings.value = result.warnings
@@ -248,8 +294,12 @@ async function load() {
     if (contentResponse) {
       originalContent.value = contentResponse.data
       Object.assign(form, contentToForm(contentResponse.data))
+      slugAutoSync.value = false
+      lastGeneratedSlug.value = ''
     } else {
       originalContent.value = null
+      slugAutoSync.value = true
+      lastGeneratedSlug.value = ''
     }
     snapshotForm()
   } catch (error) {
@@ -530,7 +580,7 @@ onBeforeUnmount(() => {
                 type="text"
                 maxlength="500"
                 required
-                @input="clearImportError('title')"
+                @input="handleTitleInput"
               />
               <small v-if="errors.title">{{ errors.title }}</small>
             </label>
@@ -543,9 +593,15 @@ onBeforeUnmount(() => {
                 maxlength="200"
                 placeholder="article-slug"
                 required
-                @input="clearImportError('slug')"
+                @input="handleSlugInput"
               />
               <small v-if="errors.slug">{{ errors.slug }}</small>
+              <small v-else-if="isEdit">
+                修改 slug 会改变文章公开地址，请谨慎操作。
+              </small>
+              <small v-else>
+                标题会自动生成 slug；手动修改后停止同步，清空可重新生成。
+              </small>
             </label>
           </div>
 

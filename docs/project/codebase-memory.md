@@ -70,6 +70,7 @@ UmoWeb/
 | 状态 | Pinia 3.0.x |
 | HTTP | Axios 1.18.x |
 | Markdown | marked 18.0.x、highlight.js 11.11.x、yaml 2.9.x |
+| 拼音 | pinyin-pro 3.29.x，管理端新建文章标题转 slug |
 | 样式 | Tailwind CSS 4.3.x |
 | 编辑器 | 原生 textarea；未安装 CodeMirror/Monaco |
 | 浏览器测试 | Playwright Test 1.63；Windows Chrome channel、Linux Chromium，Mock API |
@@ -476,11 +477,15 @@ Spring Multipart 限制单文件和请求均为 50MB。
   模式说明、系统提示词用途和校验策略展开解释；启停状态和操作分区固定，按钮/历史版本位于
   左栏。管理端文章编辑器默认在首尾补齐的标题锚点之间连续插值，双向同步且无开关；正文或宽度
   变化后刷新测量缓存，无可用标题或标题数不一致时回退整体比例。
+- 2026-09-19 已完成移动阅读体验增强：管理端新建文章从中文标题转拼音生成 slug，手改后锁定且
+  编辑页不自动改写既有 slug；700px 及以下文章详情把篇章信息、难度、分类、章节和书目压缩为
+  单行可展开区；书库改用已选数量按钮、当前筛选 chips 和草稿式底部抽屉，确认后一次更新 URL，
+  清除筛选保留滚动位置。对应 Windows 移动端书库和文章详情视觉基线已更新。
 
 ### 6.2 其他前端事实
 
 - 管理端路径由统一 `VITE_ADMIN_PATH` 工具控制，默认 `/secret-admin`，不再依赖后端 `app.admin-path`。
-- 当前存在公开端 `SiteHeader`、`SiteFooter`、`ContentCard`、`ContentState`、`MarkdownArticle`、
+- 当前存在公开端 `SiteHeader`、`SiteFooter`、`ContentCard`、`ContentState`、`LibraryFilterSheet`、`MarkdownArticle`、
   `ThemeToggle`、`GameShell`、`GameResultDialog` 和 `ToolsPage`；公开导航由
   `publicNavigation` 统一提供，编辑滚动由 `useSyncedScroll` 复用；管理端仍没有统一表单/表格组件。
 - 公开端页头和管理端侧栏共用 `public/umo-logo.png`，浏览器图标为 `public/favicon.png`。
@@ -611,13 +616,13 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 内容导入与阅读锚点工具共有 10 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、
   图片重写、内容去重、Linux 文件所有权、缺失素材阻断，以及旧锚点 dry-run、备份、
   原子写入、幂等和缺少目标阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 31 个接口。
-- 前端 126 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、游戏规则与旧成绩解析、
+- 前端 137 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、
-  Markdown front matter 导入、日期格式、书库后代参数、目录树与展开状态、标题 ID/别名、
+  Markdown front matter 导入、日期格式、书库后代参数与筛选 chips、拼音 slug、目录树与展开状态、标题 ID/别名、
   AI 模式表单与版本载荷、AI 抽屉本地状态/字符边界、Markdown 原始 HTML、邻接正文的加粗、
   危险 URL 协议、图片 alt 转义、定时状态、编辑器滚动比例、标题锚点插值和批量载荷规则。
-- Playwright 每个平台运行 120 个浏览器检查：86 个 functional 用例覆盖公开端、正文摘要、
-  文章目录/阅读进度/相关阅读、图片一致性报告与竞态、隐私说明、工具中心、在线编辑器、
+- Playwright 每个平台运行 126 个浏览器检查：92 个 functional 用例覆盖公开端、正文摘要、
+  文章目录/阅读进度/相关阅读、移动端篇章信息压缩、书库筛选抽屉与滚动恢复、图片一致性报告与竞态、隐私说明、工具中心、在线编辑器、
   三处编辑工作区双向滚动、标题区间单调插值与缓存失效、批量文章操作、定时发布、桌面目录常驻/侧栏内滚动/窄屏断点、
   四款游戏的高密度/长序列/旧成绩兼容、AI 模式卡片与策略说明、AI 转换抽屉、移动菜单焦点/横屏滚动、
   隐藏文件输入和管理端核心流程；

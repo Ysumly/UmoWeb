@@ -283,6 +283,73 @@ test('书库父分类筛选包含子分类内容', async ({ page, apiMock }) => 
   await expect(page.getByRole('heading', { name: '仅属于子分类的公开文章' })).toBeVisible()
 })
 
+test('移动端书库使用筛选抽屉并在确认后更新 URL 和 chips', async ({ page, apiMock }) => {
+  void apiMock
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/library')
+
+  await expect(page.locator('.library-filters')).toBeHidden()
+  const trigger = page.getByRole('button', { name: '筛选（已选 0 项）' })
+  await expect(trigger).toBeVisible()
+
+  await trigger.click()
+  const dialog = page.getByRole('dialog', { name: '筛选书库' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('group', { name: '内容类型' })
+    .getByRole('button', { name: /技术笔记/ })
+    .click()
+  await dialog.getByRole('group', { name: '分类' })
+    .getByRole('button', { name: 'Vue' })
+    .click()
+  await dialog.getByRole('group', { name: '标签' })
+    .getByRole('button', { name: 'Vue' })
+    .click()
+  await dialog.getByRole('button', { name: '查看结果' }).click()
+
+  await expect(dialog).toBeHidden()
+  await expect(page).toHaveURL(/type=NOTE/)
+  await expect(page).toHaveURL(/category=2/)
+  await expect(page).toHaveURL(/includeDescendants=true/)
+  await expect(page).toHaveURL(/tag=1/)
+  await expect(page.getByRole('button', { name: '筛选（已选 3 项）' })).toBeFocused()
+  await expect(page.locator('.library-active-filters')).toContainText('类型：技术笔记')
+  await expect(page.locator('.library-active-filters')).toContainText('分类：Vue')
+  await expect(page.locator('.library-active-filters')).toContainText('标签：Vue')
+
+  await page.getByRole('button', { name: '筛选（已选 3 项）' }).click()
+  await dialog.getByRole('group', { name: '标签' })
+    .getByRole('button', { name: '阅读' })
+    .click()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(page.getByRole('button', { name: '筛选（已选 3 项）' })).toBeFocused()
+  await expect(page.locator('.library-active-filters')).toContainText('标签：Vue')
+})
+
+test('移动端筛选 chips 可移除且清除筛选保持滚动位置', async ({ page, apiMock }) => {
+  void apiMock
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/library?type=NOTE')
+  await expect(page.locator('.content-card')).toHaveCount(5)
+
+  const toolbar = page.locator('.library-mobile-filter-bar')
+  await toolbar.scrollIntoViewIfNeeded()
+  await page.evaluate(() => window.scrollTo(0, 360))
+  const clearButton = page.getByRole('button', { name: '清除全部筛选' })
+  await clearButton.scrollIntoViewIfNeeded()
+  const scrollBefore = await page.evaluate(() => window.scrollY)
+  expect(scrollBefore).toBeGreaterThan(0)
+
+  await clearButton.click()
+  await expect(page).toHaveURL(/\/library$/)
+  await expect(page.getByRole('button', { name: '筛选（已选 0 项）' })).toBeVisible()
+
+  await expect.poll(async () => {
+    const scrollAfter = await page.evaluate(() => window.scrollY)
+    return Math.abs(scrollAfter - scrollBefore)
+  }).toBeLessThanOrEqual(2)
+})
+
 test('搜索支持成功、空结果和 429 倒计时', async ({ page, apiMock }) => {
   await page.goto('/search')
   const input = page.getByLabel('搜索关键词')
@@ -313,6 +380,39 @@ test('文章详情展示正文、分类标签和前后文章', async ({ page, ap
   await expect(page.locator('.post-header__taxonomy').getByText('# Vue')).toBeVisible()
   await expect(page.getByRole('navigation', { name: '前后文章' }).getByText('公开文章 02')).toBeVisible()
   await expect(page.locator('.markdown-body')).toContainText('这是一篇 E2E 正文。')
+})
+
+test('文章详情移动端压缩篇章信息并支持展开完整字段', async ({ page, apiMock }) => {
+  void apiMock
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/post/first-public')
+
+  const compactMeta = page.locator('.post-mobile-meta')
+  const summary = compactMeta.locator('summary')
+  await expect(compactMeta).toBeVisible()
+  await expect(summary).toContainText('篇章信息')
+  await expect(summary).toContainText('难度 intermediate')
+  await expect(summary).toContainText('分类 技术笔记 / Vue')
+  await expect(compactMeta.locator('dl')).toBeHidden()
+
+  const summaryBox = await summary.boundingBox()
+  expect(summaryBox.height).toBeLessThanOrEqual(48)
+
+  await summary.click()
+  await expect(compactMeta.locator('dl')).toBeVisible()
+  await expect(compactMeta.locator('dl')).toContainText('技术笔记 / Vue')
+  await expect(page.getByRole('navigation', { name: '文章目录' })).toHaveCount(0)
+  await expectNoHorizontalOverflow(page)
+})
+
+test('文章详情桌面端继续显示完整篇章信息侧栏', async ({ page, apiMock }) => {
+  void apiMock
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/post/first-public')
+
+  await expect(page.locator('.post-mobile-meta')).toBeHidden()
+  await expect(page.locator('.post-aside__content > dl')).toBeVisible()
+  await expect(page.locator('.post-aside__content > dl')).toContainText('技术笔记 / Vue')
 })
 
 test('文章详情展示相关阅读并排除前后篇重复链接', async ({ page, apiMock }) => {

@@ -43,6 +43,35 @@ const metadata = computed(() => article.value?.metadata || {})
 const previousArticle = computed(() => article.value?.previous || null)
 const nextArticle = computed(() => article.value?.next || null)
 const relatedArticles = computed(() => article.value?.related || [])
+const infoItems = computed(() => {
+  const items = []
+  if (metadata.value.difficulty) {
+    items.push({ label: '难度', value: metadata.value.difficulty })
+  }
+  if (metadata.value.chapter) {
+    items.push({ label: '章节', value: `第 ${metadata.value.chapter} 章` })
+  }
+  if (metadata.value.bookTitle) {
+    items.push({ label: '书目', value: metadata.value.bookTitle })
+  }
+  if (categories.value.length) {
+    items.push({
+      label: '分类',
+      value: categories.value.map((item) => item.name).join(' / '),
+    })
+  }
+  return items
+})
+const compactMetaText = computed(() => {
+  const parts = []
+  if (metadata.value.difficulty) {
+    parts.push(`难度 ${metadata.value.difficulty}`)
+  }
+  if (categories.value.length) {
+    parts.push(`分类 ${categories.value.map((item) => item.name).join(' / ')}`)
+  }
+  return parts.join(' · ') || '暂无补充信息'
+})
 const outline = computed(() =>
   article.value?.body ? extractMarkdownOutline(article.value.body) : [],
 )
@@ -228,24 +257,27 @@ onBeforeUnmount(() => {
       <aside class="post-aside">
         <div class="post-aside__content">
           <span class="post-aside__label">篇章信息</span>
-          <dl>
-            <div v-if="metadata.difficulty">
-              <dt>难度</dt>
-              <dd>{{ metadata.difficulty }}</dd>
-            </div>
-            <div v-if="metadata.chapter">
-              <dt>章节</dt>
-              <dd>第 {{ metadata.chapter }} 章</dd>
-            </div>
-            <div v-if="metadata.bookTitle">
-              <dt>书目</dt>
-              <dd>{{ metadata.bookTitle }}</dd>
-            </div>
-            <div v-if="categories.length">
-              <dt>分类</dt>
-              <dd>{{ categories.map((item) => item.name).join(' / ') }}</dd>
+          <dl v-if="infoItems.length">
+            <div v-for="item in infoItems" :key="item.label">
+              <dt>{{ item.label }}</dt>
+              <dd>{{ item.value }}</dd>
             </div>
           </dl>
+          <details v-if="infoItems.length" class="post-mobile-meta">
+            <summary>
+              <span class="post-mobile-meta__label">篇章信息</span>
+              <span class="post-mobile-meta__summary" :title="compactMetaText">
+                {{ compactMetaText }}
+              </span>
+              <span class="post-mobile-meta__toggle" aria-hidden="true" />
+            </summary>
+            <dl>
+              <div v-for="item in infoItems" :key="item.label">
+                <dt>{{ item.label }}</dt>
+                <dd>{{ item.value }}</dd>
+              </div>
+            </dl>
+          </details>
           <ArticleOutline
             :headings="outline"
             :active-id="activeHeadingId"

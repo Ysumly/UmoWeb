@@ -1,6 +1,6 @@
 # UmoWeb 前端架构
 
-> 基线日期: 2026-09-18
+> 基线日期: 2026-09-19
 > 项目路径: `Client Side/umo-web-frontend/`
 > 状态: 公开端阅读增强、本地工具中心、在线编辑器、隐私说明、四款训练游戏和管理端核心业务页均已实现；
 > 管理端文章 AI 抽屉已接入转换运行时
@@ -19,6 +19,7 @@
 | marked | 18.x | 公开详情、About 和 Project 的 Markdown 渲染能力 |
 | highlight.js | 11.x | Markdown 代码块高亮，按语言注册 |
 | yaml | 2.9.x | 管理端 Markdown front matter 解析 |
+| pinyin-pro | 3.29.x | 新建文章时把中文标题转成无声调拼音 slug |
 | Tailwind CSS | 4.3.x | utility-first 样式 |
 | Playwright Test | 1.63.x | 本机 Chrome 浏览器 E2E 与视觉回归 |
 
@@ -69,11 +70,13 @@ umo-web-frontend/
     ├── utils/
     │   ├── accessPrivacy.js
     │   ├── adminContent.js
+    │   ├── adminSlug.js
     │   ├── apiError.js
     │   ├── articleOutline.js
     │   ├── articleOutline.test.js
     │   ├── editor.js
     │   ├── format.js
+    │   ├── libraryFilters.js
     │   ├── markdownImport.js
     │   ├── markdown.js
     │   └── publicContent.js
@@ -94,6 +97,7 @@ umo-web-frontend/
     │   │   ├── ArticleOutlineList.vue
     │   │   ├── ContentCard.vue
     │   │   ├── ContentState.vue
+    │   │   ├── LibraryFilterSheet.vue
     │   │   ├── MarkdownArticle.vue
     │   │   ├── SectionHeading.vue
     │   │   ├── SiteFooter.vue
@@ -186,6 +190,8 @@ umo-web-frontend/
 维持主导航激活状态。
 `/tools` 和 `/editor` 使用 `section: tools`，共享公开导航配置并在工具中心与编辑器间保持
 “工具”激活态。
+书库查询参数使用路径而不是 `route.fullPath` 作为组件 key，并在同名书库筛选变化时由
+`scrollBehavior` 返回 `false`，避免筛选、chip 和清除筛选操作卸载页面或强制回顶。
 
 ---
 
@@ -249,7 +255,7 @@ token 来源和存储位置都是 `localStorage`。
 | `LoginPage.vue` | 表单、调用登录 API、错误提示、跳转 |
 | `AdminLayout.vue` | 桌面侧栏、移动抽屉、主题切换、退出登录和 `router-view` |
 | `ContentListPage.vue` | 四种状态筛选、分页、当前页批量分类/标签、归档/恢复、编辑和删除 |
-| `ContentEditPage.vue` | 新建/编辑、Markdown front matter 导入、分类标签、metadata、分屏预览、图片上传、定时发布、AI 转换抽屉和未保存保护 |
+| `ContentEditPage.vue` | 新建/编辑、中文标题转拼音 slug、Markdown front matter 导入、分类标签、metadata、分屏预览、图片上传、定时发布、AI 转换抽屉和未保存保护 |
 | `CategoryManagePage.vue` | 分类树筛选、父级/排序字段、增改删、409 提示和未保存保护 |
 | `TagManagePage.vue` | 标签增改删、字段校验、409 提示和未保存保护 |
 | `ImageManagePage.vue` | 图片缩略图、引用筛选、分页、删除确认、409 提示和列表刷新 |
@@ -269,10 +275,13 @@ token 来源和存储位置都是 `localStorage`。
 
 - 首页：站点介绍、主推文章、最新内容、类型入口和 About 预览。
 - 书库：类型、分类、标签服务端筛选和分页；分类筛选默认包含全部后代。
+- 书库在 700px 及以下隐藏桌面筛选栏，使用 `LibraryFilterSheet` 草稿式底部抽屉、已选数量、
+  可移除 chips 和清除后滚动恢复；701px 以上保持分类侧栏。
 - 搜索：显式提交、URL 同步和 429 倒计时。
 - 文章详情：Markdown、代码高亮、分类标签、后端返回的前后文章、自动目录、滚动章节高亮和
   阅读进度；相关内容最多 4 篇并排除前后篇，桌面双列、700px 以下单列。桌面端目录位于侧栏，
   sticky 高度不超过 `50vh`，长目录在侧栏内部滚动；980px 及以下使用可关闭的悬浮目录。
+  700px 及以下把篇章信息、难度、分类、章节和书目压缩为单行可展开详情，保留阅读进度和目录入口。
   Markdown 渲染兼容加粗结束符后紧接正文的列表写法。
 - About 与 Project：分别读取配置页 Markdown。
 
@@ -343,11 +352,11 @@ server: {
 ```
 
 2026-09-19 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
-搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 126 个 Node 测试覆盖路由、
+搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 137 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
 编辑滚动比例与标题锚点插值、Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
 游戏规则与旧成绩、AI 模式表单、AI 抽屉本地规则、Markdown 原始 HTML、邻接正文的加粗、
-危险 URL 协议和图片 alt 转义；Playwright 另含 86 个 functional 和 34 个 Windows 视觉检查。
+危险 URL 协议和图片 alt 转义；Playwright 另含 92 个 functional 和 34 个 Windows 视觉检查。
 管理端文章生命周期为
 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`，仅未发布草稿可以选择未来计划时间。
 书库选择分类时 URL 使用
