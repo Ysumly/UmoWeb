@@ -104,7 +104,7 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 237 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 238 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析、
 正文索引、摘要提取、图片清理、图片一致性、AI 模式目录、DeepSeek Provider、请求限流和
 结果保真校验测试。

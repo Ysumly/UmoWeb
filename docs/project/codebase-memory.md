@@ -58,7 +58,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring `RestClient` + DeepSeek OpenAI-compatible；模式目录、转换运行时和文章 AI 抽屉已接入 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；237 个测试（17 个 MySQL 环境门控） |
+| 测试 | Spring Boot Test、Mockito、MockMvc；238 个测试（17 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -75,8 +75,9 @@ UmoWeb/
 | 浏览器测试 | Playwright Test 1.63；Windows Chrome channel、Linux Chromium，Mock API |
 | 容器构建 | Node 24.12 Alpine、Maven 3.9.11/JDK 17、JRE 17、Nginx 1.29 |
 
-- 管理端 AI 已完成 5.1B 模式目录、5.1C 设置页、5.1D 转换运行时和 5.1E 文章 AI 抽屉；
-  5.1F 质量发布仍待实施，入口见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md`。
+- 管理端 AI 已完成 5.1B 模式目录、5.1C 设置页、5.1D 转换运行时、5.1E 文章 AI 抽屉
+  和 5.1F 自动/真实模型质量验收；正在完成发布门禁，入口见
+  `docs/superpowers/plans/2026-09-18-admin-ai-index.md`。
 
 ### 2.3 持续集成
 
@@ -623,7 +624,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。
 - GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、MySQL 8.4 集成、
   前端测试、生产构建和 Linux Playwright；MySQL job 同时验证 Schema、种子、两次正文回填、
-  中文 ngram 查询、AI 模式 Mapper 和 31/31 兼容冒烟。
+  中文 ngram 查询、AI 模式 Mapper 和启用假供应商的 40/40 AI 契约冒烟。
 
 ### 7.2 当前代码风险
 
