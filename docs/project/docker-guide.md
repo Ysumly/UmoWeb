@@ -512,6 +512,8 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
   演练后恢复 `APP_AI_ENABLED=false` 和模式停用，日志未发现正文、结果、提示词或 API Key。
 - 当前生产版本为 `v1.1.0`；开发机保留 `v1.0.0`、`v1.1.0-rc.1` 和 `v1.1.0` 归档，
   正式回滚目标为 `v1.0.0`。
+- 2026-09-19 当前 ECS 已将 `APP_AI_ENABLED` 显式设置为 `true`，并启用五个默认模式；
+  这是当前生产运行状态，不改变代码和示例配置中的默认关闭值。
 
 ## 10. 访问安全日志与报表
 

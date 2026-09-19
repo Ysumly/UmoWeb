@@ -1,5 +1,27 @@
 # 审计日志
 
+## 审计 #65 - 2026-09-19 — 生产启用管理端 AI
+
+### 范围
+
+- 将当前 ECS 的 `APP_AI_ENABLED` 从 `false` 切换为 `true` 并重启后端。
+- 通过现有管理 API 启用五个默认转换模式，不修改代码、Schema、提示词内容或镜像。
+
+### 结果
+
+- capability 返回 `enabled=true`、`maxInputChars=20000`，启用模式为
+  `STRUCTURE_CLEANUP`、`MODERN_TO_CLASSICAL`、`ENGLISH_TO_CHINESE`、
+  `CHINESE_TO_ENGLISH` 和 `LIGHT_NOVELIZATION`。
+- DeepSeek Base URL、API Key 和模型继续只保存在服务器侧；未输出或提交任何密钥值。
+- MySQL、backend 和 frontend 容器保持健康，AI 开启后 ECS 兼容冒烟为 31/31。
+- 临时启用脚本已从 ECS `/tmp` 和本地忽略目录删除。
+
+### 状态
+
+- 当前生产运行 `v1.1.0`，AI 已全局启用且五个默认模式可用。
+- 后续可通过管理端 AI 设置页单独停用模式；如需整体关闭，将
+  `APP_AI_ENABLED=false` 并重启后端即可。
+
 ## 审计 #64 - 2026-09-19 — 5.1F 管理端 AI 正式版发布
 
 ### 范围
