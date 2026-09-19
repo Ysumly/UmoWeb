@@ -1,13 +1,18 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { getCategories, getContents, getTags } from '@/api/public'
 import ContentCard from '@/components/public/ContentCard.vue'
 import ContentState from '@/components/public/ContentState.vue'
+import LibraryFilterSheet from '@/components/public/LibraryFilterSheet.vue'
 import SectionHeading from '@/components/public/SectionHeading.vue'
 import { contentTypes } from '@/config/contentTypes'
 import { getApiErrorMessage } from '@/utils/apiError'
+import {
+  buildLibraryFilterChips,
+  countActiveLibraryFilters,
+} from '@/utils/libraryFilters'
 import {
   flattenCategoryTree,
   PUBLIC_PAGE_SIZE,
@@ -22,10 +27,22 @@ const categories = ref([])
 const tags = ref([])
 const contents = ref([])
 const pageInfo = ref({ page: 1, size: PUBLIC_PAGE_SIZE, total: 0 })
+const filterSheetOpen = ref(false)
+const filterTriggerRef = ref(null)
+const pendingScrollRestore = ref(null)
 let requestId = 0
 
 const filters = computed(() => resolveLibraryQuery(route.query))
-const categoryOptions = computed(() => flattenCategoryTree(categories.value))
+const allCategoryOptions = computed(() => flattenCategoryTree(categories.value))
+const categoryOptions = computed(() => {
+  return allCategoryOptions.value.filter((category) => {
+    return !filters.value.type || category.type === filters.value.type
+  })
+})
+const activeFilterCount = computed(() => countActiveLibraryFilters(filters.value))
+const activeFilterChips = computed(() => {
+  return buildLibraryFilterChips(filters.value, categories.value, tags.value)
+})
 const totalPages = computed(() => {
   return Math.max(1, Math.ceil(pageInfo.value.total / PUBLIC_PAGE_SIZE))
 })
@@ -53,7 +70,46 @@ function updateQuery(changes) {
 }
 
 function clearFilters() {
+  if (!activeFilterCount.value) {
+    return
+  }
+  pendingScrollRestore.value = window.scrollY
+  filterSheetOpen.value = false
   router.replace({ query: {} })
+}
+
+function removeFilter(key) {
+  const changes = {
+    ...(key === 'type' ? { type: '' } : {}),
+    ...(key === 'category' ? {
+      categoryId: null,
+      includeDescendants: false,
+    } : {}),
+    ...(key === 'tag' ? { tagId: null } : {}),
+  }
+  updateQuery(changes)
+}
+
+function applyMobileFilters(nextFilters) {
+  filterSheetOpen.value = false
+  updateQuery(nextFilters)
+  nextTick(() => filterTriggerRef.value?.focus())
+}
+
+function closeMobileFilters() {
+  filterSheetOpen.value = false
+  nextTick(() => filterTriggerRef.value?.focus())
+}
+
+async function restoreScrollPosition() {
+  if (pendingScrollRestore.value === null) {
+    return
+  }
+  const target = pendingScrollRestore.value
+  pendingScrollRestore.value = null
+  await nextTick()
+  const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
+  window.scrollTo(0, Math.min(target, maxScroll))
 }
 
 function hasInvalidQuery() {
@@ -78,7 +134,7 @@ async function load() {
 
   try {
     const [categoryResponse, tagResponse, contentResponse] = await Promise.all([
-      getCategories(currentFilters.type || undefined),
+      getCategories(),
       getTags(),
       getContents({
         page: currentFilters.page,
@@ -118,11 +174,21 @@ async function load() {
     }
     status.value = 'error'
     errorMessage.value = getApiErrorMessage(error, '书库内容加载失败')
+  } finally {
+    if (currentRequest === requestId) {
+      await restoreScrollPosition()
+    }
   }
 }
 
 watch(
-  () => [route.query.type, route.query.category, route.query.tag, route.query.page],
+  () => [
+    route.query.type,
+    route.query.category,
+    route.query.includeDescendants,
+    route.query.tag,
+    route.query.page,
+  ],
   () => {
     if (hasInvalidQuery()) {
       replaceQuery(filters.value)
@@ -195,6 +261,43 @@ watch(
       </aside>
 
       <section class="library-results">
+        <div class="library-mobile-filter-bar">
+          <button
+            ref="filterTriggerRef"
+            class="library-filter-trigger"
+            type="button"
+            aria-controls="library-filter-sheet"
+            :aria-expanded="filterSheetOpen"
+            @click="filterSheetOpen = true"
+          >
+            筛选（已选 {{ activeFilterCount }} 项）
+          </button>
+          <div
+            v-if="activeFilterChips.length"
+            class="library-active-filters"
+            aria-label="当前筛选"
+          >
+            <button
+              v-for="chip in activeFilterChips"
+              :key="chip.key"
+              class="library-filter-chip"
+              type="button"
+              :aria-label="`移除筛选：${chip.label}`"
+              @click="removeFilter(chip.key)"
+            >
+              {{ chip.label }}
+              <span aria-hidden="true">×</span>
+            </button>
+            <button
+              class="library-filter-clear"
+              type="button"
+              @click="clearFilters"
+            >
+              清除全部筛选
+            </button>
+          </div>
+        </div>
+
         <SectionHeading
           :eyebrow="`${pageInfo.total} Results`"
           title="筛选结果"
@@ -258,5 +361,14 @@ watch(
         </nav>
       </section>
     </div>
+
+    <LibraryFilterSheet
+      :open="filterSheetOpen"
+      :filters="filters"
+      :category-options="allCategoryOptions"
+      :tags="tags"
+      @close="closeMobileFilters"
+      @apply="applyMobileFilters"
+    />
   </div>
 </template>

@@ -584,6 +584,29 @@ test('文章列表支持筛选并完成新建、编辑、发布和删除', async
   await expect(page.getByRole('row', { name: /E2E 已发布文章/ })).toHaveCount(0)
 })
 
+test('新建文章从中文标题生成 slug 并在手动修改后停止同步', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  await page.getByLabel(/^标题/).fill('Vue 3 快速入门')
+  await expect(page.getByLabel(/^slug/)).toHaveValue('vue-3-kuai-su-ru-men')
+
+  await page.getByLabel(/^slug/).fill('custom-reading-slug')
+  await page.getByLabel(/^标题/).fill('切换后的新标题')
+  await expect(page.getByLabel(/^slug/)).toHaveValue('custom-reading-slug')
+
+  await page.getByLabel(/^slug/).fill('')
+  await expect(page.getByLabel(/^slug/)).toHaveValue('qie-huan-hou-de-xin-biao-ti')
+})
+
+test('编辑已有文章时清空 slug 不会重新自动生成', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/1/edit')
+
+  await page.getByLabel(/^slug/).fill('')
+  await expect(page.getByLabel(/^slug/)).toHaveValue('')
+})
+
 test('分类和标签支持完整 CRUD', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/categories')
@@ -849,6 +872,9 @@ test('从 Markdown front matter 预填并创建文章', async ({ page, apiMock }
   await expect(page.locator('.admin-editor-pane--preview').getByRole('heading', {
     name: '导入的文章',
   })).toBeVisible()
+  await page.getByLabel(/^标题/).fill('标题已改但导入 slug 不变')
+  await expect(page.getByLabel(/^slug/)).toHaveValue('imported-note')
+  await page.getByLabel(/^标题/).fill('导入的文章')
 
   await page.getByRole('button', { name: '创建文章' }).click()
   await expect(page).toHaveURL(/\/secret-admin\/contents\?saved=1/)

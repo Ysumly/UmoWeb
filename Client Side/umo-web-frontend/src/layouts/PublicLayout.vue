@@ -35,7 +35,7 @@ onMounted(() => {
     <main id="main-content" class="public-main">
       <router-view v-slot="{ Component }">
         <transition :name="route.meta.instantTransition ? 'instant' : transitionName" mode="out-in">
-          <component :is="Component" :key="route.fullPath" />
+          <component :is="Component" :key="route.name === 'library' ? route.path : route.fullPath" />
         </transition>
       </router-view>
     </main>
