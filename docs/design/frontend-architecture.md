@@ -344,7 +344,7 @@ server: {
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
 编辑滚动比例、Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
 游戏规则与旧成绩、AI 模式表单、AI 抽屉本地规则、Markdown 原始 HTML、邻接正文的加粗、
-危险 URL 协议和图片 alt 转义；Playwright 另含 76 个 functional 和 34 个 Windows 视觉检查。
+危险 URL 协议和图片 alt 转义；Playwright 另含 83 个 functional 和 34 个 Windows 视觉检查。
 管理端文章生命周期为
 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`，仅未发布草稿可以选择未来计划时间。
 书库选择分类时 URL 使用

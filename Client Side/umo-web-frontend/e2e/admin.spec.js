@@ -899,6 +899,132 @@ test('删除图片后，在途一致性扫描不会恢复旧报告', async ({ pa
   await expect(page.getByRole('heading', { name: '图片一致性报告' })).toHaveCount(0)
 })
 
+test('图片缩略图加载失败时显示可访问的错误占位', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  apiMock.state.images[0].url = '/images/2026/09/good-image.png'
+  apiMock.state.images[1].url = '/images/2026/09/broken-image.png'
+  await page.route('**/images/**', (route) => {
+    if (route.request().url().endsWith('/broken-image.png')) {
+      return route.fulfill({ status: 404 })
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n4sAAAAASUVORK5CYII=',
+        'base64',
+      ),
+    })
+  })
+
+  await page.goto('/secret-admin/images')
+
+  const cards = page.locator('.admin-image-card')
+  await expect(cards.first().locator('img')).toBeVisible()
+  await expect(cards.nth(1).locator('.admin-image-card__fallback')).toBeVisible()
+  await expect(cards.nth(1).getByRole('img', { name: '图片文件不可用：orphan-image.png' }))
+    .toBeVisible()
+})
+
+test.describe('移动端管理导航', () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  })
+
+  test('关闭侧栏不进入焦点，打开后限制焦点并支持 Escape', async ({ page, apiMock }) => {
+    await apiMock.authenticate()
+    await page.goto('/secret-admin/contents')
+
+    let hiddenFocusCount = 0
+    for (let index = 0; index < 20; index += 1) {
+      await page.keyboard.press('Tab')
+      hiddenFocusCount += await page.evaluate(() => (
+        document.activeElement?.closest('.admin-sidebar') ? 1 : 0
+      ))
+    }
+    expect(hiddenFocusCount).toBe(0)
+
+    const menuButton = page.locator('.admin-menu-button')
+    const sidebar = page.locator('.admin-sidebar')
+    await menuButton.click()
+    await expect(menuButton).toHaveAttribute('aria-expanded', 'true')
+
+    const firstLink = sidebar.getByRole('link', { name: '文章管理', exact: true })
+    const lastButton = sidebar.getByRole('button', { name: '退出登录' })
+    await expect(firstLink).toBeFocused()
+
+    await firstLink.focus()
+    await page.keyboard.press('Shift+Tab')
+    await expect(lastButton).toBeFocused()
+
+    await lastButton.focus()
+    await page.keyboard.press('Tab')
+    await expect(firstLink).toBeFocused()
+
+    await page.keyboard.press('Escape')
+    await expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+    await expect(menuButton).toBeFocused()
+  })
+
+  test('点击当前页导航项关闭菜单', async ({ page, apiMock }) => {
+    await apiMock.authenticate()
+    await page.goto('/secret-admin/contents')
+
+    const menuButton = page.locator('.admin-menu-button')
+    await menuButton.click()
+    await page.locator('.admin-sidebar').getByRole('link', {
+      name: '文章管理',
+      exact: true,
+    }).click()
+
+    await expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.locator('.admin-sidebar')).toBeHidden()
+  })
+
+  test('低高度横屏下侧栏可以滚动到退出入口', async ({ page, apiMock }) => {
+    await apiMock.authenticate()
+    await page.goto('/secret-admin/contents')
+
+    for (const viewport of [
+      { width: 844, height: 390 },
+      { width: 667, height: 320 },
+    ]) {
+      await page.setViewportSize(viewport)
+      await page.locator('.admin-menu-button').click()
+      const sidebar = page.locator('.admin-sidebar')
+      const dimensions = await sidebar.evaluate((element) => ({
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+      }))
+      expect(dimensions.scrollHeight).toBeGreaterThan(dimensions.clientHeight)
+
+      await sidebar.evaluate((element) => {
+        element.scrollTop = element.scrollHeight
+      })
+      const logoutBox = await sidebar.getByRole('button', { name: '退出登录' }).boundingBox()
+      expect(logoutBox.y).toBeGreaterThanOrEqual(0)
+      expect(logoutBox.y + logoutBox.height).toBeLessThanOrEqual(viewport.height)
+
+      await page.keyboard.press('Escape')
+      await expect(page.locator('.admin-menu-button')).toHaveAttribute('aria-expanded', 'false')
+    }
+  })
+
+  test('文章编辑器隐藏文件输入不进入 Tab 顺序', async ({ page, apiMock }) => {
+    await apiMock.authenticate()
+    await page.goto('/secret-admin/contents/new')
+
+    const hiddenInputs = page.locator('input[type="file"]')
+    await expect(hiddenInputs).toHaveCount(2)
+    for (const input of await hiddenInputs.all()) {
+      expect(await input.evaluate((element) => element.tabIndex)).toBe(-1)
+      expect(await input.getAttribute('aria-label')).toBeTruthy()
+    }
+  })
+})
+
 test.describe('390px 管理端布局', () => {
   test.use({
     viewport: { width: 390, height: 844 },

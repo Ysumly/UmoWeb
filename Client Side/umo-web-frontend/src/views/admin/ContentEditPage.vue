@@ -478,6 +478,7 @@ onBeforeUnmount(() => {
             ref="markdownFileInputRef"
             class="sr-only"
             type="file"
+            tabindex="-1"
             accept=".md,.markdown,text/markdown,text/plain"
             aria-label="选择 Markdown 文件"
             @change="handleMarkdownFileInput"
@@ -742,6 +743,8 @@ onBeforeUnmount(() => {
               ref="fileInputRef"
               class="sr-only"
               type="file"
+              tabindex="-1"
+              aria-label="选择图片文件"
               accept="image/jpeg,image/png,image/gif,image/webp"
               @change="handleFileInput"
             />

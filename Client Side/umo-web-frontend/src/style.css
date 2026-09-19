@@ -2903,6 +2903,8 @@ svg {
   z-index: 32;
   display: flex;
   height: 100vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   flex-direction: column;
   border-right: 1px solid var(--line);
   padding: 24px 18px;
@@ -3605,6 +3607,24 @@ fieldset.admin-field {
   object-fit: cover;
 }
 
+.admin-image-card__fallback {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.admin-image-card__fallback strong {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
 .admin-image-card__body {
   display: flex;
   min-height: 126px;
@@ -4229,11 +4249,13 @@ fieldset.admin-field {
     left: 0;
     z-index: 40;
     width: min(82vw, 280px);
+    visibility: hidden;
     transform: translateX(-105%);
     transition: transform 170ms ease;
   }
 
   .admin-sidebar.is-open {
+    visibility: visible;
     transform: translateX(0);
   }
 

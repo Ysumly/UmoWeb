@@ -22,6 +22,7 @@ const usage = ref(normalizeUsage(route.query.usage))
 const page = ref(normalizePage(route.query.page))
 const pageInfo = ref({ page: 1, size: 24, total: 0 })
 const deletingId = ref(null)
+const failedImageIds = ref(new Set())
 const integrityReport = ref(null)
 const integrityError = ref('')
 const checkingIntegrity = ref(false)
@@ -48,6 +49,7 @@ async function loadImages(targetPage = page.value) {
     })
     const response = await getAdminImages(params)
     images.value = response.data?.items || []
+    failedImageIds.value = new Set()
     pageInfo.value = {
       page: response.data?.page || params.page,
       size: response.data?.size || params.size,
@@ -59,6 +61,12 @@ async function loadImages(targetPage = page.value) {
     status.value = 'error'
     errorMessage.value = getApiErrorMessage(error, '图片列表加载失败')
   }
+}
+
+function markImageFailed(imageId) {
+  const next = new Set(failedImageIds.value)
+  next.add(imageId)
+  failedImageIds.value = next
 }
 
 async function selectUsage(nextUsage) {
@@ -326,7 +334,21 @@ onMounted(loadImages)
       <div class="admin-image-grid">
         <article v-for="image in images" :key="image.id" class="admin-image-card">
           <div class="admin-image-card__preview">
-            <img :src="image.url" :alt="image.originalName" loading="lazy" />
+            <img
+              v-if="!failedImageIds.has(image.id)"
+              :src="image.url"
+              :alt="image.originalName"
+              loading="lazy"
+              @error="markImageFailed(image.id)"
+            />
+            <div
+              v-else
+              class="admin-image-card__fallback"
+              role="img"
+              :aria-label="`图片文件不可用：${image.originalName}`"
+            >
+              <strong>图片文件不可用</strong>
+            </div>
           </div>
           <div class="admin-image-card__body">
             <div class="admin-image-card__heading">

@@ -1,6 +1,6 @@
 # UmoWeb 代码基线记忆
 
-> 基线日期: 2026-09-18
+> 基线日期: 2026-09-19
 > 范围: 当前工作区中的前端、后端、数据库脚本和文档
 > 原则: 代码行为优先；计划能力与已实现能力必须分开记录
 
@@ -86,7 +86,7 @@ UmoWeb/
 | 触发 | `pull_request` 和 `master` push |
 | 运行环境 | Ubuntu、Temurin Java 17、Node 24.12.0 |
 | 检查 | 后端 Maven 测试、MySQL 8.4 Schema/种子/迁移与接口冒烟、前端 Node 测试、前端构建、Linux Playwright、diff 检查和敏感信息扫描 |
-| 视觉基线 | 34 张 Windows Chrome 与 30 张 Linux Chromium 独立 PNG；AI 设置与抽屉 Linux 基线待 5.1F 补齐 |
+| 视觉基线 | 34 张 Windows Chrome 与 34 张 Linux Chromium 独立 PNG |
 | 权限 | `contents: read`，不配置仓库 Secret |
 | 合并门禁 | 当前私有仓库计划不支持分支保护或规则集，失败结果不能强制阻止合并 |
 
@@ -469,6 +469,9 @@ Spring Multipart 限制单文件和请求均为 50MB。
   删除图片后旧报告失效；结果不写入 Pinia 或浏览器存储。
 - 2026-09-15 已完成 Task 4.3 批量管理与定时发布：新增四种内容状态、当前页批量分类/标签、
   归档/恢复、未来的 `scheduledAt`、30 秒到期扫描、条件更新幂等保护和正文索引同步。
+- 2026-09-19 已修复发布前移动端与界面缺陷：管理侧栏关闭后不再进入焦点、打开时限制 Tab 并支持
+  Escape/焦点恢复、低高度横屏可内部滚动；公开与管理端当前页导航可关闭菜单；隐藏文件输入移出
+  Tab 顺序；图片缩略图加载失败显示无障碍占位。
 
 ### 6.2 其他前端事实
 
@@ -601,16 +604,17 @@ Spring Multipart 限制单文件和请求均为 50MB。
   Markdown front matter 导入、日期格式、书库后代参数、目录树与展开状态、标题 ID/别名、
   AI 模式表单与版本载荷、AI 抽屉本地状态/字符边界、Markdown 原始 HTML、邻接正文的加粗、
   危险 URL 协议、图片 alt 转义、定时状态、编辑器滚动比例和批量载荷规则。
-- Playwright 每个平台运行 110 个浏览器检查：76 个 functional 用例覆盖公开端、正文摘要、
+- Playwright 每个平台运行 117 个浏览器检查：83 个 functional 用例覆盖公开端、正文摘要、
   文章目录/阅读进度/相关阅读、图片一致性报告与竞态、隐私说明、工具中心、在线编辑器、
   三处编辑工作区双向滚动、批量文章操作、定时发布、桌面目录常驻/侧栏内滚动/窄屏断点、
-  四款游戏的高密度/长序列/旧成绩兼容、AI 模式设置、AI 转换抽屉和管理端核心流程；
+  四款游戏的高密度/长序列/旧成绩兼容、AI 模式设置、AI 转换抽屉、移动菜单焦点/横屏滚动、
+  隐藏文件输入和管理端核心流程；
   34 个视觉断言覆盖 17 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
 - Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；
   Windows 默认 Chrome channel，Linux CI 使用锁定 Playwright 版本的 Chromium。
-- 仓库分别保存 34 张 `win32` 和 30 张 `linux` 视觉快照；Linux 快照通过手动
+- 仓库分别保存 34 张 `win32` 和 34 张 `linux` 视觉快照；Linux 快照通过手动
   `Playwright Linux Baselines` 工作流生成 artifact 后人工审查提交，不会自动写回仓库。
 - `scripts/ci/scan-sensitive-info.sh` 扫描全部已跟踪文件，覆盖公开 IPv4、ECS 实例 ID、AccessKey、
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。

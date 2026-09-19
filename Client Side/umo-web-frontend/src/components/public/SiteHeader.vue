@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import ThemeToggle from '@/components/common/ThemeToggle.vue'
@@ -9,6 +9,7 @@ import { useSiteStore } from '@/stores/site'
 const route = useRoute()
 const siteStore = useSiteStore()
 const menuOpen = ref(false)
+const menuButtonRef = ref(null)
 
 const currentSection = computed(() => route.meta.section || route.name)
 const siteTitle = computed(() => siteStore.siteTitle || 'Umo')
@@ -20,6 +21,39 @@ watch(
     menuOpen.value = false
   },
 )
+
+function closeMenu({ restoreFocus = false } = {}) {
+  if (!menuOpen.value) {
+    return
+  }
+  menuOpen.value = false
+  if (restoreFocus) {
+    nextTick(() => menuButtonRef.value?.focus())
+  }
+}
+
+function toggleMenu() {
+  if (menuOpen.value) {
+    closeMenu()
+  } else {
+    menuOpen.value = true
+  }
+}
+
+function handleWindowKeydown(event) {
+  if (event.key === 'Escape' && menuOpen.value) {
+    event.preventDefault()
+    closeMenu({ restoreFocus: true })
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleWindowKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleWindowKeydown)
+})
 </script>
 
 <template>
@@ -47,11 +81,13 @@ watch(
       <div class="site-header__actions">
         <ThemeToggle />
         <button
+          ref="menuButtonRef"
           class="menu-button"
           type="button"
           :aria-expanded="menuOpen"
-          aria-label="打开导航目录"
-          @click="menuOpen = !menuOpen"
+          aria-controls="public-mobile-navigation"
+          :aria-label="menuOpen ? '关闭导航目录' : '打开导航目录'"
+          @click="toggleMenu"
         >
           <span />
           <span />
@@ -60,13 +96,19 @@ watch(
     </div>
 
     <transition name="menu-reveal">
-      <nav v-if="menuOpen" class="mobile-nav" aria-label="移动端主导航">
+      <nav
+        v-if="menuOpen"
+        id="public-mobile-navigation"
+        class="mobile-nav"
+        aria-label="移动端主导航"
+      >
         <router-link
           v-for="(item, index) in publicNavigation"
           :key="item.to"
           :to="item.to"
           :class="{ 'is-active': currentSection === item.name }"
           :style="{ '--nav-index': index }"
+          @click="closeMenu()"
         >
           <span>{{ String(index + 1).padStart(2, '0') }}</span>
           {{ item.label }}
