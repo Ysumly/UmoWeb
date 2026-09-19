@@ -4119,6 +4119,7 @@ fieldset.admin-field {
 
 .admin-ai-enabled__control {
   display: flex;
+  height: 43px;
   min-height: 43px;
   align-items: center;
   gap: 9px;
@@ -4126,6 +4127,10 @@ fieldset.admin-field {
   border-radius: 3px;
   padding: 10px 11px;
   background: var(--surface);
+}
+
+.admin-ai-editor .admin-form-grid--two select {
+  height: 43px;
 }
 
 .admin-ai-enabled__control input {
