@@ -515,6 +515,18 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
 - 2026-09-19 当前 ECS 已将 `APP_AI_ENABLED` 显式设置为 `true`，并启用五个默认模式；
   这是当前生产运行状态，不改变代码和示例配置中的默认关闭值。
 
+### 9.14 移动阅读体验 `v1.1.1`
+
+- `v1.1.1` 从提交 `e0fe7ea29de4` 构建，push CI run 为 `35442876111`；
+  annotated tag 已推送并确认 peel 后指向该提交。
+- 发布前备份 `20260919T123016Z` 通过内层清单和 SHA-256 校验；镜像归档 SHA-256 为
+  `f9865bf857a137333fb0d8f6e9c83190d1b9003105cd0afe79c30c6804094a7f`。
+- 后端镜像 ID 为 `sha256:98d083acb6e8f0e20d68d3a05cc96bd1c40b9b00717c0d777ffdbdbaa5fd59be`；
+  前端镜像 ID 为 `sha256:f2ab08d87785c70f42d764ef9987151278fbefd7bdb3ecd83d3f91a3056c905f`。
+- 独立 `Verify` 返回 `v1.1.1`、manifest 双镜像 ID 和 `operation=deploy`；ECS `api-smoke.py`
+  31/31，公网首页与公开站点信息均为 200。
+- 当前生产版本为 `v1.1.1`；开发机保留 `v1.1.0`、`v1.1.1` 两个归档，正式回滚目标为 `v1.1.0`。
+
 ## 10. 访问安全日志与报表
 
 ### 10.1 日志边界

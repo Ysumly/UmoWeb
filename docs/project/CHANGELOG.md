@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 2026-09-19 — 移动阅读体验正式版 `v1.1.1`
+
+- 发布提交 `e0fe7ea29de4`，push CI run `35442876111` 五个 job 全部成功；
+  annotated tag `v1.1.1` 已推送并确认 peel 后指向该提交。
+- 发布前备份 `umoweb-backup-20260919T123016Z-unknown.tar.gz` 通过内层清单与 SHA-256
+  `57f526b3340414b00ed6510e958b9a524c532d06e4e4defb34eefbce4918373f` 校验。
+- 正式镜像：后端 `sha256:98d083acb6e8f0e20d68d3a05cc96bd1c40b9b00717c0d777ffdbdbaa5fd59be`，
+  前端 `sha256:f2ab08d87785c70f42d764ef9987151278fbefd7bdb3ecd83d3f91a3056c905f`；
+  归档 SHA-256 为 `f9865bf857a137333fb0d8f6e9c83190d1b9003105cd0afe79c30c6804094a7f`。
+- 独立 `Verify` 返回 `v1.1.1`、manifest 双镜像 ID 和 `operation=deploy`；ECS 兼容冒烟
+  31/31，公网首页和公开站点信息均为 200。
+- 当前生产版本为 `v1.1.1`，正式回滚目标为 `v1.1.0`；开发机保留 `v1.1.0`、`v1.1.1`
+  两个归档，ECS 不长期保存旧归档。
+
 ## 2026-09-19 — 移动阅读体验增强
 
 - 管理端新建文章从中文标题生成无声调拼音 slug；标题持续同步，手动修改后锁定，清空后恢复，
