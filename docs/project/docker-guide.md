@@ -497,6 +497,22 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
 - 公网浏览器确认文章目录、列表加粗和现有公开页面行为保持一致。
 - 当前生产版本为正式版 `v1.0.0`；开发机保留 v1.0.0 与 rc.8 归档，rc.8 为正式回滚目标。
 
+### 9.13 管理端 AI `v1.1.0`
+
+- `v1.1.0-rc.1` 和 `v1.1.0` 均从提交 `bba9e44dc640` 构建，push CI run 为 `35431353455`；
+  annotated tag 已推送并确认 peel 后指向该提交。
+- RC 归档 SHA-256 为
+  `1f35f707db4dfa6ec5b305459fae1c2e44f0aedeb3de786ec2dd81f4c73616e9`；
+  正式版归档 SHA-256 为
+  `d84f32fe7be6051ac66bbe27f68439896123d59e4c33b73b976370443b8a07a3`，
+  两者大小均为 147665408 字节。
+- 关闭态 RC 和正式版均通过独立 `Verify` 与 ECS 31/31；capability 返回
+  `enabled=false`，五个默认模式保持停用。
+- 受控启用 `STRUCTURE_CLEANUP` 完成一次真实转换，结构与原文完全一致，模式版本保持 1；
+  演练后恢复 `APP_AI_ENABLED=false` 和模式停用，日志未发现正文、结果、提示词或 API Key。
+- 当前生产版本为 `v1.1.0`；开发机保留 `v1.0.0`、`v1.1.0-rc.1` 和 `v1.1.0` 归档，
+  正式回滚目标为 `v1.0.0`。
+
 ## 10. 访问安全日志与报表
 
 ### 10.1 日志边界
