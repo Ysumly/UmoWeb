@@ -253,9 +253,12 @@ test('AI 设置遇到版本冲突时保留草稿并支持移动端单列布局',
   await expect(page.getByText('提示词已在其他窗口更新，请重新加载后再保存。')).toHaveCount(0)
 
   await page.setViewportSize({ width: 390, height: 844 })
-  const nameBox = await page.getByLabel('模式名称').boundingBox()
+  const nameInput = page.getByLabel('模式名称')
+  await nameInput.scrollIntoViewIfNeeded()
+  const nameBox = await nameInput.boundingBox()
   const sortBox = await page.getByLabel('排序值').boundingBox()
   expect(sortBox.y).toBeGreaterThan(nameBox.y)
+  expect(Math.abs(sortBox.x - nameBox.x)).toBeLessThanOrEqual(1)
 
   const viewport = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
