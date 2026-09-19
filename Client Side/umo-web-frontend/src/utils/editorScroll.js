@@ -50,19 +50,39 @@ export function extractMarkdownHeadingLines(source = '') {
   return headings
 }
 
-export function findActiveHeadingIndex(offsets = [], scrollTop = 0) {
-  if (!Array.isArray(offsets) || offsets.length === 0) {
-    return -1
+export function interpolateBetweenAnchors(sourceOffsets = [], targetOffsets = [], scrollTop = 0) {
+  if (
+    !Array.isArray(sourceOffsets)
+    || !Array.isArray(targetOffsets)
+    || sourceOffsets.length < 2
+    || sourceOffsets.length !== targetOffsets.length
+  ) {
+    return null
   }
-  let activeIndex = 0
-  for (let index = 0; index < offsets.length; index += 1) {
-    if (offsets[index] <= scrollTop + 2) {
-      activeIndex = index
+
+  const sourceStart = sourceOffsets[0]
+  const sourceEnd = sourceOffsets[sourceOffsets.length - 1]
+  const position = Math.min(sourceEnd, Math.max(sourceStart, Number(scrollTop) || 0))
+  let lowerIndex = 0
+  let upperIndex = sourceOffsets.length - 1
+
+  while (lowerIndex + 1 < upperIndex) {
+    const middleIndex = Math.floor((lowerIndex + upperIndex) / 2)
+    if (sourceOffsets[middleIndex] <= position) {
+      lowerIndex = middleIndex
     } else {
-      break
+      upperIndex = middleIndex
     }
   }
-  return activeIndex
+
+  const nextIndex = lowerIndex + 1
+  const sourceDistance = sourceOffsets[nextIndex] - sourceOffsets[lowerIndex]
+  const ratio = sourceDistance > 0
+    ? Math.min(1, Math.max(0, (position - sourceOffsets[lowerIndex]) / sourceDistance))
+    : 0
+  const targetDistance = targetOffsets[nextIndex] - targetOffsets[lowerIndex]
+
+  return targetOffsets[lowerIndex] + ratio * targetDistance
 }
 
 function scrollableDistance({ scrollHeight, clientHeight } = {}) {

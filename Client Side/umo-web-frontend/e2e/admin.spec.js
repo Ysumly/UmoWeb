@@ -19,8 +19,8 @@ async function readScrollRatio(locator) {
   })
 }
 
-async function scrollEditorToHeading(editor, heading) {
-  await editor.evaluate((element, targetHeading) => {
+async function editorOffsetForHeading(editor, heading) {
+  return editor.evaluate((element, targetHeading) => {
     const mirror = document.createElement('div')
     const styles = getComputedStyle(element)
     Object.assign(mirror.style, {
@@ -45,10 +45,19 @@ async function scrollEditorToHeading(editor, heading) {
     const lines = element.value.replace(/\r\n?/g, '\n').split('\n')
     const lineIndex = lines.findIndex((line) => line.trim() === targetHeading)
     mirror.textContent = lines.slice(0, Math.max(0, lineIndex)).join('\n')
-    element.scrollTop = mirror.scrollHeight
+    const verticalPadding = Number.parseFloat(styles.paddingTop)
+      + Number.parseFloat(styles.paddingBottom)
+    const offset = mirror.scrollHeight - verticalPadding
     mirror.remove()
-    element.dispatchEvent(new Event('scroll'))
+    return offset
   }, heading)
+}
+
+async function scrollEditorToOffset(editor, offset) {
+  await editor.evaluate((element, targetOffset) => {
+    element.scrollTop = targetOffset
+    element.dispatchEvent(new Event('scroll'))
+  }, offset)
 }
 
 async function expectSyncedWorkspace(page, workspace, editor) {
@@ -700,7 +709,7 @@ test('metadata 更多说明可以展开常用字段', async ({ page, apiMock }) 
   await expect(details.getByText('JSON 不支持注释')).toBeVisible()
 })
 
-test('文章编辑器默认按标题对齐预览且不显示同步开关', async ({ page, apiMock }) => {
+test('文章编辑器在标题间连续同步预览且不显示同步开关', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/contents/new')
 
@@ -711,16 +720,91 @@ test('文章编辑器默认按标题对齐预览且不显示同步开关', async
   await expect(page.getByLabel('同步滚动')).toHaveCount(0)
   await editor.fill(longMarkdown())
   await expect(preview.getByRole('heading', { name: '章节 80' })).toBeAttached()
-  await scrollEditorToHeading(editor, '## 章节 30')
-  await waitForAnimationFrames(page)
-  await waitForAnimationFrames(page)
+  const startOffset = await editorOffsetForHeading(editor, '## 章节 30')
+  const endOffset = await editorOffsetForHeading(editor, '## 章节 31')
+  const previewPositions = []
+  for (const ratio of [0, 0.25, 0.5, 0.75, 1]) {
+    await scrollEditorToOffset(editor, startOffset + ((endOffset - startOffset) * ratio))
+    await waitForAnimationFrames(page)
+    previewPositions.push(await preview.evaluate((element) => element.scrollTop))
+  }
 
+  for (let index = 1; index < previewPositions.length; index += 1) {
+    expect(previewPositions[index]).toBeGreaterThan(previewPositions[index - 1])
+  }
+
+  await scrollEditorToOffset(editor, startOffset)
+  await waitForAnimationFrames(page)
   const [previewBox, headingBox] = await Promise.all([
     preview.boundingBox(),
     preview.getByRole('heading', { name: '章节 30' }).boundingBox(),
   ])
   expect(headingBox.y - previewBox.y).toBeGreaterThanOrEqual(-2)
   expect(headingBox.y - previewBox.y).toBeLessThan(80)
+
+  await scrollEditorToOffset(editor, endOffset)
+  await waitForAnimationFrames(page)
+  const [endPreviewBox, endHeadingBox] = await Promise.all([
+    preview.boundingBox(),
+    preview.getByRole('heading', { name: '章节 31' }).boundingBox(),
+  ])
+  expect(endHeadingBox.y - endPreviewBox.y).toBeGreaterThanOrEqual(-2)
+  expect(endHeadingBox.y - endPreviewBox.y).toBeLessThan(80)
+
+  const previewMiddle = (previewPositions[0] + previewPositions[4]) / 2
+  await preview.evaluate((element, scrollTop) => {
+    element.scrollTop = scrollTop
+    element.dispatchEvent(new Event('scroll'))
+  }, previewMiddle)
+  await waitForAnimationFrames(page)
+  const mappedEditorOffset = await editor.evaluate((element) => element.scrollTop)
+  expect(mappedEditorOffset).toBeGreaterThan(startOffset)
+  expect(mappedEditorOffset).toBeLessThan(endOffset)
+})
+
+test('标题同步在内容和宽度变化后重新计算锚点', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  const workspace = page.locator('.admin-editor-workspace')
+  const editor = workspace.getByLabel('Markdown 正文')
+  const preview = workspace.locator('.admin-editor-pane--preview')
+
+  await editor.fill(longMarkdown())
+  await waitForAnimationFrames(page)
+  await scrollEditorToOffset(editor, await editorOffsetForHeading(editor, '## 章节 30'))
+  await waitForAnimationFrames(page)
+  let previewBox = await preview.boundingBox()
+  let headingBox = await preview.getByRole('heading', { name: '章节 30' }).boundingBox()
+  expect(headingBox.y - previewBox.y).toBeGreaterThanOrEqual(-2)
+  expect(headingBox.y - previewBox.y).toBeLessThan(80)
+
+  await editor.fill(`${longMarkdown()}\n\n## 新增章节\n\n新增正文。`)
+  await waitForAnimationFrames(page)
+  await expect(preview.getByRole('heading', { name: '新增章节' })).toBeAttached()
+  let contentStart = await editorOffsetForHeading(editor, '## 章节 30')
+  let contentEnd = await editorOffsetForHeading(editor, '## 章节 31')
+  const contentPositions = []
+  for (const ratio of [0, 0.5, 1]) {
+    await scrollEditorToOffset(editor, contentStart + ((contentEnd - contentStart) * ratio))
+    await waitForAnimationFrames(page)
+    contentPositions.push(await preview.evaluate((element) => element.scrollTop))
+  }
+  expect(contentPositions[0]).toBeLessThan(contentPositions[1])
+  expect(contentPositions[1]).toBeLessThan(contentPositions[2])
+
+  await page.setViewportSize({ width: 1100, height: 900 })
+  await waitForAnimationFrames(page)
+  contentStart = await editorOffsetForHeading(editor, '## 章节 30')
+  contentEnd = await editorOffsetForHeading(editor, '## 章节 31')
+  const resizedPositions = []
+  for (const ratio of [0, 0.5, 1]) {
+    await scrollEditorToOffset(editor, contentStart + ((contentEnd - contentStart) * ratio))
+    await waitForAnimationFrames(page)
+    resizedPositions.push(await preview.evaluate((element) => element.scrollTop))
+  }
+  expect(resizedPositions[0]).toBeLessThan(resizedPositions[1])
+  expect(resizedPositions[1]).toBeLessThan(resizedPositions[2])
 })
 
 test('从 Markdown front matter 预填并创建文章', async ({ page, apiMock }) => {

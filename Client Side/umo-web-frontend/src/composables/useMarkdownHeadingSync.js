@@ -3,7 +3,7 @@ import { onBeforeUnmount, watch } from 'vue'
 import {
   calculateScrollRatio,
   extractMarkdownHeadingLines,
-  findActiveHeadingIndex,
+  interpolateBetweenAnchors,
   scrollTopForRatio,
 } from '@/utils/editorScroll'
 
@@ -16,6 +16,7 @@ export function useMarkdownHeadingSync(primaryRef, secondaryRef, { mediaQuery } 
   let resizeObserver = null
   let expectedTarget = null
   let expectedScrollTop = 0
+  let expectedClearFrame = null
   const cache = {
     source: null,
     editorWidth: 0,
@@ -23,6 +24,8 @@ export function useMarkdownHeadingSync(primaryRef, secondaryRef, { mediaQuery } 
     editorOffsets: [],
     previewElements: [],
     previewOffsets: [],
+    editorMax: 0,
+    previewMax: 0,
   }
 
   function mediaMatches() {
@@ -78,21 +81,10 @@ export function useMarkdownHeadingSync(primaryRef, secondaryRef, { mediaQuery } 
     const currentMirror = createMirror(textarea)
     updateMirrorStyles(textarea)
     const lines = textarea.value.replace(/\r\n?/g, '\n').split('\n')
-    const offsets = []
-    let previousLine = 0
-    let mirrorText = ''
-
-    for (const heading of headings) {
-      const segment = lines.slice(previousLine, heading.line).join('\n')
-      if (previousLine > 0 && segment) {
-        mirrorText += '\n'
-      }
-      mirrorText += segment
-      currentMirror.textContent = mirrorText
-      offsets.push(currentMirror.scrollHeight)
-      previousLine = heading.line
-    }
-    return offsets
+    return headings.map((heading) => {
+      currentMirror.textContent = lines.slice(0, heading.line).join('\n')
+      return currentMirror.scrollHeight
+    })
   }
 
   function getSyncData() {
@@ -109,9 +101,21 @@ export function useMarkdownHeadingSync(primaryRef, secondaryRef, { mediaQuery } 
       cache.source = editor.value
       cache.editorWidth = editor.clientWidth
       cache.headings = extractMarkdownHeadingLines(editor.value)
-      cache.editorOffsets = editorHeadingOffsets(editor, cache.headings)
       cache.previewElements = [...preview.querySelectorAll('h1, h2, h3, h4, h5, h6')]
-      cache.previewOffsets = cache.previewElements.map((heading) => heading.offsetTop)
+      cache.editorMax = Math.max(0, editor.scrollHeight - editor.clientHeight)
+      cache.previewMax = Math.max(0, preview.scrollHeight - preview.clientHeight)
+      cache.editorOffsets = [
+        0,
+        ...editorHeadingOffsets(editor, cache.headings)
+          .map((offset) => Math.min(cache.editorMax, Math.max(0, offset))),
+        cache.editorMax,
+      ]
+      cache.previewOffsets = [
+        0,
+        ...cache.previewElements
+          .map((heading) => Math.min(cache.previewMax, Math.max(0, heading.offsetTop))),
+        cache.previewMax,
+      ]
     }
 
     return {
@@ -125,14 +129,32 @@ export function useMarkdownHeadingSync(primaryRef, secondaryRef, { mediaQuery } 
     if (expectedTarget !== element) {
       return false
     }
+    const matches = Math.abs(element.scrollTop - expectedScrollTop) <= 3
+    clearExpectedTarget()
+    return matches
+  }
+
+  function clearExpectedTarget() {
     expectedTarget = null
-    return Math.abs(element.scrollTop - expectedScrollTop) <= 3
+    if (expectedClearFrame) {
+      window.cancelAnimationFrame(expectedClearFrame)
+      expectedClearFrame = null
+    }
   }
 
   function setProgrammaticScroll(target, scrollTop) {
+    if (expectedClearFrame) {
+      window.cancelAnimationFrame(expectedClearFrame)
+    }
     expectedTarget = target
     expectedScrollTop = scrollTop
     target.scrollTop = scrollTop
+    expectedClearFrame = window.requestAnimationFrame(() => {
+      expectedClearFrame = window.requestAnimationFrame(() => {
+        expectedTarget = null
+        expectedClearFrame = null
+      })
+    })
   }
 
   function syncFromEditor() {
@@ -140,8 +162,15 @@ export function useMarkdownHeadingSync(primaryRef, secondaryRef, { mediaQuery } 
     if (!data || !mediaMatches()) {
       return
     }
-    const { editor, preview, headings, editorOffsets, previewElements } = data
-    if (!headings.length || !previewElements.length) {
+    const {
+      editor,
+      preview,
+      headings,
+      editorOffsets,
+      previewElements,
+      previewOffsets,
+    } = data
+    if (!headings.length || previewElements.length !== headings.length) {
       setProgrammaticScroll(
         preview,
         scrollTopForRatio(calculateScrollRatio(editor), preview),
@@ -149,9 +178,15 @@ export function useMarkdownHeadingSync(primaryRef, secondaryRef, { mediaQuery } 
       return
     }
 
-    const headingIndex = findActiveHeadingIndex(editorOffsets, editor.scrollTop)
-    const target = previewElements[Math.min(headingIndex, previewElements.length - 1)]
-    setProgrammaticScroll(preview, Math.max(0, target.offsetTop))
+    const targetTop = interpolateBetweenAnchors(
+      editorOffsets,
+      previewOffsets,
+      editor.scrollTop,
+    )
+    setProgrammaticScroll(
+      preview,
+      targetTop ?? scrollTopForRatio(calculateScrollRatio(editor), preview),
+    )
   }
 
   function syncFromPreview() {
@@ -174,11 +209,15 @@ export function useMarkdownHeadingSync(primaryRef, secondaryRef, { mediaQuery } 
       return
     }
 
-    const headingIndex = Math.min(
-      findActiveHeadingIndex(previewOffsets, preview.scrollTop),
-      headings.length - 1,
+    const targetTop = interpolateBetweenAnchors(
+      previewOffsets,
+      editorOffsets,
+      preview.scrollTop,
     )
-    setProgrammaticScroll(editor, Math.max(0, editorOffsets[headingIndex]))
+    setProgrammaticScroll(
+      editor,
+      targetTop ?? scrollTopForRatio(calculateScrollRatio(preview), editor),
+    )
   }
 
   function scheduleSync(direction) {
@@ -210,7 +249,7 @@ export function useMarkdownHeadingSync(primaryRef, secondaryRef, { mediaQuery } 
       window.cancelAnimationFrame(frame)
       frame = null
     }
-    expectedTarget = null
+    clearExpectedTarget()
   }
 
   function bind() {

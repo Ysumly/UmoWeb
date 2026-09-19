@@ -286,9 +286,10 @@ token 来源和存储位置都是 `localStorage`。
 
 公开编辑器、管理端文章编辑器和 About/Project 设置编辑器使用统一工作区高度模型，输入与预览
 面板等高。公开编辑器和 About/Project 默认通过 `useSyncedScroll` 按可滚动比例双向同步；
-管理端文章编辑器默认按最近标题锚点对齐编辑区和预览区，没有可用标题时才回退到整体比例。
-标题解析、文本测量节点和预览标题位置会按文章内容及宽度缓存，连续滚动事件由
-`requestAnimationFrame` 合并；移动端单面板和不可滚动内容不启用同步。
+管理端文章编辑器使用 `useMarkdownHeadingSync`，以编辑器标题测量位置和预览标题位置组成锚点，
+在首尾补入起点和最大滚动位置后按相邻区间连续插值；滚动事件由 `requestAnimationFrame` 每帧
+合并，双向映射使用相同的程序化滚动抑制。没有可用标题或两侧标题数量不一致时回退到整体比例。
+标题解析、文本测量节点和预览标题位置会按文章内容及宽度缓存；移动端单面板和不可滚动内容不启用同步。
 
 ### 7.4 训练游戏
 
@@ -341,12 +342,12 @@ server: {
 }
 ```
 
-2026-09-18 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
-搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 122 个 Node 测试覆盖路由、
+2026-09-19 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
+搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 126 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
-编辑滚动比例、Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
+编辑滚动比例与标题锚点插值、Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
 游戏规则与旧成绩、AI 模式表单、AI 抽屉本地规则、Markdown 原始 HTML、邻接正文的加粗、
-危险 URL 协议和图片 alt 转义；Playwright 另含 85 个 functional 和 34 个 Windows 视觉检查。
+危险 URL 协议和图片 alt 转义；Playwright 另含 86 个 functional 和 34 个 Windows 视觉检查。
 管理端文章生命周期为
 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`，仅未发布草稿可以选择未来计划时间。
 书库选择分类时 URL 使用
