@@ -1,6 +1,7 @@
 # === 敏感 / 重要文件 — 绝对不提交 ===
 # Downloads 文件夹（包含第三方代码、数据库连接缓存、IDE机密配置）
 Downloads/
+Downloads/ai-evaluations/
 .superpowers/
 
 # === IDE 配置 ===

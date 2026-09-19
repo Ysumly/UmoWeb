@@ -44,6 +44,8 @@ class BoundaryTest {
             mock(ImageIntegrityService.class);
     private final AiModeCatalogService aiModeCatalogService =
             mock(AiModeCatalogService.class);
+    private final AiTransformService aiTransformService =
+            mock(AiTransformService.class);
 
     private final MockMvc mvc = MockMvcBuilders
             .standaloneSetup(
@@ -57,7 +59,11 @@ class BoundaryTest {
                     new TagManageController(tagManageService),
                     new ImageController(imageService, imageIntegrityService),
                     new OptionController(siteOptionService),
-                    new AiModeCatalogController(aiModeCatalogService)
+                    new AiModeCatalogController(aiModeCatalogService),
+                    new AiRuntimeController(
+                            new com.ysumly.umowebbackend.config.AiProperties(),
+                            aiModeCatalogService,
+                            aiTransformService)
             )
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();
@@ -484,5 +490,107 @@ class BoundaryTest {
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value(409));
+    }
+
+    @Test
+    @DisplayName("37. AI 转换: 空字段 → 400")
+    void aiTransformMissingFields() throws Exception {
+        mvc.perform(post("/api/admin/ai/transform")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"modeKey": "", "content": ""}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    @DisplayName("38. AI 转换: 模式不存在 → 404")
+    void aiTransformModeNotFound() throws Exception {
+        when(aiTransformService.transform(any()))
+                .thenThrow(new NotFoundException("AI 模式不存在（请求 ID: request-1）"));
+
+        mvc.perform(post("/api/admin/ai/transform")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"modeKey": "UNKNOWN", "content": "SOURCE"}
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(404));
+    }
+
+    @Test
+    @DisplayName("39. AI 转换: 模式停用 → 409")
+    void aiTransformModeDisabled() throws Exception {
+        when(aiTransformService.transform(any()))
+                .thenThrow(new BusinessException(409, "AI 模式已停用"));
+
+        mvc.perform(post("/api/admin/ai/transform")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"modeKey": "DISABLED", "content": "SOURCE"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(409));
+    }
+
+    @Test
+    @DisplayName("40. AI 转换: 本地限流 → 429")
+    void aiTransformRateLimited() throws Exception {
+        when(aiTransformService.transform(any()))
+                .thenThrow(new BusinessException(429, "429 AI 请求过于频繁"));
+
+        mvc.perform(post("/api/admin/ai/transform")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"modeKey": "MODE", "content": "SOURCE"}
+                                """))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value(429));
+    }
+
+    @Test
+    @DisplayName("41. AI 转换: 上游无效 → 502")
+    void aiTransformInvalidResponse() throws Exception {
+        when(aiTransformService.transform(any()))
+                .thenThrow(new BusinessException(502, "AI 服务返回无效响应"));
+
+        mvc.perform(post("/api/admin/ai/transform")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"modeKey": "MODE", "content": "SOURCE"}
+                                """))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.code").value(502));
+    }
+
+    @Test
+    @DisplayName("42. AI 转换: 上游不可用 → 503")
+    void aiTransformUnavailable() throws Exception {
+        when(aiTransformService.transform(any()))
+                .thenThrow(new BusinessException(503, "AI 服务暂时不可用"));
+
+        mvc.perform(post("/api/admin/ai/transform")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"modeKey": "MODE", "content": "SOURCE"}
+                                """))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value(503));
+    }
+
+    @Test
+    @DisplayName("43. AI 转换: 上游超时 → 504")
+    void aiTransformTimeout() throws Exception {
+        when(aiTransformService.transform(any()))
+                .thenThrow(new BusinessException(504, "AI 服务响应超时"));
+
+        mvc.perform(post("/api/admin/ai/transform")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"modeKey": "MODE", "content": "SOURCE"}
+                                """))
+                .andExpect(status().isGatewayTimeout())
+                .andExpect(jsonPath("$.code").value(504));
     }
 }

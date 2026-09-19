@@ -156,6 +156,9 @@ test('provides the frozen validation profile labels', () => {
     'LIGHT_EXPANSION',
     'NONE',
   ])
+  assert.equal(AI_VALIDATION_PROFILES.every(({ description }) => (
+    typeof description === 'string' && description.length > 0
+  )), true)
 })
 
 test('formats a version timestamp without timezone shifts', () => {

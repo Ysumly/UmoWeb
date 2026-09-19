@@ -15,9 +15,6 @@ spring:
     username: ${DB_USER:root}
     password: ${DB_PASS:}
     driver-class-name: com.mysql.cj.jdbc.Driver
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY:sk-dummy-placeholder}
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
@@ -27,6 +24,18 @@ mybatis:
 
 app:
   storage-path: ./data
+  ai:
+    enabled: ${APP_AI_ENABLED:false}
+    max-input-chars: 20000
+    max-output-chars: 60000
+    timeout-seconds: 180
+    max-requests-per-window: 5
+    rate-limit-window-seconds: 600
+    max-concurrent-requests: 1
+    deepseek:
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      api-key: ${DEEPSEEK_API_KEY:}
+      model: ${DEEPSEEK_MODEL:}
   search:
     backfill-only: false
   cors:

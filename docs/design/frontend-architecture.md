@@ -1,8 +1,9 @@
 # UmoWeb 前端架构
 
-> 基线日期: 2026-09-17
+> 基线日期: 2026-09-18
 > 项目路径: `Client Side/umo-web-frontend/`
-> 状态: 公开端阅读增强、本地工具中心、在线编辑器、隐私说明、四款训练游戏和管理端核心业务页均已实现
+> 状态: 公开端阅读增强、本地工具中心、在线编辑器、隐私说明、四款训练游戏和管理端核心业务页均已实现；
+> 管理端文章 AI 抽屉已接入转换运行时
 
 ---
 
@@ -207,7 +208,7 @@ umo-web-frontend/
 | 文件 | 实际函数数 | 内容 |
 |---|---:|---|
 | `api/public.js` | 8 | 8 个公开端接口 |
-| `api/admin.js` | 28 | 28 个管理端函数，包含图片、AI 模式设置和修改密码 |
+| `api/admin.js` | 30 | 30 个管理端函数，包含图片、AI 模式设置、AI 能力/转换和修改密码 |
 
 ---
 
@@ -248,7 +249,7 @@ token 来源和存储位置都是 `localStorage`。
 | `LoginPage.vue` | 表单、调用登录 API、错误提示、跳转 |
 | `AdminLayout.vue` | 桌面侧栏、移动抽屉、主题切换、退出登录和 `router-view` |
 | `ContentListPage.vue` | 四种状态筛选、分页、当前页批量分类/标签、归档/恢复、编辑和删除 |
-| `ContentEditPage.vue` | 新建/编辑、Markdown front matter 导入、分类标签、metadata、分屏预览、图片上传、定时发布和未保存保护 |
+| `ContentEditPage.vue` | 新建/编辑、Markdown front matter 导入、分类标签、metadata、分屏预览、图片上传、定时发布、AI 转换抽屉和未保存保护 |
 | `CategoryManagePage.vue` | 分类树筛选、父级/排序字段、增改删、409 提示和未保存保护 |
 | `TagManagePage.vue` | 标签增改删、字段校验、409 提示和未保存保护 |
 | `ImageManagePage.vue` | 图片缩略图、引用筛选、分页、删除确认、409 提示和列表刷新 |
@@ -284,8 +285,11 @@ token 来源和存储位置都是 `localStorage`。
 `localStorage["umo-editor-draft-v1"]`，页面重新进入时恢复。
 
 公开编辑器、管理端文章编辑器和 About/Project 设置编辑器使用统一工作区高度模型，输入与预览
-面板等高。桌面分栏通过 `useSyncedScroll` 按可滚动比例双向同步，连续滚动事件由
-`requestAnimationFrame` 合并；移动端单面板和不可滚动内容不启用同步。
+面板等高。公开编辑器和 About/Project 默认通过 `useSyncedScroll` 按可滚动比例双向同步；
+管理端文章编辑器使用 `useMarkdownHeadingSync`，以编辑器标题测量位置和预览标题位置组成锚点，
+在首尾补入起点和最大滚动位置后按相邻区间连续插值；滚动事件由 `requestAnimationFrame` 每帧
+合并，双向映射使用相同的程序化滚动抑制。没有可用标题或两侧标题数量不一致时回退到整体比例。
+标题解析、文本测量节点和预览标题位置会按文章内容及宽度缓存；移动端单面板和不可滚动内容不启用同步。
 
 ### 7.4 训练游戏
 
@@ -304,6 +308,15 @@ Stroop 保留 84 试次和 25% 一致试次，使用 `stroop_84_parchment`；五
 `publicNavigation` 统一生成桌面导航、移动菜单和页脚链接；`toolCatalog` 当前只定义
 Markdown 编辑器。`/tools` 展示工具卡片和本地保存说明，首页 `home-tools` 模块直接进入编辑器或
 工具中心。工具能力和草稿仍只存在于浏览器，不调用后端。
+
+### 7.6 管理端文章 AI 抽屉
+
+`ContentEditPage.vue` 挂载后只查询一次 `/admin/ai/capabilities`；`enabled=false` 或请求失败时
+不显示 AI 入口，也不影响文章加载、编辑、上传、保存和发布。启用后由
+`AiTransformDrawer.vue` 负责模式选择、正文带入、执行/取消、结果编辑与只读预览、复制和浮动恢复。
+源草稿使用 `sessionStorage["umo-admin-ai-source-v1"]`，结果使用
+`localStorage["umo-admin-ai-result-v1"]`；AI 状态不修改文章表单或 dirty 状态，结果不自动插入正文。
+结果预览禁用远程图片自动加载；进行中请求或未持久化草稿参与路由离开确认。
 
 ---
 
@@ -329,12 +342,13 @@ server: {
 }
 ```
 
-2026-09-18 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
-搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 109 个 Node 测试覆盖路由、
+2026-09-19 执行 `npm test`、`npm run build` 和完整 Windows Playwright 测试成功。
+搜索覆盖标题、摘要和 Markdown 正文，正文命中时结果卡片展示 `excerpt`。当前 126 个 Node 测试覆盖路由、
 管理路径、主题解析、访问隐私配置、管理端文章/分类/标签/站点/改密规则、编辑器草稿与文件规则、
-编辑滚动比例、Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
-游戏规则与旧成绩、AI 模式表单与版本载荷、Markdown 原始 HTML、邻接正文的加粗、危险 URL 协议和图片 alt 转义；
-Playwright 另含 67 个 functional 和 32 个 Windows 视觉检查。管理端文章生命周期为
+编辑滚动比例与标题锚点插值、Markdown front matter 导入、书库后代参数、文章目录树与展开状态、标题 ID/旧锚点兼容、
+游戏规则与旧成绩、AI 模式表单、AI 抽屉本地规则、Markdown 原始 HTML、邻接正文的加粗、
+危险 URL 协议和图片 alt 转义；Playwright 另含 86 个 functional 和 34 个 Windows 视觉检查。
+管理端文章生命周期为
 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED`，仅未发布草稿可以选择未来计划时间。
 书库选择分类时 URL 使用
 `category=<id>&includeDescendants=true`，显式 `false` 仍可请求精确匹配。
@@ -348,15 +362,16 @@ Playwright 另含 67 个 functional 和 32 个 Windows 视觉检查。管理端�
 
 1. 第一阶段完成正式数据、HTTPS、备份恢复和上线回滚。
 2. 第二阶段已接入 CI、Linux Playwright、真实 MySQL 集成、本地版本化镜像发布/回滚和
-   自托管访问统计，`v1.0.0-rc.5` 已通过 ECS 发布和 29/29 验收。
+   自托管访问统计，并已通过后续的正式版 ECS 验收。
 3. 第三阶段已完成并合并 Markdown 导入、子分类筛选、图片删除、正文全文搜索和四个训练游戏，
    阶段出口条件已满足。
 4. 第四阶段 Task 4.1 已完成目录、阅读进度、浏览器原生正文检索和确定性相关阅读；
    Task 4.2 已完成图片一致性检查；Task 4.3 已完成批量管理和定时发布；
    Task 4.4 已完成目录滚动降级、三处编辑器滚动协同和本地工具中心，不包含文章修订历史。
 5. 第五阶段已拆分为 1 个总索引和 6 个子计划；5.1B 已完成模式与提示词版本数据库和管理 API，
-   5.1C 已完成管理端 AI 设置页；供应商转换运行时和文章 AI 抽屉仍待实施。草稿和转换结果只保存在
-   管理员浏览器，AI 结果不自动写入文章。实施入口见
+   5.1C 已完成管理端 AI 设置页，5.1D 已完成转换运行时，5.1E 已完成文章 AI 抽屉；
+   5.1F 假供应商回归、Linux 基线和受控真实模型评测已通过，正在完成发布收口。草稿和转换结果
+   只保存在管理员浏览器，AI 结果不自动写入文章。实施入口见
    [`2026-09-18-admin-ai-index.md`](../superpowers/plans/2026-09-18-admin-ai-index.md)。
 6. 公开语义搜索、原文问答和知识图谱继续后置，作为独立项目重新评审。
 

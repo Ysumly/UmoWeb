@@ -10,6 +10,8 @@ python_bin="${PYTHON_BIN:-python3}"
 maven_bin="${MAVEN_BIN:-mvn}"
 storage_dir="${STORAGE_DIR:-${RUNNER_TEMP:-/tmp}/umoweb-storage}"
 backend_log="${BACKEND_LOG:-${RUNNER_TEMP:-/tmp}/umoweb-backend.log}"
+fake_openai_port="${FAKE_OPENAI_PORT:-19090}"
+fake_openai_log="${FAKE_OPENAI_LOG:-${RUNNER_TEMP:-/tmp}/umoweb-fake-openai.log}"
 
 mysql_client() {
   docker run --rm -i \
@@ -124,6 +126,10 @@ export INIT_ADMIN_PASS="Ci$(openssl rand -hex 24)"
 export NO_PROXY="127.0.0.1,localhost,::1"
 export no_proxy="$NO_PROXY"
 export PYTHONUNBUFFERED=1
+export APP_AI_ENABLED=true
+export DEEPSEEK_BASE_URL="http://127.0.0.1:$fake_openai_port"
+export DEEPSEEK_API_KEY="fake-ci-key"
+export DEEPSEEK_MODEL="fake-model"
 
 "$repo_root/scripts/search/rebuild-content-search.sh" \
   "$backend_dir/target/UmoWebBackend-0.0.1-SNAPSHOT.jar"
@@ -136,13 +142,43 @@ assert_value "Chinese ngram body search" "1" \
   "SELECT COUNT(*) FROM umo_blog.content_search WHERE MATCH(body_text) AGAINST('清晨的雾' IN NATURAL LANGUAGE MODE)"
 
 backend_pid=""
-cleanup_backend() {
+fake_openai_pid=""
+cleanup_processes() {
+  if [[ -n "$fake_openai_pid" ]] && kill -0 "$fake_openai_pid" 2>/dev/null; then
+    kill "$fake_openai_pid" 2>/dev/null || true
+    wait "$fake_openai_pid" 2>/dev/null || true
+  fi
   if [[ -n "$backend_pid" ]] && kill -0 "$backend_pid" 2>/dev/null; then
     kill "$backend_pid" 2>/dev/null || true
     wait "$backend_pid" 2>/dev/null || true
   fi
 }
-trap cleanup_backend EXIT
+trap cleanup_processes EXIT
+
+"$python_bin" "$repo_root/scripts/ai/fake-openai-server.py" \
+  --port "$fake_openai_port" >"$fake_openai_log" 2>&1 &
+fake_openai_pid=$!
+
+fake_ready=false
+for attempt in $(seq 1 30); do
+  if curl --noproxy '*' --silent --max-time 1 \
+    --output /dev/null "http://127.0.0.1:$fake_openai_port/unknown" 2>/dev/null; then
+    fake_ready=true
+    break
+  fi
+  if ! kill -0 "$fake_openai_pid" 2>/dev/null; then
+    echo "Fake OpenAI server exited before becoming ready." >&2
+    cat "$fake_openai_log" >&2
+    exit 1
+  fi
+  sleep 0.2
+done
+
+if [[ "$fake_ready" != "true" ]]; then
+  echo "Fake OpenAI server did not become ready." >&2
+  cat "$fake_openai_log" >&2
+  exit 1
+fi
 
 java -jar target/UmoWebBackend-0.0.1-SNAPSHOT.jar >"$backend_log" 2>&1 &
 backend_pid=$!
@@ -175,7 +211,8 @@ fi
 if ! "$python_bin" scripts/api-smoke.py \
   --base-url "http://127.0.0.1:8080" \
   --username "$INIT_ADMIN_USER" \
-  --password "$INIT_ADMIN_PASS"; then
+  --password "$INIT_ADMIN_PASS" \
+  --include-ai; then
   echo "API smoke failed. Backend log:" >&2
   cat "$backend_log" >&2
   exit 1
@@ -196,4 +233,4 @@ if [[ "$image_files" -ne 0 ]]; then
   exit 1
 fi
 
-echo "MySQL integration passed with schema, seed, migrations, and 31/31 API smoke."
+echo "MySQL integration passed with schema, seed, migrations, and 40/40 API smoke."

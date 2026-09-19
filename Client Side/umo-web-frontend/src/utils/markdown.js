@@ -65,6 +65,11 @@ function sanitizeUrl(value) {
   }
 }
 
+function isRemoteUrl(value) {
+  const compact = String(value || '').replace(/[\u0000-\u0020\u007F]+/g, '')
+  return /^(https?:)?\/\//i.test(compact)
+}
+
 function plainInlineText(tokens = []) {
   return tokens
     .map((token) => {
@@ -253,7 +258,7 @@ export function extractMarkdownOutline(source = '') {
   return roots
 }
 
-export function renderMarkdown(source = '') {
+export function renderMarkdown(source = '', options = {}) {
   const renderer = new Renderer()
   const headings = collectHeadingMetadata(source)
   let headingIndex = 0
@@ -290,7 +295,7 @@ export function renderMarkdown(source = '') {
   renderer.image = ({ href, title, text }) => {
     const safeHref = sanitizeUrl(href)
     const alt = escapeHtml(text || '')
-    if (!safeHref) {
+    if (!safeHref || (options.allowRemoteImages === false && isRemoteUrl(safeHref))) {
       return alt
     }
     const titleAttribute = title ? ` title="${escapeHtml(title)}"` : ''

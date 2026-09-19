@@ -318,6 +318,8 @@ onBeforeUnmount(() => {
           ref="fileInputRef"
           class="sr-only"
           type="file"
+          tabindex="-1"
+          aria-label="选择 Markdown 文件"
           accept=".md,.markdown,text/markdown,text/plain"
           @change="importMarkdown"
         />

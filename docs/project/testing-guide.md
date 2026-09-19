@@ -1,7 +1,7 @@
 # UmoWeb 接口与构建测试指南
 
 > 基线日期: 2026-09-18
-> 接口数: 公开 8 个，管理 29 个，共 37 个
+> 接口数: 公开 8 个，管理 32 个，共 40 个
 > 关键约定: 正常响应没有 `{ code, data }` 包装层
 
 ---
@@ -38,6 +38,17 @@ $env:INIT_ADMIN_USER = "<管理员用户名>"
 $env:INIT_ADMIN_PASS = "<强管理员密码>"
 $env:CORS_ALLOWED_ORIGINS = "https://<正式域名>"
 ```
+
+AI 默认关闭。只有需要真实验证时才设置：
+
+```powershell
+$env:APP_AI_ENABLED = "true"
+$env:DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+$env:DEEPSEEK_API_KEY = "<仅本地或服务器侧密钥>"
+$env:DEEPSEEK_MODEL = "<当前模型标识>"
+```
+
+CI 不读取真实密钥；DeepSeek 协议和错误分类由 Mock HTTP Server 验证。
 
 ### 1.3 数据库
 
@@ -93,9 +104,10 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 195 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 238 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析、
-正文索引、摘要提取、图片清理、图片一致性和 AI 模式目录测试。
+正文索引、摘要提取、图片清理、图片一致性、AI 模式目录、DeepSeek Provider、请求限流和
+结果保真校验测试。
 其中 17 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
 不连接 MySQL，`UmoWebBackendApplicationTests` 仍是一条空测试。
 
@@ -151,8 +163,11 @@ cd "Server Side\UmoWebBackend"
 - 复制演示 Markdown 后连续执行两次正文回填脚本，校验索引行数等于已发布内容数，
   并验证正文全文和标题/摘要搜索。
 - 使用 Java 17 构建并启动后端，使用独立临时存储和运行时测试凭据执行 `api-smoke.py`。
-- 兼容冒烟仍为 31/31，断言覆盖公开筛选、详情分类/标签、前后文章、相关文章、草稿/待发布隔离、密码失效、
+- 默认兼容冒烟仍为 31/31，断言覆盖公开筛选、详情分类/标签、前后文章、相关文章、草稿/待发布隔离、密码失效、
   批量文章操作、图片完整生命周期、图片一致性来源查询和 429。
+- AI 开启模式使用 `--include-ai`，新增 9 个管理端 AI 接口并报告 40/40；实际 HTTP 请求数
+  只作为独立诊断输出，不与接口数混淆。AI 场景覆盖五个默认模式、模式创建、提示词版本、
+  旧版本冲突、复制停用、回滚生成新版本、能力查询、假 Provider 正文回显和停用后 409。
 - 冒烟通过后校验图片记录、清理队列与临时存储文件；job 退出时销毁后端进程、测试数据和临时文件。
 
 ### 2.3 前端
@@ -164,17 +179,18 @@ npm test
 npm run test:e2e
 ```
 
-2026-09-18 已验证：
+2026-09-19 已验证：
 
 - Vite 8.1.0 前端生产构建成功。
-- 前端 109 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
+- 前端 126 个 Node 测试通过，覆盖路由、管理路径、主题、访问隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密规则、编辑器草稿与文件规则、Markdown front matter 导入、
   API 错误解析、日期格式、书库后代参数、文章目录树/展开状态、标题 ID 与旧锚点兼容、AI 模式表单与
-  载荷、Markdown 安全、邻接正文的加粗和编辑器双向滚动比例。
-- Playwright 99 个浏览器检查，其中 67 个 functional 用例覆盖公开端、文章目录、阅读进度与相关阅读、
+  AI 抽屉本地状态/字符边界、Markdown 安全、邻接正文的加粗、编辑器双向滚动比例和标题锚点插值。
+- Playwright 120 个浏览器检查，其中 86 个 functional 用例覆盖公开端、文章目录、阅读进度与相关阅读、
   图片一致性检查、隐私说明、工具中心、在线编辑器与三处编辑工作区滚动协同、
-  四款游戏（含高密度网格、长数字、10 张牌、旧成绩和响应式场景）、AI 模式设置和管理端核心流程，
-  32 个视觉断言覆盖 16 个核心页面状态的桌面与 390px 基线。
+  四款游戏（含高密度网格、长数字、10 张牌、旧成绩和响应式场景）、AI 模式卡片与策略说明、
+  AI 抽屉模式控件、管理端标题区间连续同步与缓存失效、移动菜单焦点与横屏滚动、隐藏文件输入和管理端核心流程，
+  34 个视觉断言覆盖 17 个核心页面状态的桌面与 390px 基线。
 - 浏览器 E2E 通过可控 Mock API 运行，不依赖 MySQL 或 Spring Boot；真实接口由第 2.2 节的
   MySQL 副本、`api-smoke.py`/`api-smoke.ps1` 和第 2.8 节的 CI 集成 job 验证。
 
@@ -203,8 +219,9 @@ npm run test:e2e
 3. Windows 默认使用本机稳定版 Chrome channel，Linux CI 使用锁定 Playwright 版本的
    Chromium；可通过 `PLAYWRIGHT_CHANNEL` 显式覆盖。
 4. 浏览器级路由拦截 `/api/**`，每个测试使用独立的状态化 Mock API。
-5. functional 项目覆盖公开阅读、在线编辑器、管理端认证、Markdown 导入与 CRUD、AI 模式设置，以及 390px 布局。
-6. visual-desktop 和 visual-mobile 项目比较 32 张页面截图。
+5. functional 项目覆盖公开阅读、在线编辑器、管理端认证、Markdown 导入与 CRUD、AI 模式设置、
+   AI 转换抽屉，以及 390px 布局。
+6. visual-desktop 和 visual-mobile 项目比较 34 张页面截图。
 
 更新 Windows 视觉基线：
 
@@ -229,8 +246,8 @@ Linux 工作流不会自动提交或推送文件。浏览器或 Playwright 升�
 npm run test:all
 ```
 
-视觉基线位于 `e2e/visual.spec.js-snapshots/`，当前包含 32 张 `win32` 和 30 张 `linux`
-文件；AI 设置的桌面与移动 Linux 基线由 5.1F 统一审查提交。平台后缀由 Playwright 自动选择，
+视觉基线位于 `e2e/visual.spec.js-snapshots/`，当前包含 34 张 `win32` 和 34 张 `linux`
+文件。平台后缀由 Playwright 自动选择，
 不互相覆盖。
 
 游戏专项验证：
@@ -313,9 +330,19 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
   --env-file ".env.docker"
 ```
 
-该脚本与 PowerShell 版本均覆盖 31 个接口；会从 `INIT_ADMIN_USER` 和 `INIT_ADMIN_PASS`
-读取管理员凭据，不输出密码值。2026-09-12 正式数据候选包、生产切换和最终备份恢复均通过
-`27/27`。
+PowerShell 版本使用 `-IncludeAI`，Python 版本使用 `--include-ai`；默认都只覆盖
+原有 31 个接口，显式开启后覆盖全部 40 个接口。脚本会从 `INIT_ADMIN_USER` 和
+`INIT_ADMIN_PASS` 读取管理员凭据，不输出密码值。2026-09-12 正式数据候选包、生产切换和
+最终备份恢复均通过 `27/27`。
+
+本地不启动真实后端运行冒烟脚本自测：
+
+```bash
+python3 -m unittest scripts/ci/tests/api-smoke-test.py
+```
+
+该测试使用 Python mock HTTP 响应覆盖 AI 契约、失败脱敏和接口数与请求数分离；PowerShell
+与 Python 的实际一致性由启用假供应商的 MySQL CI job 验证。
 
 ### 2.8 GitHub Actions
 
@@ -323,11 +350,11 @@ python "Server Side\UmoWebBackend\scripts\api-smoke.py" `
 
 - `repository`：检查变更范围空白错误，运行敏感信息扫描器、发布脚本、访问聚合/保留测试和
   Nginx 六字段日志容器测试，并扫描全部已跟踪文件。
-- `backend`：使用 Temurin Java 17 执行 `mvn -B test`，覆盖 AI 模式目录 Service、Controller
-  和边界规则。
+- `backend`：使用 Temurin Java 17 执行 `mvn -B test`，覆盖 AI 模式目录、DeepSeek
+  Provider、请求限流、结果校验、转换 Service、Controller 和边界规则。
 - `mysql-integration`：使用 MySQL 8.4 从空库执行 Schema、种子数据和幂等迁移，运行分类层级与
-  图片管理及 AI 模式 Mapper 集成测试，再启动真实后端执行兼容的 31/31 接口冒烟并校验图片记录、
-  清理队列和文件回收；完整 37 接口 AI HTTP 冒烟由后续 5.1F 扩展。
+  图片管理及 AI 模式 Mapper 集成测试，再启动真实后端和回环假供应商执行 `--include-ai`
+  的 40/40 接口冒烟，并校验图片记录、清理队列和文件回收。
 - `frontend`：使用 Node 24.12.0 执行 `npm ci`、`npm test` 和 `npm run build`。
 - `browser`：使用 Node 24.12.0 安装锁定版本 Chromium，执行 `npm run test:e2e`；
   失败时上传 `playwright-report-<attempt>` artifact。

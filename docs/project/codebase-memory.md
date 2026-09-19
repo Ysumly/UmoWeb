@@ -1,6 +1,6 @@
 # UmoWeb 代码基线记忆
 
-> 基线日期: 2026-09-18
+> 基线日期: 2026-09-19
 > 范围: 当前工作区中的前端、后端、数据库脚本和文档
 > 原则: 代码行为优先；计划能力与已实现能力必须分开记录
 
@@ -35,7 +35,7 @@ UmoWeb/
 └── .superpowers/
 ```
 
-后端主源码为 112 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
+后端主源码为 148 个 Java 文件；前端 `src` 当前包含路由/API/store、真实公开端页面、
 本地工具中心、游戏规则与页面、主题与 Markdown 工具和 Node 测试。`Downloads/`、
 `.superpowers/`、`target/`、`dist/`、`node_modules/` 和真实 secret 继续排除。
 
@@ -57,8 +57,8 @@ UmoWeb/
 | JWT | JJWT 0.12.6，默认 24 小时 |
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
-| AI | Spring AI BOM 2.0.0-M4 + OpenAI Starter；已完成模式目录持久化，供应商调用尚未接入 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；195 个测试（17 个 MySQL 环境门控） |
+| AI | Spring `RestClient` + DeepSeek OpenAI-compatible；模式目录、转换运行时和文章 AI 抽屉已接入 |
+| 测试 | Spring Boot Test、Mockito、MockMvc；238 个测试（17 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -75,8 +75,9 @@ UmoWeb/
 | 浏览器测试 | Playwright Test 1.63；Windows Chrome channel、Linux Chromium，Mock API |
 | 容器构建 | Node 24.12 Alpine、Maven 3.9.11/JDK 17、JRE 17、Nginx 1.29 |
 
-- 管理端 AI 已完成 5.1B 模式目录后端和 5.1C 设置页；供应商转换和文章 AI 抽屉仍待实施，
-  入口见 `docs/superpowers/plans/2026-09-18-admin-ai-index.md`。
+- 管理端 AI 已完成 5.1B 模式目录、5.1C 设置页、5.1D 转换运行时、5.1E 文章 AI 抽屉
+  和 5.1F 自动/真实模型质量验收；正在完成发布门禁，入口见
+  `docs/superpowers/plans/2026-09-18-admin-ai-index.md`。
 
 ### 2.3 持续集成
 
@@ -86,7 +87,7 @@ UmoWeb/
 | 触发 | `pull_request` 和 `master` push |
 | 运行环境 | Ubuntu、Temurin Java 17、Node 24.12.0 |
 | 检查 | 后端 Maven 测试、MySQL 8.4 Schema/种子/迁移与接口冒烟、前端 Node 测试、前端构建、Linux Playwright、diff 检查和敏感信息扫描 |
-| 视觉基线 | 32 张 Windows Chrome 与 30 张 Linux Chromium 独立 PNG；AI 设置 Linux 基线待 5.1F 补齐 |
+| 视觉基线 | 34 张 Windows Chrome 与 34 张 Linux Chromium 独立 PNG |
 | 权限 | `contents: read`，不配置仓库 Secret |
 | 合并门禁 | 当前私有仓库计划不支持分支保护或规则集，失败结果不能强制阻止合并 |
 
@@ -184,14 +185,14 @@ com.ysumly.umowebbackend/
 
 | 层 | 数量 |
 |---|---|
-| Controller | 11（公开 4、管理 7） |
-| Service 接口/实现 | 15/15（含调度发布器和定时扫描器等内部辅助 Service） |
+| Controller | 12（公开 4、管理 8） |
+| Service 接口/实现 | 14 个接口 + 23 个 `service/impl` 实现或辅助类 |
 | Mapper 接口/XML | 12/12 |
 | Entity | 9 |
-| DTO | 15 |
-| VO | 18 |
-| Config | 12 |
-| 边界测试 | 35 |
+| DTO | 16 |
+| VO | 23 |
+| Config | 15 |
+| 边界测试 | 45 |
 
 ### 4.2 正常与异常响应
 
@@ -227,6 +228,9 @@ HTTP 状态与返回：
 | 唯一键冲突/删除受保护资源 | 409 |
 | 上传超过 50MB | 413 |
 | 搜索频率超限 | 429 |
+| AI 上游请求或响应无效 | 502 |
+| AI 上游认证、余额或服务不可用 | 503 |
+| AI 上游响应超时 | 504 |
 | 未处理异常 | 500 |
 
 ### 4.3 API 清单
@@ -244,7 +248,7 @@ HTTP 状态与返回：
 | GET | `/api/public/contents/{slug}` |
 | GET | `/api/public/contents/search` |
 
-管理端共 29 个：
+管理端共 32 个：
 
 | 方法 | 路径 |
 |---|---|
@@ -269,6 +273,9 @@ HTTP 状态与返回：
 | PUT | `/api/admin/ai/modes/{id}` |
 | GET | `/api/admin/ai/modes/{id}/versions` |
 | POST | `/api/admin/ai/modes/{id}/rollback/{versionNo}` |
+| GET | `/api/admin/ai/settings` |
+| GET | `/api/admin/ai/capabilities` |
+| POST | `/api/admin/ai/transform` |
 
 ### 4.4 查询语义
 
@@ -291,7 +298,19 @@ HTTP 状态与返回：
   `PUBLISHED`，管理端返回全部状态和可选 `scheduledAt`。
 - 公开详情返回 `previous` 和 `next` 摘要；前者为更早内容，后者为更新内容，同时间以小 ID 为更早。
 
-### 4.5 内容与文件
+### 4.5 AI 转换运行时
+
+- `AiProperties` 从 `app.ai` 绑定开关、输入/输出上限、180 秒超时、5 次/10 分钟窗口、
+  同时 1 请求和全局 DeepSeek 配置；`APP_AI_ENABLED=false` 时应用可正常启动。
+- `DeepSeekAiTransformProvider` 通过 Spring `RestClient` 调用 `/chat/completions`，
+  system prompt 与正文分开发送，`stream=false`，不自动重试。
+- `AiRequestGuardImpl` 使用进程内 `Semaphore` 和时钟窗口；异常路径释放并发许可，
+  单实例边界与现有搜索/登录限流一致。
+- `AiResultValidatorImpl` 支持 `EXACT_CONTENT`、`TRANSLATION`、`LIGHT_EXPANSION` 和 `NONE`；
+  `AiTransformServiceImpl` 负责模式状态、错误状态归一化、结果字段和脱敏元数据日志。
+- 转换结果不自动写入文章；正文、结果、提示词和 API Key 不进入日志或数据库。
+
+### 4.6 内容与文件
 
 `contents.body_path` 的生成规则：
 
@@ -327,7 +346,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 数据库回滚时恢复旧内容或删除新文件；提交后清理失败会记录日志。
 - 删除先提交数据库，再清理 Markdown；数据库失败不会丢文件。
 
-### 4.6 认证与初始化
+### 4.7 认证与初始化
 
 - `AdminInterceptor` 拦截 `/api/admin/**`，排除 `/api/admin/login`。
 - JWT 放在 `Authorization: Bearer <token>`，包含 `ver` tokenVersion。
@@ -399,6 +418,11 @@ Spring Multipart 限制单文件和请求均为 50MB。
   被文章或固定页引用时显示 409 保护提示。
 - 管理端 AI 设置：五个默认模式列表，支持新建、复制、编辑、快速启停、整数排序、
   历史提示词只读预览和回滚；提示词或校验策略变化才生成新版本，409 冲突保留本地表单并支持重新加载。
+- 管理端文章 AI 抽屉：能力开启时在正文工具栏显示入口，支持正文带入、模式执行/取消、
+  结果编辑/预览/复制、重新转换确认、浮动恢复和本地状态恢复；最多 20,000 字符。
+  源草稿使用 `sessionStorage["umo-admin-ai-source-v1"]`，结果使用
+  `localStorage["umo-admin-ai-result-v1"]`；源草稿只在用户执行转换时发送到后端和供应商，
+  两者都不写数据库，结果不自动写入文章。预览禁用远程图片加载，进行中请求参与路由离开确认。
 - 管理端站点设置：统一读取/保存四项配置，About/Project 支持 Markdown 预览、部分保存反馈和缓存刷新。
 - 管理端修改密码：独立受保护页面；成功后清理本地 token，并在登录页提示重新登录。
 - 公开在线 Markdown 编辑器：导入/下载 `.md`、实时安全预览、移动端编辑/预览切换和 `umo-editor-draft-v1` 本地草稿恢复。
@@ -446,6 +470,12 @@ Spring Multipart 限制单文件和请求均为 50MB。
   删除图片后旧报告失效；结果不写入 Pinia 或浏览器存储。
 - 2026-09-15 已完成 Task 4.3 批量管理与定时发布：新增四种内容状态、当前页批量分类/标签、
   归档/恢复、未来的 `scheduledAt`、30 秒到期扫描、条件更新幂等保护和正文索引同步。
+- 2026-09-19 已修复发布前移动端与界面缺陷：管理侧栏关闭后不再进入焦点、打开时限制 Tab 并支持
+  Escape/焦点恢复、低高度横屏可内部滚动；公开与管理端当前页导航可关闭菜单；隐藏文件输入移出
+  Tab 顺序；图片缩略图加载失败显示无障碍占位。AI 设置模式目录改为完整可点击卡片，并补充
+  模式说明、系统提示词用途和校验策略展开解释；启停状态和操作分区固定，按钮/历史版本位于
+  左栏。管理端文章编辑器默认在首尾补齐的标题锚点之间连续插值，双向同步且无开关；正文或宽度
+  变化后刷新测量缓存，无可用标题或标题数不一致时回退整体比例。
 
 ### 6.2 其他前端事实
 
@@ -565,33 +595,36 @@ Spring Multipart 限制单文件和请求均为 50MB。
   调度条件更新/失败重试测试。
 - 新增 AI 模式创建、复制、元数据更新、提示词版本递增、10 版保留、回滚和乐观锁测试；
   MySQL 门控测试覆盖默认模式、停用过滤、条件版本更新和级联删除。
+- 新增 DeepSeek Mock HTTP 请求/响应、错误分类、超时、请求窗口/并发、四类结果校验、
+  转换错误映射和脱敏日志测试。
 - 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
 - PowerShell 与 Bash 发布脚本自测已纳入 `repository` CI job，覆盖 CI 选择、manifest、归档校验、
   发布锁、健康解析、失败自动回滚和版本基线捕获；真实 ECS 发布/回滚链路仍待演练。
 - 内容导入与阅读锚点工具共有 10 个 Python 单元测试，覆盖标题/摘要、目录映射、内链、
   图片重写、内容去重、Linux 文件所有权、缺失素材阻断，以及旧锚点 dry-run、备份、
   原子写入、幂等和缺少目标阻断；`api-smoke.py` 与 PowerShell 版本覆盖同样的 31 个接口。
-- 前端 109 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、游戏规则与旧成绩解析、
+- 前端 126 个 Node 测试覆盖路由、管理路径、主题解析、隐私配置、游戏规则与旧成绩解析、
   管理端文章/分类/标签/图片/站点/改密表单规则、API 错误解析、编辑器草稿与文件规则、
   Markdown front matter 导入、日期格式、书库后代参数、目录树与展开状态、标题 ID/别名、
-  AI 模式表单与版本载荷、Markdown 原始 HTML、邻接正文的加粗、危险 URL 协议、图片 alt 转义、
-  定时状态、编辑器滚动比例和批量载荷规则。
-- Playwright 每个平台运行 99 个浏览器检查：67 个 functional 用例覆盖公开端、正文摘要、
+  AI 模式表单与版本载荷、AI 抽屉本地状态/字符边界、Markdown 原始 HTML、邻接正文的加粗、
+  危险 URL 协议、图片 alt 转义、定时状态、编辑器滚动比例、标题锚点插值和批量载荷规则。
+- Playwright 每个平台运行 120 个浏览器检查：86 个 functional 用例覆盖公开端、正文摘要、
   文章目录/阅读进度/相关阅读、图片一致性报告与竞态、隐私说明、工具中心、在线编辑器、
-  三处编辑工作区双向滚动、批量文章操作、定时发布、桌面目录常驻/侧栏内滚动/窄屏断点、
-  四款游戏的高密度/长序列/旧成绩兼容、AI 模式设置和管理端核心流程；32 个视觉断言覆盖
-  16 个核心页面状态的 `1440×900` 与 `390×844` 基线。
+  三处编辑工作区双向滚动、标题区间单调插值与缓存失效、批量文章操作、定时发布、桌面目录常驻/侧栏内滚动/窄屏断点、
+  四款游戏的高密度/长序列/旧成绩兼容、AI 模式卡片与策略说明、AI 转换抽屉、移动菜单焦点/横屏滚动、
+  隐藏文件输入和管理端核心流程；
+  34 个视觉断言覆盖 17 个核心页面状态的 `1440×900` 与 `390×844` 基线。
 - 访问链路新增 9 个 Python 测试和 Nginx 容器集成测试，覆盖六字段白名单、查询参数和凭据剔除、
   IPv4/IPv6 聚合、保留边界、可信代理生成、报表转义和回环访问。
 - Playwright 使用 `/api/**` Mock 路由和 `e2e/runPlaywright.js` 静态服务器，不依赖 MySQL；
   Windows 默认 Chrome channel，Linux CI 使用锁定 Playwright 版本的 Chromium。
-- 仓库分别保存 30 张 `win32` 和 30 张 `linux` 视觉快照；Linux 快照通过手动
+- 仓库分别保存 34 张 `win32` 和 34 张 `linux` 视觉快照；Linux 快照通过手动
   `Playwright Linux Baselines` 工作流生成 artifact 后人工审查提交，不会自动写回仓库。
 - `scripts/ci/scan-sensitive-info.sh` 扫描全部已跟踪文件，覆盖公开 IPv4、ECS 实例 ID、AccessKey、
   GitHub Token、JWT 形态、私钥头和误提交环境文件；对应 Bash 自测覆盖允许与拒绝场景。
 - GitHub Actions 在 PR 和 `master` push 时运行仓库检查、后端测试、MySQL 8.4 集成、
   前端测试、生产构建和 Linux Playwright；MySQL job 同时验证 Schema、种子、两次正文回填、
-  中文 ngram 查询、AI 模式 Mapper 和 31/31 兼容冒烟。
+  中文 ngram 查询、AI 模式 Mapper 和启用假供应商的 40/40 AI 契约冒烟。
 
 ### 7.2 当前代码风险
 

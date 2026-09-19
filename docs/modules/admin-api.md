@@ -2,7 +2,7 @@
 
 > 基线日期: 2026-09-18
 > 前缀: `/api/admin`
-> 接口数: 29，其中登录无需 JWT
+> 接口数: 32，其中登录无需 JWT
 
 ---
 
@@ -17,6 +17,7 @@
 | `TagManageController` | 标签列表、新建、编辑、删除 |
 | `ImageController` | 图片上传、列表、一致性检查、删除 |
 | `AiModeCatalogController` | AI 模式列表、新建、复制、编辑、版本查询、回滚 |
+| `AiRuntimeController` | AI 设置、能力查询、转换 |
 
 除 `/api/admin/login` 外，所有接口都由 `AdminInterceptor` 检查 JWT。
 
@@ -354,7 +355,7 @@ PUT /api/admin/options/{key}
 
 ---
 
-## 8. AI 模式目录
+## 8. AI 模式与转换运行时
 
 ### 8.1 模式查询与写入
 
@@ -374,6 +375,29 @@ Controller 只做请求校验和 VO 响应，不读取数据库、不访问模�
 模式列表按 `sort_order ASC, id ASC` 返回。运行时 Service 只读取启用模式当前版本；
 模式或版本不存在返回 404，`modeKey` 冲突或版本过期返回 409。
 
+### 8.2 运行设置与能力
+
+```http
+GET /api/admin/ai/settings
+GET /api/admin/ai/capabilities
+```
+
+设置响应包含 `enabled`、`provider`、`model`、输入/输出上限和模式总数，不返回密钥。
+能力响应只返回启用模式的 `modeKey`、`name`、`description`，不返回模型或提示词。
+
+### 8.3 转换
+
+```http
+POST /api/admin/ai/transform
+```
+
+请求包含 `modeKey` 和最多 20000 字符的 `content`。Service 按“全局开关、输入校验、
+模式状态、请求许可、Provider、结果校验”顺序执行，输出最多 60000 字符。
+
+Provider 使用全局 DeepSeek OpenAI-compatible `/chat/completions`，system prompt 与正文
+分开发送，不自动重试。认证、余额、上游 500/503 返回 503，上游 429 返回 429，
+非法请求/响应返回 502，超时返回 504。日志只记录元数据，不记录正文、结果、提示词或密钥。
+
 ---
 
 ## 9. 测试现状
@@ -381,7 +405,7 @@ Controller 只做请求校验和 VO 响应，不读取数据库、不访问模�
 `BoundaryTest` 仍使用 Mock Service 覆盖接口边界，另有 Service/Util 单元测试覆盖真实文件、
 路径、JWT、限流、可信代理 CIDR、容器装配和批量查询行为；MySQL 8.4 环境门控测试覆盖真实
 分类层级 SQL、正文全文索引、相关文章排序、调度发布、图片来源查询和图片清理队列。
-当前后端测试共 195 个，其中 17 个由 MySQL 8.4 环境门控，默认本地跳过。
+当前后端测试共 236 个，其中 17 个由 MySQL 8.4 环境门控；本机执行时共 18 个跳过。
 
 `BoundaryTest` 覆盖：
 
@@ -398,6 +422,8 @@ Controller 只做请求校验和 VO 响应，不读取数据库、不访问模�
 - 非法 page/size/type/metadata 返回 400。
 - 公开详情返回 categories/tags 数组。
 - AI 模式空字段返回 400、模式不存在返回 404、版本过期返回 409。
+- AI 转换空字段返回 400、模式不存在返回 404、停用/限流返回 409/429、
+  上游无效/不可用/超时返回 502/503/504。
 
 文件、路径、JWT、上传和 VO 组装测试使用真实临时文件或真实工具类。2026-09-13 起
 GitHub Actions 使用 MySQL 8.4 启动真实后端并执行管理端全部接口冒烟；此前

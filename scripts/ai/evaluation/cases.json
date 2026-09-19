@@ -1,0 +1,96 @@
+{
+  "cases": [
+    {
+      "id": "structure-basic",
+      "modeKey": "STRUCTURE_CLEANUP",
+      "source": "## 环境准备\n\n本文说明如何在本地安装依赖。\n\n- 安装 Python\n- 安装 Git\n- 配置终端\n\n```bash\npython --version\ngit --version\n```\n\n完成后进入下一步。",
+      "criteria": [
+        "非标题正文完全一致",
+        "代码块和链接不变"
+      ]
+    },
+    {
+      "id": "structure-quote-table-link",
+      "modeKey": "STRUCTURE_CLEANUP",
+      "source": "## 说明\n\n> 本页只介绍通用配置。\n\n| 项目 | 默认值 |\n| --- | --- |\n| 端口 | 8080 |\n| 日志级别 | info |\n\n详细命令见 [操作手册](./manual.md)，也可以参考 [首页](../README.md)。",
+      "criteria": [
+        "非标题正文完全一致",
+        "引用、表格和链接结构不变"
+      ]
+    },
+    {
+      "id": "modern-narrative",
+      "modeKey": "MODERN_TO_CLASSICAL",
+      "source": "傍晚六点，林川合上电脑，从图书馆出来。风从梧桐叶间吹过，街灯一盏接一盏亮起来。他想起早上收到的消息，没有立刻回复，只是沿着河边慢慢走。远处有人骑车经过，铃声清脆。他在便利店买了一瓶水，坐在长椅上，决定明天再重新整理那份计划。",
+      "criteria": [
+        "事实、人物和数字完整",
+        "文言表达可理解且不新增信息"
+      ]
+    },
+    {
+      "id": "modern-facts",
+      "modeKey": "MODERN_TO_CLASSICAL",
+      "source": "2026 年 9 月，杭州电子学会举办第 14 届开源技术论坛。会议在钱塘会议中心举行，共有 68 位讲者、12 场主题演讲和 3 个实践工作坊。组织者表示，报名人数达到 1,280 人，其中学生占四成。大会主题是“开放协作与可信工具”，重点讨论代码审查、文档治理和社区维护。",
+      "criteria": [
+        "数字和专有名词准确",
+        "现代文转文言语气合适"
+      ]
+    },
+    {
+      "id": "en-tech",
+      "modeKey": "ENGLISH_TO_CHINESE",
+      "source": "## Build Steps\n\nRun the following command to compile the project:\n\n```bash\nnpm run build\n```\n\nThe build writes files to the `dist/` folder. Node.js 24 and npm 10 are required. See [README](../README.md) for environment details.",
+      "criteria": [
+        "数字、专有名词和代码无误",
+        "中文译文忠实且语气自然"
+      ]
+    },
+    {
+      "id": "en-narrative",
+      "modeKey": "ENGLISH_TO_CHINESE",
+      "source": "On a rainy Sunday, Mia left the bookshop with a paper bag under her arm. The train was late by seven minutes, so she waited under the station clock and watched the light fade over the river. When the train finally arrived, she found a seat by the window and opened the first page. The journey home took forty minutes, and she read until the final stop.",
+      "criteria": [
+        "叙事事实和结构完整",
+        "数字与专有名词准确"
+      ]
+    },
+    {
+      "id": "zh-tech",
+      "modeKey": "CHINESE_TO_ENGLISH",
+      "source": "## 构建步骤\n\n运行下面的命令编译项目：\n\n```bash\nnpm run build\n```\n\n构建结果会写入 `dist/` 目录。需要 Node.js 24 和 npm 10。环境说明见 [README](../README.md)。",
+      "criteria": [
+        "数字、专有名词和代码无误",
+        "英文译文忠实且语气自然"
+      ]
+    },
+    {
+      "id": "zh-narrative",
+      "modeKey": "CHINESE_TO_ENGLISH",
+      "source": "周末清晨，周宁背着相机穿过老城。石板路刚下过雨，积水映出灰蓝色的天。他在巷口遇到卖早点的人，买了一枚咸蛋黄饭团。走到桥边时，一列绿皮火车从远处驶过，车窗映着晨光。他举起相机，拍下了雾气里的钟楼。",
+      "criteria": [
+        "叙事事实和结构完整",
+        "专有名词和格式不误译"
+      ]
+    },
+    {
+      "id": "novel-short-narrative",
+      "modeKey": "LIGHT_NOVELIZATION",
+      "source": "周舟站在月台上，手里攥着一张旧车票。广播响了两遍，他仍没有上车。风从隧道口涌出来，把他的围巾吹向一边。他忽然想起七年前也是这个站台，有人在这里挥手告别。列车关上门，缓缓启动。他没有追，只是把车票折好，放回大衣口袋。",
+      "criteria": [
+        "不新增关键事件或事实",
+        "输出不超过原文 1.5 倍",
+        "意象和节奏增强"
+      ]
+    },
+    {
+      "id": "novel-scene",
+      "modeKey": "LIGHT_NOVELIZATION",
+      "source": "雨停之后，山道上的石阶还湿着。松针铺满路面，空气里混着泥土和松脂的气味。远处钟楼敲了五下，声音穿过薄雾，落在空荡的村庄里。一只灰雀从屋檐下飞起，掠过水洼，翅膀扇落几滴水珠。天边渐渐透出淡青色。",
+      "criteria": [
+        "不新增人物或结局",
+        "输出不超过原文 1.5 倍",
+        "场景和感官描写增强"
+      ]
+    }
+  ]
+}

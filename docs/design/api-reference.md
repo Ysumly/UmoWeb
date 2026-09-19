@@ -1,10 +1,10 @@
 # UmoWeb API 接口参考
 
-> 基线日期: 2026-09-18
+> 基线日期: 2026-09-19
 > 事实来源: `controller/`、`model/dto/`、`model/vo/`、`GlobalExceptionHandler`、Mapper XML
-> 接口总数: 公开端 8 个，管理端 29 个，共 37 个
-> 实测状态: 2026-09-18 新增 6 个 AI 模式目录接口；既有 31/31 冒烟继续作为兼容基线，
-> 六个新接口由 Controller 测试和 MySQL 门控 Mapper 测试覆盖，完整 AI HTTP 冒烟由 5.1F 扩展
+> 接口总数: 公开端 8 个，管理端 32 个，共 40 个
+> 实测状态: 2026-09-19 已有 6 个 AI 模式目录接口和 3 个 AI 运行时接口；
+> 默认兼容冒烟为 31/31，启用假供应商的 AI 契约冒烟为 40/40
 
 ---
 
@@ -32,9 +32,12 @@
 | 400 | 请求体缺失、参数校验失败、非法枚举/JSON、图片类型或文件签名不支持 |
 | 401 | 未认证、JWT 无效或过期、用户名密码错误 |
 | 404 | 内容、分类、标签或 AI 模式/版本不存在 |
-| 409 | 唯一键冲突、关联内容/子分类删除保护、AI 模式版本冲突或数据关联冲突 |
+| 409 | 唯一键冲突、关联内容/子分类删除保护、AI 模式停用/版本冲突或数据关联冲突 |
 | 413 | Multipart 文件或请求超过 50MB |
-| 429 | 搜索同 IP 10 秒内重复请求，或同一用户名/IP 连续登录失败过多 |
+| 429 | 搜索同 IP 10 秒内重复请求、登录失败过多或 AI 运行时限流 |
+| 502 | AI 上游请求或响应无效 |
+| 503 | AI 上游认证、余额或服务不可用 |
+| 504 | AI 上游响应超时 |
 | 500 | 未处理异常 |
 
 当前代码不会为新建资源返回 201。
@@ -357,7 +360,7 @@ Authorization: Bearer <token>
 
 ---
 
-## 8. 管理端 AI 模式目录
+## 8. 管理端 AI 模式与转换运行时
 
 六个接口均要求 `Authorization: Bearer <token>`。模式写入成功统一返回 HTTP 200；
 `modeKey` 格式为 `[A-Z][A-Z0-9_]{2,63}`，创建后不可修改。
@@ -459,6 +462,89 @@ Authorization: Bearer <token>
 
 回滚会复制目标历史内容生成 `expectedVersion + 1`，不改写历史记录，并返回新的
 `AiModeSettingsVO`。模式或版本不存在返回 404，版本冲突返回 409。
+
+### 8.7 查询 AI 设置
+
+```http
+GET /api/admin/ai/settings
+Authorization: Bearer <token>
+```
+
+返回：
+
+```json
+{
+  "enabled": false,
+  "provider": "deepseek",
+  "model": "",
+  "maxInputChars": 20000,
+  "maxOutputChars": 60000,
+  "modeCount": 5
+}
+```
+
+不返回 API Key。默认 `APP_AI_ENABLED=false`，此时应用可正常启动。
+
+### 8.8 查询能力
+
+```http
+GET /api/admin/ai/capabilities
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "enabled": true,
+  "maxInputChars": 20000,
+  "modes": [
+    {
+      "modeKey": "STRUCTURE_CLEANUP",
+      "name": "结构整理",
+      "description": ""
+    }
+  ]
+}
+```
+
+只返回启用模式摘要，不返回模型名、系统提示词或 API Key。
+
+### 8.9 执行 AI 转换
+
+```http
+POST /api/admin/ai/transform
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "modeKey": "STRUCTURE_CLEANUP",
+  "content": "Markdown 正文"
+}
+```
+
+成功返回：
+
+```json
+{
+  "requestId": "uuid",
+  "modeKey": "STRUCTURE_CLEANUP",
+  "modeVersion": 1,
+  "content": "转换结果",
+  "model": "deepseek-chat",
+  "usage": {
+    "inputTokens": 100,
+    "outputTokens": 80,
+    "totalTokens": 180
+  }
+}
+```
+
+输入最多 20000 字符，结果最多 60000 字符，上游超时 180 秒；10 分钟最多 5 次且同时最多
+1 个请求。全局关闭或模式停用返回 409，模式不存在返回 404，本地/上游限流返回 429，
+无效上游请求或结果返回 502，认证、余额或服务不可用返回 503，超时返回 504。
+
+运行日志只记录请求 ID、模式、版本、字符数、Token 数、耗时、状态和错误分类，
+不记录正文、结果、系统提示词或 API Key。结果不自动写入文章。
 
 ---
 

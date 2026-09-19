@@ -104,10 +104,28 @@ test('管理端 AI 设置视觉基线', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/ai-settings')
   await expect(page.getByRole('heading', { name: 'AI 设置' })).toBeVisible()
-  await expect(page.locator('.admin-ai-mode-table tbody tr')).toHaveCount(5)
+  await expect(page.locator('.admin-ai-mode-item')).toHaveCount(5)
   await waitForStablePage(page)
 
   await expect(page).toHaveScreenshot('admin-ai-settings.png', { fullPage: true })
+})
+
+test('管理端 AI 转换抽屉视觉基线', async ({ page, apiMock }) => {
+  await prepareScreenshot(page)
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  await page.getByLabel('Markdown 正文').fill('# 视觉基线正文\n\n用于检查 AI 抽屉布局。')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue(
+    '转换结果：# 视觉基线正文\n\n用于检查 AI 抽屉布局。',
+  )
+  await waitForStablePage(page)
+
+  await expect(page).toHaveScreenshot('admin-ai-drawer.png')
 })
 
 test('游戏中心视觉基线', async ({ page, apiMock }) => {

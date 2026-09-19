@@ -19,6 +19,47 @@ async function readScrollRatio(locator) {
   })
 }
 
+async function editorOffsetForHeading(editor, heading) {
+  return editor.evaluate((element, targetHeading) => {
+    const mirror = document.createElement('div')
+    const styles = getComputedStyle(element)
+    Object.assign(mirror.style, {
+      position: 'fixed',
+      top: '0',
+      left: '-10000px',
+      width: `${element.clientWidth}px`,
+      margin: '0',
+      padding: styles.padding,
+      border: styles.border,
+      boxSizing: styles.boxSizing,
+      fontFamily: styles.fontFamily,
+      fontSize: styles.fontSize,
+      fontWeight: styles.fontWeight,
+      lineHeight: styles.lineHeight,
+      letterSpacing: styles.letterSpacing,
+      whiteSpace: 'pre-wrap',
+      overflowWrap: 'break-word',
+      visibility: 'hidden',
+    })
+    document.body.appendChild(mirror)
+    const lines = element.value.replace(/\r\n?/g, '\n').split('\n')
+    const lineIndex = lines.findIndex((line) => line.trim() === targetHeading)
+    mirror.textContent = lines.slice(0, Math.max(0, lineIndex)).join('\n')
+    const verticalPadding = Number.parseFloat(styles.paddingTop)
+      + Number.parseFloat(styles.paddingBottom)
+    const offset = mirror.scrollHeight - verticalPadding
+    mirror.remove()
+    return offset
+  }, heading)
+}
+
+async function scrollEditorToOffset(editor, offset) {
+  await editor.evaluate((element, targetOffset) => {
+    element.scrollTop = targetOffset
+    element.dispatchEvent(new Event('scroll'))
+  }, offset)
+}
+
 async function expectSyncedWorkspace(page, workspace, editor) {
   const previewPane = workspace.locator('.admin-editor-pane--preview')
   await editor.fill(longMarkdown())
@@ -80,7 +121,7 @@ test('AI 设置支持创建、编辑、复制、排序、启停和版本回滚',
   await page.goto('/secret-admin/ai-settings')
 
   await expect(page.getByRole('heading', { name: 'AI 设置' })).toBeVisible()
-  const modeRows = page.locator('.admin-ai-mode-table tbody tr')
+  const modeRows = page.locator('.admin-ai-mode-item')
   await expect(modeRows).toHaveCount(5)
 
   await page.getByRole('button', { name: '新建模式' }).click()
@@ -91,12 +132,12 @@ test('AI 设置支持创建、编辑、复制、排序、启停和版本回滚',
   await page.getByRole('button', { name: '创建模式' }).click()
 
   await expect(page.getByText('模式已创建，默认停用')).toBeVisible()
-  const customRow = page.getByRole('row', { name: /E2E 自定义模式/ })
+  const customRow = modeRows.filter({ hasText: 'E2E 自定义模式' })
   await expect(customRow).toContainText('停用')
 
-  await customRow.getByRole('button', { name: '启用' }).click()
+  await customRow.locator('.admin-ai-mode-item__toggle').click()
   await expect(page.getByText('模式已启用')).toBeVisible()
-  await expect(page.getByRole('row', { name: /E2E 自定义模式/ })).toContainText('启用')
+  await expect(modeRows.filter({ hasText: 'E2E 自定义模式' })).toContainText('启用')
 
   await page.getByLabel('系统提示词').fill('Mock 提示词：改写后保持事实。')
   await page.getByRole('button', { name: '保存修改' }).click()
@@ -129,6 +170,75 @@ test('AI 设置支持创建、编辑、复制、排序、启停和版本回滚',
   await expect(page.getByText('当前版本 v3')).toBeVisible()
 })
 
+test('AI 模式目录完整显示并支持点击整张模式卡', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/ai-settings')
+
+  const list = page.locator('.admin-ai-mode-list')
+  const dimensions = await list.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }))
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth)
+
+  const translationItem = page.locator('.admin-ai-mode-item').filter({ hasText: '英译中' })
+  await expect(translationItem).toContainText('翻译保真')
+  await expect(translationItem).toContainText('排序 3')
+  await expect(translationItem).toContainText('版本 v1')
+
+  const [cardBox, statusBox, toggleBox] = await Promise.all([
+    translationItem.boundingBox(),
+    translationItem.locator('.admin-status').boundingBox(),
+    translationItem.locator('.admin-ai-mode-item__toggle').boundingBox(),
+  ])
+  expect(statusBox.x).toBeGreaterThan(cardBox.x + (cardBox.width / 2))
+  expect(toggleBox.x).toBeLessThan(cardBox.x + (cardBox.width / 2))
+  expect(toggleBox.y).toBeGreaterThan(statusBox.y)
+
+  await translationItem.locator('.admin-ai-mode-item__meta').click()
+  await expect(page.getByRole('heading', { name: '英译中', exact: true })).toBeVisible()
+})
+
+test('AI 模式表单说明字段用途并支持展开校验策略说明', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/ai-settings')
+
+  await expect(page.getByText('仅用于管理端识别和说明，不会发送给模型。')).toBeVisible()
+  await expect(page.getByText('会作为 system prompt 发送给大模型；请不要填写敏感信息。')).toBeVisible()
+
+  const strategy = page.getByLabel('校验策略')
+  const enabledControl = page.locator('.admin-ai-enabled__control')
+  let [strategyBox, enabledBox] = await Promise.all([
+    strategy.boundingBox(),
+    enabledControl.boundingBox(),
+  ])
+  expect(Math.abs(strategyBox.y - enabledBox.y)).toBeLessThanOrEqual(1)
+  expect(Math.abs(strategyBox.height - enabledBox.height)).toBeLessThanOrEqual(1)
+
+  await page.locator('.admin-ai-profile-help summary').click()
+  await expect(page.getByText('检查非标题正文与源文本完全一致，适合 Markdown 结构整理。')).toBeVisible()
+  await expect(page.getByText('检查数字、专有名词、链接和代码等保真，适合双向翻译。')).toBeVisible()
+  await expect(page.getByText('允许轻度扩写并限制输出长度，适合叙事增强。')).toBeVisible()
+  await expect(page.getByText('只执行空值和长度等基础校验，不保证内容保真。')).toBeVisible()
+
+  ;[strategyBox, enabledBox] = await Promise.all([
+    strategy.boundingBox(),
+    enabledControl.boundingBox(),
+  ])
+  expect(Math.abs(strategyBox.y - enabledBox.y)).toBeLessThanOrEqual(1)
+  expect(Math.abs(strategyBox.height - enabledBox.height)).toBeLessThanOrEqual(1)
+
+  const leftColumn = page.locator('.admin-ai-left-column')
+  const editorPanel = page.locator('.admin-ai-editor')
+  const actionsBox = await leftColumn.locator('.admin-ai-form-actions').boundingBox()
+  const versionsBox = await leftColumn.locator('.admin-ai-versions').boundingBox()
+  const editorBox = await editorPanel.boundingBox()
+  expect(actionsBox.y).toBeGreaterThan(await leftColumn.locator('.admin-ai-mode-list').boundingBox().then((box) => box.y))
+  expect(actionsBox.x + actionsBox.width).toBeLessThanOrEqual(editorBox.x)
+  expect(versionsBox.x + versionsBox.width).toBeLessThanOrEqual(editorBox.x)
+  expect(versionsBox.y).toBeGreaterThan(actionsBox.y)
+})
+
 test('AI 设置遇到版本冲突时保留草稿并支持移动端单列布局', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/ai-settings')
@@ -143,15 +253,296 @@ test('AI 设置遇到版本冲突时保留草稿并支持移动端单列布局',
   await expect(page.getByText('提示词已在其他窗口更新，请重新加载后再保存。')).toHaveCount(0)
 
   await page.setViewportSize({ width: 390, height: 844 })
-  const nameBox = await page.getByLabel('模式名称').boundingBox()
+  const nameInput = page.getByLabel('模式名称')
+  await nameInput.scrollIntoViewIfNeeded()
+  const nameBox = await nameInput.boundingBox()
   const sortBox = await page.getByLabel('排序值').boundingBox()
   expect(sortBox.y).toBeGreaterThan(nameBox.y)
+  expect(Math.abs(sortBox.x - nameBox.x)).toBeLessThanOrEqual(1)
 
   const viewport = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
   }))
   expect(viewport.scrollWidth).toBeLessThanOrEqual(viewport.clientWidth)
+})
+
+test('AI 转换抽屉在能力关闭时完全隐藏且不发送转换请求', async ({ page, apiMock }) => {
+  apiMock.disableAi()
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  await expect(page.getByLabel('Markdown 正文')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'AI 转换' })).toHaveCount(0)
+  expect(apiMock.state.requests.filter((request) => (
+    request.pathname === '/api/admin/ai/transform'
+  ))).toHaveLength(0)
+})
+
+test('AI 转换抽屉带入正文、转换、编辑和复制时不修改文章正文', async ({ page, apiMock }) => {
+  const externalRequests = []
+  page.on('request', (request) => {
+    if (request.url().includes('tracker.example')) {
+      externalRequests.push(request.url())
+    }
+  })
+  await page.addInitScript(() => {
+    window.__copiedAiResult = ''
+    window.__clipboardShouldFail = false
+    window.__copyFallbackUsed = false
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (value) => {
+          if (window.__clipboardShouldFail) {
+            throw new Error('clipboard denied')
+          }
+          window.__copiedAiResult = value
+        },
+      },
+    })
+  })
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  const body = page.getByLabel('Markdown 正文')
+  await body.fill('# 原始正文\n\n保留这一段。')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByLabel('转换模式')).toHaveClass(/admin-ai-drawer__mode-select/)
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await expect(dialog.getByLabel('AI 源草稿')).toHaveValue('# 原始正文\n\n保留这一段。')
+  await expect(dialog.getByText('14 / 20000')).toBeVisible()
+
+  await dialog.getByLabel('转换模式').selectOption('STRUCTURE_CLEANUP')
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue(
+    '转换结果：# 原始正文\n\n保留这一段。',
+  )
+  await expect(dialog.getByRole('status')).toContainText('转换完成')
+
+  await dialog.getByLabel('AI 转换结果').fill('人工修改后的结果')
+  await expect(dialog.getByText('结果已手动修改')).toBeVisible()
+  await dialog.getByRole('button', { name: '复制结果' }).click()
+  await expect(dialog.getByRole('status')).toContainText('已复制')
+  expect(await page.evaluate(() => window.__copiedAiResult)).toBe('人工修改后的结果')
+  await expect(body).toHaveValue('# 原始正文\n\n保留这一段。')
+
+  await dialog.getByLabel('AI 转换结果').fill('回退复制结果')
+  await page.evaluate(() => {
+    window.__clipboardShouldFail = true
+    document.execCommand = () => {
+      window.__copyFallbackUsed = true
+      return true
+    }
+  })
+  await dialog.getByRole('button', { name: '复制结果' }).click()
+  await expect(dialog.getByRole('status')).toContainText('已复制')
+  expect(await page.evaluate(() => window.__copyFallbackUsed)).toBe(true)
+
+  await dialog.getByLabel('AI 转换结果').fill(
+    '![远程图片](https://tracker.example/pixel.png)',
+  )
+  await expect(dialog.locator('.admin-ai-drawer__preview')).toContainText('远程图片')
+  expect(await dialog.locator('.admin-ai-drawer__preview img').count()).toBe(0)
+  expect(externalRequests).toEqual([])
+})
+
+test('AI 转换抽屉阻止空输入和超过能力上限的正文', async ({ page, apiMock }) => {
+  apiMock.state.aiRuntime.maxInputChars = 4
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  await expect(dialog.getByRole('alert')).toContainText('请先输入或带入正文')
+
+  await page.getByLabel('Markdown 正文').fill('12345')
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  await expect(dialog.getByRole('alert')).toContainText('正文不能超过 4 字符')
+  expect(apiMock.state.requests.filter((request) => (
+    request.pathname === '/api/admin/ai/transform'
+  ))).toHaveLength(0)
+})
+
+test('AI 重新转换仅在人工编辑后确认并可通过取消保留旧结果', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  await page.getByLabel('Markdown 正文').fill('原文')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  const result = dialog.getByLabel('AI 转换结果')
+  await expect(result).toHaveValue('转换结果：原文')
+
+  await result.fill('人工修改')
+  let dialogMessage = ''
+  page.once('dialog', async (browserDialog) => {
+    dialogMessage = browserDialog.message()
+    await browserDialog.dismiss()
+  })
+  await dialog.getByRole('button', { name: '重新转换' }).click()
+  await expect(result).toHaveValue('人工修改')
+  expect(dialogMessage).toContain('覆盖')
+
+  apiMock.delayNextAiTransform(5_000)
+  page.once('dialog', (browserDialog) => browserDialog.accept())
+  await dialog.getByRole('button', { name: '重新转换' }).click()
+  await expect(dialog.getByRole('button', { name: '取消请求' })).toBeVisible()
+  await dialog.getByRole('button', { name: '取消请求' }).click()
+  await expect(dialog.getByRole('status')).toContainText('已取消')
+  await expect(result).toHaveValue('人工修改')
+})
+
+test('AI 转换抽屉映射限流、无效响应、不可用和超时错误', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  await page.getByLabel('Markdown 正文').fill('原文')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  const result = dialog.getByLabel('AI 转换结果')
+  await expect(result).toHaveValue('转换结果：原文')
+
+  const cases = [
+    [429, 'AI 服务请求过于频繁（请求 ID: e2e-ai-request）', '请求过于频繁'],
+    [502, 'AI 服务返回无效响应（请求 ID: e2e-ai-request）', '返回无效'],
+    [503, 'AI 服务暂时不可用（请求 ID: e2e-ai-request）', '暂时不可用'],
+    [504, 'AI 服务响应超时（请求 ID: e2e-ai-request）', '响应超时'],
+  ]
+  for (const [status, message, expected] of cases) {
+    apiMock.failNextAiTransform(status, message)
+    await dialog.getByRole('button', { name: '重新转换' }).click()
+    await expect(dialog.getByRole('alert')).toContainText(expected)
+    await expect(dialog.getByRole('alert')).toContainText('请求 ID: e2e-ai-request')
+    await expect(result).toHaveValue('转换结果：原文')
+  }
+})
+
+test('AI 转换抽屉支持浮动恢复、本地恢复和焦点返回', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  const body = page.getByLabel('Markdown 正文')
+  await body.fill('需要恢复的正文')
+  const openButton = page.getByRole('button', { name: 'AI 转换' })
+  await openButton.click()
+
+  let dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue('转换结果：需要恢复的正文')
+
+  const drawerBody = dialog.locator('.admin-ai-drawer__body')
+  await drawerBody.evaluate((element) => {
+    element.scrollTop = Math.min(120, element.scrollHeight - element.clientHeight)
+  })
+  const scrollTop = await drawerBody.evaluate((element) => element.scrollTop)
+  await dialog.getByRole('button', { name: '缩成小窗' }).click()
+  await expect(dialog).toBeHidden()
+  const restoreButton = page.getByRole('button', { name: '恢复 AI 转换' })
+  await expect(restoreButton).toBeVisible()
+  await restoreButton.click()
+  dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await expect(dialog.getByLabel('AI 源草稿')).toHaveValue('需要恢复的正文')
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue('转换结果：需要恢复的正文')
+  await expect(dialog.locator('.admin-ai-drawer__body')).toHaveJSProperty('scrollTop', scrollTop)
+
+  await dialog.getByRole('button', { name: '关闭 AI 转换' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(openButton).toBeFocused()
+
+  await page.reload()
+  await expect(body).toHaveValue('')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+  dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await expect(dialog.getByLabel('AI 源草稿')).toHaveValue('需要恢复的正文')
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue('转换结果：需要恢复的正文')
+})
+
+test('AI 转换抽屉恢复时丢弃已停用模式并阻止请求中路由离开', async ({ page, apiMock }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('umo-admin-ai-source-v1', JSON.stringify({
+      schemaVersion: 1,
+      content: '恢复的草稿',
+      updatedAt: 1,
+    }))
+    localStorage.setItem('umo-admin-ai-result-v1', JSON.stringify({
+      schemaVersion: 1,
+      modeKey: 'REMOVED_MODE',
+      modeVersion: 3,
+      originalContent: '旧结果',
+      content: '旧结果',
+      usage: null,
+      updatedAt: 1,
+    }))
+  })
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents')
+  await page.getByRole('link', { name: '新建文章' }).click()
+  await expect(page).toHaveURL(/\/secret-admin\/contents\/new$/)
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await expect(dialog.getByLabel('转换模式')).toHaveValue('STRUCTURE_CLEANUP')
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue('旧结果')
+
+  apiMock.delayNextAiTransform(5_000)
+  await dialog.getByRole('button', { name: '重新转换' }).click()
+  await expect(dialog.getByRole('button', { name: '取消请求' })).toBeVisible()
+
+  page.once('dialog', (browserDialog) => browserDialog.dismiss())
+  await page.goBack()
+  await expect(page).toHaveURL(/\/secret-admin\/contents\/new$/)
+
+  page.once('dialog', (browserDialog) => browserDialog.accept())
+  await page.goBack()
+  await expect(page).toHaveURL(/\/secret-admin\/contents$/)
+})
+
+test('AI 转换抽屉将键盘焦点限制在对话框内并支持小窗 Escape 关闭', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  const openButton = page.getByRole('button', { name: 'AI 转换' })
+  await openButton.click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  const lastButton = dialog.locator('button:not([disabled])').last()
+  await lastButton.focus()
+  await expect(lastButton).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(dialog.getByRole('button', { name: '缩成小窗' })).toBeFocused()
+
+  await dialog.getByRole('button', { name: '缩成小窗' }).click()
+  const restoreButton = page.getByRole('button', { name: '恢复 AI 转换' })
+  await restoreButton.focus()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(openButton).toBeFocused()
+})
+
+test('AI 转换抽屉在 390px 下不横向溢出且保持正文快照', async ({ page, apiMock }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  const body = page.getByLabel('Markdown 正文')
+  await body.fill('移动端正文')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await body.fill('文章已被其他操作修改')
+  await expect(dialog.getByLabel('AI 源草稿')).toHaveValue('移动端正文')
+  expect(await page.evaluate(() => (
+    document.documentElement.scrollWidth <= window.innerWidth
+  ))).toBe(true)
 })
 
 test('文章列表支持筛选并完成新建、编辑、发布和删除', async ({ page, apiMock }) => {
@@ -321,13 +712,102 @@ test('metadata 更多说明可以展开常用字段', async ({ page, apiMock }) 
   await expect(details.getByText('JSON 不支持注释')).toBeVisible()
 })
 
-test('文章编辑器在桌面保持等高并按比例双向同步滚动', async ({ page, apiMock }) => {
+test('文章编辑器在标题间连续同步预览且不显示同步开关', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/contents/new')
 
   const workspace = page.locator('.admin-editor-workspace')
   const editor = workspace.getByLabel('Markdown 正文')
-  await expectSyncedWorkspace(page, workspace, editor)
+  const preview = workspace.locator('.admin-editor-pane--preview')
+
+  await expect(page.getByLabel('同步滚动')).toHaveCount(0)
+  await editor.fill(longMarkdown())
+  await expect(preview.getByRole('heading', { name: '章节 80' })).toBeAttached()
+  const startOffset = await editorOffsetForHeading(editor, '## 章节 30')
+  const endOffset = await editorOffsetForHeading(editor, '## 章节 31')
+  const previewPositions = []
+  for (const ratio of [0, 0.25, 0.5, 0.75, 1]) {
+    await scrollEditorToOffset(editor, startOffset + ((endOffset - startOffset) * ratio))
+    await waitForAnimationFrames(page)
+    previewPositions.push(await preview.evaluate((element) => element.scrollTop))
+  }
+
+  for (let index = 1; index < previewPositions.length; index += 1) {
+    expect(previewPositions[index]).toBeGreaterThan(previewPositions[index - 1])
+  }
+
+  await scrollEditorToOffset(editor, startOffset)
+  await waitForAnimationFrames(page)
+  const [previewBox, headingBox] = await Promise.all([
+    preview.boundingBox(),
+    preview.getByRole('heading', { name: '章节 30' }).boundingBox(),
+  ])
+  expect(headingBox.y - previewBox.y).toBeGreaterThanOrEqual(-2)
+  expect(headingBox.y - previewBox.y).toBeLessThan(80)
+
+  await scrollEditorToOffset(editor, endOffset)
+  await waitForAnimationFrames(page)
+  const [endPreviewBox, endHeadingBox] = await Promise.all([
+    preview.boundingBox(),
+    preview.getByRole('heading', { name: '章节 31' }).boundingBox(),
+  ])
+  expect(endHeadingBox.y - endPreviewBox.y).toBeGreaterThanOrEqual(-2)
+  expect(endHeadingBox.y - endPreviewBox.y).toBeLessThan(80)
+
+  const previewMiddle = (previewPositions[0] + previewPositions[4]) / 2
+  await preview.evaluate((element, scrollTop) => {
+    element.scrollTop = scrollTop
+    element.dispatchEvent(new Event('scroll'))
+  }, previewMiddle)
+  await waitForAnimationFrames(page)
+  const mappedEditorOffset = await editor.evaluate((element) => element.scrollTop)
+  expect(mappedEditorOffset).toBeGreaterThan(startOffset)
+  expect(mappedEditorOffset).toBeLessThan(endOffset)
+})
+
+test('标题同步在内容和宽度变化后重新计算锚点', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+
+  const workspace = page.locator('.admin-editor-workspace')
+  const editor = workspace.getByLabel('Markdown 正文')
+  const preview = workspace.locator('.admin-editor-pane--preview')
+
+  await editor.fill(longMarkdown())
+  await waitForAnimationFrames(page)
+  await scrollEditorToOffset(editor, await editorOffsetForHeading(editor, '## 章节 30'))
+  await waitForAnimationFrames(page)
+  let previewBox = await preview.boundingBox()
+  let headingBox = await preview.getByRole('heading', { name: '章节 30' }).boundingBox()
+  expect(headingBox.y - previewBox.y).toBeGreaterThanOrEqual(-2)
+  expect(headingBox.y - previewBox.y).toBeLessThan(80)
+
+  await editor.fill(`${longMarkdown()}\n\n## 新增章节\n\n新增正文。`)
+  await waitForAnimationFrames(page)
+  await expect(preview.getByRole('heading', { name: '新增章节' })).toBeAttached()
+  let contentStart = await editorOffsetForHeading(editor, '## 章节 30')
+  let contentEnd = await editorOffsetForHeading(editor, '## 章节 31')
+  const contentPositions = []
+  for (const ratio of [0, 0.5, 1]) {
+    await scrollEditorToOffset(editor, contentStart + ((contentEnd - contentStart) * ratio))
+    await waitForAnimationFrames(page)
+    contentPositions.push(await preview.evaluate((element) => element.scrollTop))
+  }
+  expect(contentPositions[0]).toBeLessThan(contentPositions[1])
+  expect(contentPositions[1]).toBeLessThan(contentPositions[2])
+
+  await page.setViewportSize({ width: 1100, height: 900 })
+  await waitForAnimationFrames(page)
+  contentStart = await editorOffsetForHeading(editor, '## 章节 30')
+  contentEnd = await editorOffsetForHeading(editor, '## 章节 31')
+  const resizedPositions = []
+  for (const ratio of [0, 0.5, 1]) {
+    await scrollEditorToOffset(editor, contentStart + ((contentEnd - contentStart) * ratio))
+    await waitForAnimationFrames(page)
+    resizedPositions.push(await preview.evaluate((element) => element.scrollTop))
+  }
+  expect(resizedPositions[0]).toBeLessThan(resizedPositions[1])
+  expect(resizedPositions[1]).toBeLessThan(resizedPositions[2])
 })
 
 test('从 Markdown front matter 预填并创建文章', async ({ page, apiMock }) => {
@@ -620,6 +1100,133 @@ test('删除图片后，在途一致性扫描不会恢复旧报告', async ({ pa
 
   await page.waitForTimeout(800)
   await expect(page.getByRole('heading', { name: '图片一致性报告' })).toHaveCount(0)
+})
+
+test('图片缩略图加载失败时显示可访问的错误占位', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  apiMock.state.images[0].url = '/images/2026/09/good-image.png'
+  apiMock.state.images[1].url = '/images/2026/09/broken-image.png'
+  await page.route('**/images/**', (route) => {
+    if (route.request().url().endsWith('/broken-image.png')) {
+      return route.fulfill({ status: 404 })
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2n4sAAAAASUVORK5CYII=',
+        'base64',
+      ),
+    })
+  })
+
+  await page.goto('/secret-admin/images')
+
+  const cards = page.locator('.admin-image-card')
+  await expect(cards.first().locator('img')).toBeVisible()
+  await expect(cards.nth(1).locator('.admin-image-card__fallback')).toBeVisible()
+  await expect(cards.nth(1).getByRole('img', { name: '图片文件不可用：orphan-image.png' }))
+    .toBeVisible()
+})
+
+test.describe('移动端管理导航', () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+  })
+
+  test('关闭侧栏不进入焦点，打开后限制焦点并支持 Escape', async ({ page, apiMock }) => {
+    await apiMock.authenticate()
+    await page.goto('/secret-admin/contents')
+
+    let hiddenFocusCount = 0
+    for (let index = 0; index < 20; index += 1) {
+      await page.keyboard.press('Tab')
+      hiddenFocusCount += await page.evaluate(() => (
+        document.activeElement?.closest('.admin-sidebar') ? 1 : 0
+      ))
+    }
+    expect(hiddenFocusCount).toBe(0)
+
+    const menuButton = page.locator('.admin-menu-button')
+    const sidebar = page.locator('.admin-sidebar')
+    await menuButton.click()
+    await expect(menuButton).toHaveAttribute('aria-expanded', 'true')
+
+    const firstLink = sidebar.getByRole('link', { name: '文章管理', exact: true })
+    const lastButton = sidebar.getByRole('button', { name: '退出登录' })
+    await expect(firstLink).toBeFocused()
+
+    await firstLink.focus()
+    await page.keyboard.press('Shift+Tab')
+    await expect(lastButton).toBeFocused()
+
+    await lastButton.focus()
+    await page.keyboard.press('Tab')
+    await expect(firstLink).toBeFocused()
+
+    await page.keyboard.press('Escape')
+    await expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+    await expect(menuButton).toBeFocused()
+  })
+
+  test('点击当前页导航项关闭菜单', async ({ page, apiMock }) => {
+    await apiMock.authenticate()
+    await page.goto('/secret-admin/contents')
+
+    const menuButton = page.locator('.admin-menu-button')
+    await menuButton.click()
+    await page.locator('.admin-sidebar').getByRole('link', {
+      name: '文章管理',
+      exact: true,
+    }).click()
+
+    await expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.locator('.admin-sidebar')).toBeHidden()
+  })
+
+  test('低高度横屏下侧栏可以滚动到退出入口', async ({ page, apiMock }) => {
+    await apiMock.authenticate()
+    await page.goto('/secret-admin/contents')
+
+    for (const viewport of [
+      { width: 844, height: 390 },
+      { width: 667, height: 320 },
+    ]) {
+      await page.setViewportSize(viewport)
+      const sidebar = page.locator('.admin-sidebar')
+      await page.locator('.admin-menu-button').click()
+      await expect(sidebar.getByRole('link', { name: '文章管理', exact: true })).toBeFocused()
+      const dimensions = await sidebar.evaluate((element) => ({
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+      }))
+      expect(dimensions.scrollHeight).toBeGreaterThan(dimensions.clientHeight)
+
+      await sidebar.evaluate((element) => {
+        element.scrollTop = element.scrollHeight
+      })
+      const logoutBox = await sidebar.getByRole('button', { name: '退出登录' }).boundingBox()
+      expect(logoutBox.y).toBeGreaterThanOrEqual(0)
+      expect(logoutBox.y + logoutBox.height).toBeLessThanOrEqual(viewport.height)
+
+      await page.keyboard.press('Escape')
+      await expect(page.locator('.admin-menu-button')).toHaveAttribute('aria-expanded', 'false')
+    }
+  })
+
+  test('文章编辑器隐藏文件输入不进入 Tab 顺序', async ({ page, apiMock }) => {
+    await apiMock.authenticate()
+    await page.goto('/secret-admin/contents/new')
+
+    const hiddenInputs = page.locator('input[type="file"]')
+    await expect(hiddenInputs).toHaveCount(2)
+    for (const input of await hiddenInputs.all()) {
+      expect(await input.evaluate((element) => element.tabIndex)).toBe(-1)
+      expect(await input.getAttribute('aria-label')).toBeTruthy()
+    }
+  })
 })
 
 test.describe('390px 管理端布局', () => {

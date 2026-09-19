@@ -657,4 +657,37 @@ test.describe('390px 公开端布局', () => {
     await expect(page.getByRole('heading', { name: '本地工具台' })).toBeVisible()
     await expectNoHorizontalOverflow(page)
   })
+
+  test('移动导航状态正确且点击当前页或 Escape 都能关闭', async ({ page, apiMock }) => {
+    void apiMock
+    await page.goto('/')
+
+    const menuButton = page.getByRole('button', { name: '打开导航目录' })
+    await expect(menuButton).toHaveAttribute('aria-controls', 'public-mobile-navigation')
+    await menuButton.click()
+
+    const closeButton = page.getByRole('button', { name: '关闭导航目录' })
+    await expect(closeButton).toHaveAttribute('aria-expanded', 'true')
+    const mobileNav = page.getByRole('navigation', { name: '移动端主导航' })
+    await expect(mobileNav).toBeVisible()
+
+    await mobileNav.getByRole('link', { name: /首页/ }).click()
+    await expect(mobileNav).toHaveCount(0)
+
+    await page.getByRole('button', { name: '打开导航目录' }).click()
+    await expect(mobileNav).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(mobileNav).toHaveCount(0)
+    await expect(page.getByRole('button', { name: '打开导航目录' })).toBeFocused()
+  })
+
+  test('在线编辑器隐藏文件输入不进入 Tab 顺序', async ({ page, apiMock }) => {
+    void apiMock
+    await page.goto('/editor')
+
+    const hiddenInput = page.locator('input[type="file"]')
+    await expect(hiddenInput).toHaveCount(1)
+    expect(await hiddenInput.evaluate((element) => element.tabIndex)).toBe(-1)
+    expect(await hiddenInput.getAttribute('aria-label')).toBeTruthy()
+  })
 })

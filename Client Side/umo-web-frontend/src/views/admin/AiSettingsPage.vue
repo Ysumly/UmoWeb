@@ -58,6 +58,10 @@ const editorTitle = computed(() => {
   return selectedMode.value?.name || '转换模式'
 })
 
+function validationProfileLabel(value) {
+  return AI_VALIDATION_PROFILES.find((profile) => profile.value === value)?.label || value
+}
+
 const dirty = computed(() => {
   return Boolean(initialSnapshot.value)
     && JSON.stringify(form) !== initialSnapshot.value
@@ -396,60 +400,135 @@ onBeforeRouteLeave(() => {
     />
 
     <div v-else class="admin-ai-layout">
-      <section class="admin-management-panel admin-ai-mode-list">
-        <header>
-          <div>
-            <span class="admin-page__eyebrow">CATALOG / 模式目录</span>
-            <h2>转换模式</h2>
-          </div>
-          <span>{{ modes.length }} 项</span>
-        </header>
+      <div class="admin-ai-left-column">
+        <section class="admin-management-panel admin-ai-mode-list">
+          <header>
+            <div>
+              <span class="admin-page__eyebrow">CATALOG / 模式目录</span>
+              <h2>转换模式</h2>
+            </div>
+            <span>{{ modes.length }} 项</span>
+          </header>
 
-        <div class="admin-table-wrap">
-          <table class="admin-table admin-ai-mode-table">
-            <thead>
-              <tr>
-                <th>名称</th>
-                <th>策略</th>
-                <th>状态</th>
-                <th>排序</th>
-                <th>版本</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="mode in modes"
-                :key="mode.id"
-                :class="{ 'is-selected': !creating && mode.id === selectedId }"
+          <ul class="admin-ai-mode-listbox" aria-label="转换模式">
+            <li
+              v-for="mode in modes"
+              :key="mode.id"
+              class="admin-ai-mode-item"
+              :class="{ 'is-selected': !creating && mode.id === selectedId }"
+            >
+              <button
+                class="admin-ai-mode-item__select"
+                type="button"
+                :aria-pressed="!creating && mode.id === selectedId"
+                @click="selectMode(mode)"
               >
-                <td>
-                  <button type="button" @click="selectMode(mode)">
-                    <strong>{{ mode.name }}</strong>
-                    <small>{{ mode.modeKey }}</small>
-                  </button>
-                </td>
-                <td>{{ mode.validationProfile }}</td>
-                <td>
+                <span class="admin-ai-mode-item__heading">
+                  <strong>{{ mode.name }}</strong>
                   <span
                     class="admin-status"
                     :class="mode.enabled ? 'admin-status--published' : 'admin-status--draft'"
                   >
                     {{ mode.enabled ? '启用' : '停用' }}
                   </span>
-                </td>
-                <td>{{ mode.sortOrder }}</td>
-                <td>v{{ mode.currentVersion }}</td>
-                <td class="admin-table__actions">
-                  <button type="button" :disabled="saving" @click="toggleMode(mode)">
-                    {{ mode.enabled ? '停用' : '启用' }}
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </span>
+                <small class="admin-ai-mode-item__key">{{ mode.modeKey }}</small>
+                <span class="admin-ai-mode-item__meta">
+                  <span>{{ validationProfileLabel(mode.validationProfile) }}</span>
+                  <span>排序 {{ mode.sortOrder }}</span>
+                  <span>版本 v{{ mode.currentVersion }}</span>
+                </span>
+              </button>
+              <button
+                class="admin-ai-mode-item__toggle"
+                type="button"
+                :disabled="saving"
+                @click="toggleMode(mode)"
+              >
+                {{ mode.enabled ? '停用' : '启用' }}
+              </button>
+            </li>
+          </ul>
+        </section>
+
+        <div class="admin-management-panel__actions admin-ai-form-actions">
+          <button
+            v-if="selectedMode && !creating && !copying"
+            class="button button--quiet"
+            type="button"
+            :disabled="saving"
+            @click="openCopy"
+          >
+            复制模式
+          </button>
+          <button
+            class="button button--quiet"
+            type="button"
+            :disabled="saving || !dirty"
+            @click="discardChanges"
+          >
+            放弃修改
+          </button>
+          <button class="button button--primary" type="button" :disabled="saving" @click="saveMode">
+            {{
+              saving
+                ? '正在保存'
+                : creating
+                  ? '创建模式'
+                  : copying
+                    ? '复制模式'
+                    : '保存修改'
+            }}
+          </button>
         </div>
-      </section>
+
+        <details
+          v-if="selectedMode && !creating && !copying"
+          class="admin-management-panel admin-ai-versions"
+          open
+        >
+          <summary>
+            <span>历史版本</span>
+            <small>最近 {{ versions.length }} 版</small>
+          </summary>
+
+          <div v-if="versionsStatus === 'loading'" class="admin-ai-versions__state">
+            正在读取历史版本
+          </div>
+          <div v-else-if="versionsStatus === 'error'" class="admin-ai-versions__state">
+            <span>{{ versionsError }}</span>
+            <button type="button" @click="loadVersions()">重新加载</button>
+          </div>
+          <ol v-else class="admin-ai-version-list">
+            <li v-for="version in versions" :key="version.versionNo">
+              <div>
+                <strong>{{ formatModeVersion(version) }}</strong>
+                <span v-if="version.versionNo === selectedMode.currentVersion">当前</span>
+                <small>{{ version.validationProfile }}</small>
+              </div>
+              <div class="admin-ai-version-list__actions">
+                <button type="button" @click="previewVersion = version">查看提示词</button>
+                <button
+                  v-if="version.versionNo !== selectedMode.currentVersion"
+                  type="button"
+                  :disabled="rollingBack || Boolean(conflictMessage)"
+                  @click="rollbackVersion(version)"
+                >
+                  回滚到此版本
+                </button>
+              </div>
+            </li>
+          </ol>
+
+          <div v-if="previewVersion" class="admin-ai-version-preview">
+            <header>
+              <strong>{{ formatModeVersion(previewVersion) }}</strong>
+              <button type="button" @click="previewVersion = null">关闭预览</button>
+            </header>
+            <pre>{{ previewVersion.systemPrompt }}</pre>
+          </div>
+        </details>
+      </div>
 
       <section class="admin-management-panel admin-ai-editor">
         <header>
@@ -504,6 +583,9 @@ onBeforeRouteLeave(() => {
               rows="3"
               :disabled="copying || saving"
             />
+            <small class="admin-field__hint">
+              仅用于管理端识别和说明，不会发送给模型。
+            </small>
             <small>{{ errors.description }}</small>
           </label>
 
@@ -519,12 +601,23 @@ onBeforeRouteLeave(() => {
                   {{ profile.label }}
                 </option>
               </select>
+              <details class="admin-field__details admin-ai-profile-help">
+                <summary>查看策略说明</summary>
+                <dl>
+                  <div v-for="profile in AI_VALIDATION_PROFILES" :key="profile.value">
+                    <dt>{{ profile.label }}</dt>
+                    <dd>{{ profile.description }}</dd>
+                  </div>
+                </dl>
+              </details>
               <small>{{ errors.validationProfile }}</small>
             </label>
             <label class="admin-field admin-ai-enabled">
               <span>启用状态</span>
-              <input v-model="form.enabled" type="checkbox" :disabled="copying || saving" />
-              <em>{{ form.enabled ? '启用' : '停用' }}</em>
+              <span class="admin-ai-enabled__control">
+                <input v-model="form.enabled" type="checkbox" :disabled="copying || saving" />
+                <em>{{ form.enabled ? '启用' : '停用' }}</em>
+              </span>
             </label>
           </div>
 
@@ -538,87 +631,12 @@ onBeforeRouteLeave(() => {
               spellcheck="false"
               :disabled="copying || saving"
             />
+            <small class="admin-field__hint">
+              会作为 system prompt 发送给大模型；请不要填写敏感信息。
+            </small>
             <small>{{ errors.systemPrompt }}</small>
           </label>
-
-          <div class="admin-management-panel__actions admin-ai-form-actions">
-            <button
-              v-if="selectedMode && !creating && !copying"
-              class="button button--quiet"
-              type="button"
-              :disabled="saving"
-              @click="openCopy"
-            >
-              复制模式
-            </button>
-            <button
-              class="button button--quiet"
-              type="button"
-              :disabled="saving || !dirty"
-              @click="discardChanges"
-            >
-              放弃修改
-            </button>
-            <button class="button button--primary" type="submit" :disabled="saving">
-              {{
-                saving
-                  ? '正在保存'
-                  : creating
-                    ? '创建模式'
-                    : copying
-                      ? '复制模式'
-                      : '保存修改'
-              }}
-            </button>
-          </div>
         </form>
-
-        <details
-          v-if="selectedMode && !creating && !copying"
-          class="admin-management-panel admin-ai-versions"
-          open
-        >
-          <summary>
-            <span>历史版本</span>
-            <small>最近 {{ versions.length }} 版</small>
-          </summary>
-
-          <div v-if="versionsStatus === 'loading'" class="admin-ai-versions__state">
-            正在读取历史版本
-          </div>
-          <div v-else-if="versionsStatus === 'error'" class="admin-ai-versions__state">
-            <span>{{ versionsError }}</span>
-            <button type="button" @click="loadVersions()">重新加载</button>
-          </div>
-          <ol v-else class="admin-ai-version-list">
-            <li v-for="version in versions" :key="version.versionNo">
-              <div>
-                <strong>{{ formatModeVersion(version) }}</strong>
-                <span v-if="version.versionNo === selectedMode.currentVersion">当前</span>
-                <small>{{ version.validationProfile }}</small>
-              </div>
-              <div class="admin-ai-version-list__actions">
-                <button type="button" @click="previewVersion = version">查看提示词</button>
-                <button
-                  v-if="version.versionNo !== selectedMode.currentVersion"
-                  type="button"
-                  :disabled="rollingBack || Boolean(conflictMessage)"
-                  @click="rollbackVersion(version)"
-                >
-                  回滚到此版本
-                </button>
-              </div>
-            </li>
-          </ol>
-
-          <div v-if="previewVersion" class="admin-ai-version-preview">
-            <header>
-              <strong>{{ formatModeVersion(previewVersion) }}</strong>
-              <button type="button" @click="previewVersion = null">关闭预览</button>
-            </header>
-            <pre>{{ previewVersion.systemPrompt }}</pre>
-          </div>
-        </details>
       </section>
     </div>
   </section>

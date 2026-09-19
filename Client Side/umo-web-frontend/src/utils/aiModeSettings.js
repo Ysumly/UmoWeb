@@ -1,8 +1,24 @@
 export const AI_VALIDATION_PROFILES = [
-  { value: 'EXACT_CONTENT', label: '严格内容一致' },
-  { value: 'TRANSLATION', label: '翻译保真' },
-  { value: 'LIGHT_EXPANSION', label: '轻度扩写' },
-  { value: 'NONE', label: '仅基础校验' },
+  {
+    value: 'EXACT_CONTENT',
+    label: '严格内容一致',
+    description: '检查非标题正文与源文本完全一致，适合 Markdown 结构整理。',
+  },
+  {
+    value: 'TRANSLATION',
+    label: '翻译保真',
+    description: '检查数字、专有名词、链接和代码等保真，适合双向翻译。',
+  },
+  {
+    value: 'LIGHT_EXPANSION',
+    label: '轻度扩写',
+    description: '允许轻度扩写并限制输出长度，适合叙事增强。',
+  },
+  {
+    value: 'NONE',
+    label: '仅基础校验',
+    description: '只执行空值和长度等基础校验，不保证内容保真。',
+  },
 ]
 
 const MODE_KEY_PATTERN = /^[A-Z][A-Z0-9_]{2,63}$/
