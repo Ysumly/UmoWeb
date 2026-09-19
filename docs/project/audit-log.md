@@ -22,14 +22,15 @@
 |---|---|
 | 前端 Node 测试 | 120/120 通过 |
 | Windows Playwright | 119/119 通过，含 85 functional 和 34 visual |
+| Linux Playwright | 119/119 通过，run `35421474252` |
 | AI 设置专项 | 目录完整展示、整卡选择、字段说明和策略展开全部通过 |
 | 生产构建 | `npm run build` 通过 |
-| Windows 视觉基线 | AI 设置桌面和移动端两张快照更新并人工检查 |
+| Windows/Linux 视觉基线 | AI 设置桌面和移动端共四张快照更新并人工检查 |
 
 ### 状态
 
 - AI 设置页可读性和操作范围已修复，未改变 AI 转换接口或文章正文处理。
-- Linux AI 设置视觉基线需要在推送后通过手动 `Playwright Linux Baselines` 工作流重新生成。
+- Linux AI 设置视觉基线已通过手动 `Playwright Linux Baselines` 工作流重新生成并人工检查。
 
 ## 审计 #60 - 2026-09-19 — 发布前移动端与界面缺陷修复
 
