@@ -700,7 +700,7 @@ test('metadata 更多说明可以展开常用字段', async ({ page, apiMock }) 
   await expect(details.getByText('JSON 不支持注释')).toBeVisible()
 })
 
-test('文章编辑器默认不同步滚动，启用后按标题对齐预览', async ({ page, apiMock }) => {
+test('文章编辑器默认按标题对齐预览且不显示同步开关', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/contents/new')
 
@@ -708,15 +708,9 @@ test('文章编辑器默认不同步滚动，启用后按标题对齐预览', as
   const editor = workspace.getByLabel('Markdown 正文')
   const preview = workspace.locator('.admin-editor-pane--preview')
 
+  await expect(page.getByLabel('同步滚动')).toHaveCount(0)
   await editor.fill(longMarkdown())
   await expect(preview.getByRole('heading', { name: '章节 80' })).toBeAttached()
-  await editor.evaluate((element) => {
-    element.scrollTop = (element.scrollHeight - element.clientHeight) * 0.4
-  })
-  await waitForAnimationFrames(page)
-  expect(await readScrollRatio(preview)).toBeLessThanOrEqual(0.01)
-
-  await page.getByLabel('同步滚动').check()
   await scrollEditorToHeading(editor, '## 章节 30')
   await waitForAnimationFrames(page)
   await waitForAnimationFrames(page)
