@@ -21,7 +21,7 @@ import {
 import AiTransformDrawer from '@/components/admin/AiTransformDrawer.vue'
 import MarkdownArticle from '@/components/public/MarkdownArticle.vue'
 import ContentState from '@/components/public/ContentState.vue'
-import { useSyncedScroll } from '@/composables/useSyncedScroll'
+import { useMarkdownHeadingSync } from '@/composables/useMarkdownHeadingSync'
 import { adminPath } from '@/config/adminPath'
 import {
   buildContentPayload,
@@ -71,8 +71,7 @@ const originalContent = ref(null)
 const aiCapabilities = ref(null)
 const aiDrawerOpen = ref(false)
 
-useSyncedScroll(textareaRef, previewRef, {
-  mediaQuery: '(min-width: 701px)',
+useMarkdownHeadingSync(textareaRef, previewRef, {
   enabled: syncScrollEnabled,
 })
 

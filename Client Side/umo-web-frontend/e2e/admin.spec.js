@@ -19,6 +19,38 @@ async function readScrollRatio(locator) {
   })
 }
 
+async function scrollEditorToHeading(editor, heading) {
+  await editor.evaluate((element, targetHeading) => {
+    const mirror = document.createElement('div')
+    const styles = getComputedStyle(element)
+    Object.assign(mirror.style, {
+      position: 'fixed',
+      top: '0',
+      left: '-10000px',
+      width: `${element.clientWidth}px`,
+      margin: '0',
+      padding: styles.padding,
+      border: styles.border,
+      boxSizing: styles.boxSizing,
+      fontFamily: styles.fontFamily,
+      fontSize: styles.fontSize,
+      fontWeight: styles.fontWeight,
+      lineHeight: styles.lineHeight,
+      letterSpacing: styles.letterSpacing,
+      whiteSpace: 'pre-wrap',
+      overflowWrap: 'break-word',
+      visibility: 'hidden',
+    })
+    document.body.appendChild(mirror)
+    const lines = element.value.replace(/\r\n?/g, '\n').split('\n')
+    const lineIndex = lines.findIndex((line) => line.trim() === targetHeading)
+    mirror.textContent = lines.slice(0, Math.max(0, lineIndex)).join('\n')
+    element.scrollTop = mirror.scrollHeight
+    mirror.remove()
+    element.dispatchEvent(new Event('scroll'))
+  }, heading)
+}
+
 async function expectSyncedWorkspace(page, workspace, editor) {
   const previewPane = workspace.locator('.admin-editor-pane--preview')
   await editor.fill(longMarkdown())
@@ -668,7 +700,7 @@ test('metadata 更多说明可以展开常用字段', async ({ page, apiMock }) 
   await expect(details.getByText('JSON 不支持注释')).toBeVisible()
 })
 
-test('文章编辑器默认不同步滚动，启用后才按比例同步', async ({ page, apiMock }) => {
+test('文章编辑器默认不同步滚动，启用后按标题对齐预览', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/contents/new')
 
@@ -685,7 +717,16 @@ test('文章编辑器默认不同步滚动，启用后才按比例同步', async
   expect(await readScrollRatio(preview)).toBeLessThanOrEqual(0.01)
 
   await page.getByLabel('同步滚动').check()
-  await expectSyncedWorkspace(page, workspace, editor)
+  await scrollEditorToHeading(editor, '## 章节 30')
+  await waitForAnimationFrames(page)
+  await waitForAnimationFrames(page)
+
+  const [previewBox, headingBox] = await Promise.all([
+    preview.boundingBox(),
+    preview.getByRole('heading', { name: '章节 30' }).boundingBox(),
+  ])
+  expect(headingBox.y - previewBox.y).toBeGreaterThanOrEqual(-2)
+  expect(headingBox.y - previewBox.y).toBeLessThan(80)
 })
 
 test('从 Markdown front matter 预填并创建文章', async ({ page, apiMock }) => {
