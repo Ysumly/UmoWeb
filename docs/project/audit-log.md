@@ -24,13 +24,15 @@
 | 前端 Node 测试 | 137/137 通过，新增拼音 slug、筛选计数/chips 和空类型边界 |
 | Windows functional | 92/92 通过，含自动 slug、移动详情、抽屉草稿、URL、焦点和滚动恢复 |
 | Windows visual | 126/126 通过，重新生成书库和文章详情两张移动端 `win32` 基线 |
+| Linux visual | workflow `35442006114` 生成成功，仅两张移动端基线变化并逐张复核 |
 | 桌面视觉 | 书库和文章详情桌面基线保持不变 |
 | 生产构建 | `npm run build` 通过 |
 
 ### 状态
 
 - 后端 API、Schema、Docker、ECS 和生产数据均未修改。
-- Linux 书库与文章详情移动端视觉基线通过 `Playwright Linux Baselines` 工作流重新生成后复核提交。
+- Linux 书库与文章详情移动端视觉基线已通过 `Playwright Linux Baselines` 工作流重新生成、
+  逐张复核并提交，其余 32 张 Linux 快照哈希保持不变。
 
 ## 审计 #65 - 2026-09-19 — 生产启用管理端 AI
 
