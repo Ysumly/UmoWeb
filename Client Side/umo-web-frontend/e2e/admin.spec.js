@@ -80,7 +80,7 @@ test('AI 设置支持创建、编辑、复制、排序、启停和版本回滚',
   await page.goto('/secret-admin/ai-settings')
 
   await expect(page.getByRole('heading', { name: 'AI 设置' })).toBeVisible()
-  const modeRows = page.locator('.admin-ai-mode-table tbody tr')
+  const modeRows = page.locator('.admin-ai-mode-item')
   await expect(modeRows).toHaveCount(5)
 
   await page.getByRole('button', { name: '新建模式' }).click()
@@ -91,12 +91,12 @@ test('AI 设置支持创建、编辑、复制、排序、启停和版本回滚',
   await page.getByRole('button', { name: '创建模式' }).click()
 
   await expect(page.getByText('模式已创建，默认停用')).toBeVisible()
-  const customRow = page.getByRole('row', { name: /E2E 自定义模式/ })
+  const customRow = modeRows.filter({ hasText: 'E2E 自定义模式' })
   await expect(customRow).toContainText('停用')
 
-  await customRow.getByRole('button', { name: '启用' }).click()
+  await customRow.locator('.admin-ai-mode-item__toggle').click()
   await expect(page.getByText('模式已启用')).toBeVisible()
-  await expect(page.getByRole('row', { name: /E2E 自定义模式/ })).toContainText('启用')
+  await expect(modeRows.filter({ hasText: 'E2E 自定义模式' })).toContainText('启用')
 
   await page.getByLabel('系统提示词').fill('Mock 提示词：改写后保持事实。')
   await page.getByRole('button', { name: '保存修改' }).click()
@@ -127,6 +127,40 @@ test('AI 设置支持创建、编辑、复制、排序、启停和版本回滚',
 
   await expect(page.getByText('已生成新版本')).toBeVisible()
   await expect(page.getByText('当前版本 v3')).toBeVisible()
+})
+
+test('AI 模式目录完整显示并支持点击整张模式卡', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/ai-settings')
+
+  const list = page.locator('.admin-ai-mode-list')
+  const dimensions = await list.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }))
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth)
+
+  const translationItem = page.locator('.admin-ai-mode-item').filter({ hasText: '英译中' })
+  await expect(translationItem).toContainText('翻译保真')
+  await expect(translationItem).toContainText('排序 3')
+  await expect(translationItem).toContainText('版本 v1')
+
+  await translationItem.locator('.admin-ai-mode-item__meta').click()
+  await expect(page.getByRole('heading', { name: '英译中', exact: true })).toBeVisible()
+})
+
+test('AI 模式表单说明字段用途并支持展开校验策略说明', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/ai-settings')
+
+  await expect(page.getByText('仅用于管理端识别和说明，不会发送给模型。')).toBeVisible()
+  await expect(page.getByText('会作为 system prompt 发送给大模型；请不要填写敏感信息。')).toBeVisible()
+
+  await page.locator('.admin-ai-profile-help summary').click()
+  await expect(page.getByText('检查非标题正文与源文本完全一致，适合 Markdown 结构整理。')).toBeVisible()
+  await expect(page.getByText('检查数字、专有名词、链接和代码等保真，适合双向翻译。')).toBeVisible()
+  await expect(page.getByText('允许轻度扩写并限制输出长度，适合叙事增强。')).toBeVisible()
+  await expect(page.getByText('只执行空值和长度等基础校验，不保证内容保真。')).toBeVisible()
 })
 
 test('AI 设置遇到版本冲突时保留草稿并支持移动端单列布局', async ({ page, apiMock }) => {
@@ -992,8 +1026,9 @@ test.describe('移动端管理导航', () => {
       { width: 667, height: 320 },
     ]) {
       await page.setViewportSize(viewport)
-      await page.locator('.admin-menu-button').click()
       const sidebar = page.locator('.admin-sidebar')
+      await page.locator('.admin-menu-button').click()
+      await expect(sidebar.getByRole('link', { name: '文章管理', exact: true })).toBeFocused()
       const dimensions = await sidebar.evaluate((element) => ({
         clientHeight: element.clientHeight,
         scrollHeight: element.scrollHeight,

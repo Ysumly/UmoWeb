@@ -3227,6 +3227,11 @@ svg {
   font-size: 10px;
 }
 
+.admin-field small.admin-field__hint {
+  color: var(--faint);
+  line-height: 1.65;
+}
+
 .admin-field small:not(:empty) {
   color: var(--accent);
 }
@@ -4004,31 +4009,93 @@ fieldset.admin-field {
   min-width: 0;
 }
 
-.admin-ai-mode-table tbody tr.is-selected {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+.admin-ai-mode-listbox {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.admin-ai-mode-table td:first-child {
-  min-width: 190px;
+.admin-ai-mode-item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  transition: border-color 160ms ease, background-color 160ms ease;
 }
 
-.admin-ai-mode-table td:first-child button {
+.admin-ai-mode-item.is-selected {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+}
+
+.admin-ai-mode-item__select {
   display: flex;
-  width: 100%;
+  min-width: 0;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
   border: 0;
-  padding: 3px 0;
+  padding: 12px;
   background: transparent;
   color: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.admin-ai-mode-table td:first-child button small {
+.admin-ai-mode-item__heading {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-ai-mode-item__heading strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.admin-ai-mode-item__key {
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.admin-ai-mode-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.admin-ai-mode-item__meta span {
+  border: 1px solid var(--line);
+  padding: 2px 6px;
+}
+
+.admin-ai-mode-item__toggle {
+  align-self: center;
+  margin: 10px;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.admin-ai-mode-item__toggle:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 .admin-ai-editor form {
