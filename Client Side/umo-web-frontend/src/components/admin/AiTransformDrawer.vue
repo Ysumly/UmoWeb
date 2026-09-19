@@ -478,7 +478,12 @@ defineExpose({
         <section class="admin-ai-drawer__section admin-ai-drawer__controls">
           <label>
             <span>转换模式</span>
-            <select v-model="selectedModeKey" aria-label="转换模式" :disabled="!modes.length">
+            <select
+              v-model="selectedModeKey"
+              class="admin-ai-drawer__mode-select"
+              aria-label="转换模式"
+              :disabled="!modes.length"
+            >
               <option v-if="!modes.length" value="">暂无可用模式</option>
               <option
                 v-for="mode in modes"

@@ -285,8 +285,9 @@ token 来源和存储位置都是 `localStorage`。
 `localStorage["umo-editor-draft-v1"]`，页面重新进入时恢复。
 
 公开编辑器、管理端文章编辑器和 About/Project 设置编辑器使用统一工作区高度模型，输入与预览
-面板等高。桌面分栏通过 `useSyncedScroll` 按可滚动比例双向同步，连续滚动事件由
-`requestAnimationFrame` 合并；移动端单面板和不可滚动内容不启用同步。
+面板等高。公开编辑器和 About/Project 默认通过 `useSyncedScroll` 按可滚动比例双向同步；
+管理端文章编辑器提供“同步滚动”开关，默认关闭，显式启用后才同步，避免长文标题重排时抖动。
+连续滚动事件由 `requestAnimationFrame` 合并；移动端单面板和不可滚动内容不启用同步。
 
 ### 7.4 训练游戏
 

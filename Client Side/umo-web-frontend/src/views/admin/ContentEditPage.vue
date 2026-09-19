@@ -50,6 +50,7 @@ const dragActive = ref(false)
 const generalError = ref('')
 const uploadMessage = ref('')
 const mobilePane = ref('editor')
+const syncScrollEnabled = ref(false)
 const categories = ref([])
 const tags = ref([])
 const errors = ref({})
@@ -72,6 +73,7 @@ const aiDrawerOpen = ref(false)
 
 useSyncedScroll(textareaRef, previewRef, {
   mediaQuery: '(min-width: 701px)',
+  enabled: syncScrollEnabled,
 })
 
 const form = reactive({
@@ -720,6 +722,10 @@ onBeforeUnmount(() => {
               <small v-if="uploadMessage">{{ uploadMessage }}</small>
             </div>
             <div class="admin-editor-toolbar__actions">
+              <label class="admin-editor-sync-toggle">
+                <input v-model="syncScrollEnabled" type="checkbox" />
+                <span>同步滚动</span>
+              </label>
               <button
                 class="button button--outline"
                 type="button"

@@ -145,6 +145,15 @@ test('AI 模式目录完整显示并支持点击整张模式卡', async ({ page,
   await expect(translationItem).toContainText('排序 3')
   await expect(translationItem).toContainText('版本 v1')
 
+  const [cardBox, statusBox, toggleBox] = await Promise.all([
+    translationItem.boundingBox(),
+    translationItem.locator('.admin-status').boundingBox(),
+    translationItem.locator('.admin-ai-mode-item__toggle').boundingBox(),
+  ])
+  expect(statusBox.x).toBeGreaterThan(cardBox.x + (cardBox.width / 2))
+  expect(toggleBox.x).toBeLessThan(cardBox.x + (cardBox.width / 2))
+  expect(toggleBox.y).toBeGreaterThan(statusBox.y)
+
   await translationItem.locator('.admin-ai-mode-item__meta').click()
   await expect(page.getByRole('heading', { name: '英译中', exact: true })).toBeVisible()
 })
@@ -156,11 +165,37 @@ test('AI 模式表单说明字段用途并支持展开校验策略说明', async
   await expect(page.getByText('仅用于管理端识别和说明，不会发送给模型。')).toBeVisible()
   await expect(page.getByText('会作为 system prompt 发送给大模型；请不要填写敏感信息。')).toBeVisible()
 
+  const strategy = page.getByLabel('校验策略')
+  const enabledControl = page.locator('.admin-ai-enabled__control')
+  let [strategyBox, enabledBox] = await Promise.all([
+    strategy.boundingBox(),
+    enabledControl.boundingBox(),
+  ])
+  expect(Math.abs(strategyBox.y - enabledBox.y)).toBeLessThanOrEqual(1)
+  expect(Math.abs(strategyBox.height - enabledBox.height)).toBeLessThanOrEqual(1)
+
   await page.locator('.admin-ai-profile-help summary').click()
   await expect(page.getByText('检查非标题正文与源文本完全一致，适合 Markdown 结构整理。')).toBeVisible()
   await expect(page.getByText('检查数字、专有名词、链接和代码等保真，适合双向翻译。')).toBeVisible()
   await expect(page.getByText('允许轻度扩写并限制输出长度，适合叙事增强。')).toBeVisible()
   await expect(page.getByText('只执行空值和长度等基础校验，不保证内容保真。')).toBeVisible()
+
+  ;[strategyBox, enabledBox] = await Promise.all([
+    strategy.boundingBox(),
+    enabledControl.boundingBox(),
+  ])
+  expect(Math.abs(strategyBox.y - enabledBox.y)).toBeLessThanOrEqual(1)
+  expect(Math.abs(strategyBox.height - enabledBox.height)).toBeLessThanOrEqual(1)
+
+  const leftColumn = page.locator('.admin-ai-left-column')
+  const editorPanel = page.locator('.admin-ai-editor')
+  const actionsBox = await leftColumn.locator('.admin-ai-form-actions').boundingBox()
+  const versionsBox = await leftColumn.locator('.admin-ai-versions').boundingBox()
+  const editorBox = await editorPanel.boundingBox()
+  expect(actionsBox.y).toBeGreaterThan(await leftColumn.locator('.admin-ai-mode-list').boundingBox().then((box) => box.y))
+  expect(actionsBox.x + actionsBox.width).toBeLessThanOrEqual(editorBox.x)
+  expect(versionsBox.x + versionsBox.width).toBeLessThanOrEqual(editorBox.x)
+  expect(versionsBox.y).toBeGreaterThan(actionsBox.y)
 })
 
 test('AI 设置遇到版本冲突时保留草稿并支持移动端单列布局', async ({ page, apiMock }) => {
@@ -232,6 +267,7 @@ test('AI 转换抽屉带入正文、转换、编辑和复制时不修改文章�
 
   const dialog = page.getByRole('dialog', { name: 'AI 转换' })
   await expect(dialog).toBeVisible()
+  await expect(dialog.getByLabel('转换模式')).toHaveClass(/admin-ai-drawer__mode-select/)
   await dialog.getByRole('button', { name: '带入当前正文' }).click()
   await expect(dialog.getByLabel('AI 源草稿')).toHaveValue('# 原始正文\n\n保留这一段。')
   await expect(dialog.getByText('14 / 20000')).toBeVisible()
@@ -632,12 +668,23 @@ test('metadata 更多说明可以展开常用字段', async ({ page, apiMock }) 
   await expect(details.getByText('JSON 不支持注释')).toBeVisible()
 })
 
-test('文章编辑器在桌面保持等高并按比例双向同步滚动', async ({ page, apiMock }) => {
+test('文章编辑器默认不同步滚动，启用后才按比例同步', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/contents/new')
 
   const workspace = page.locator('.admin-editor-workspace')
   const editor = workspace.getByLabel('Markdown 正文')
+  const preview = workspace.locator('.admin-editor-pane--preview')
+
+  await editor.fill(longMarkdown())
+  await expect(preview.getByRole('heading', { name: '章节 80' })).toBeAttached()
+  await editor.evaluate((element) => {
+    element.scrollTop = (element.scrollHeight - element.clientHeight) * 0.4
+  })
+  await waitForAnimationFrames(page)
+  expect(await readScrollRatio(preview)).toBeLessThanOrEqual(0.01)
+
+  await page.getByLabel('同步滚动').check()
   await expectSyncedWorkspace(page, workspace, editor)
 })
 

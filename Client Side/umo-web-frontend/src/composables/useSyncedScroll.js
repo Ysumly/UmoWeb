@@ -7,15 +7,18 @@ import {
 
 const PROGRAMMATIC_RATIO_TOLERANCE = 0.005
 
-export function useSyncedScroll(primaryRef, secondaryRef, { mediaQuery } = {}) {
+export function useSyncedScroll(primaryRef, secondaryRef, { mediaQuery, enabled } = {}) {
   let media = null
+  const enabledRef = enabled && typeof enabled === 'object' && 'value' in enabled
+    ? enabled
+    : null
   let expectedTarget = null
   let expectedRatio = 0
   const bindings = []
   const frames = new Map()
 
   function mediaMatches() {
-    return !media || media.matches
+    return (!media || media.matches) && (!enabledRef || enabledRef.value)
   }
 
   function clearExpectedTarget() {
@@ -106,7 +109,10 @@ export function useSyncedScroll(primaryRef, secondaryRef, { mediaQuery } = {}) {
     media.addEventListener?.('change', handleMediaChange)
   }
 
-  watch([primaryRef, secondaryRef], bind, { flush: 'post', immediate: true })
+  watch([primaryRef, secondaryRef, ...(enabledRef ? [enabledRef] : [])], bind, {
+    flush: 'post',
+    immediate: true,
+  })
 
   onBeforeUnmount(() => {
     media?.removeEventListener?.('change', handleMediaChange)
