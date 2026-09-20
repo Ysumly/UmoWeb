@@ -11,8 +11,6 @@ public class AiProperties {
     private int maxInputChars = 20_000;
     private int maxOutputChars = 60_000;
     private int timeoutSeconds = 180;
-    private int maxRequestsPerWindow = 5;
-    private int rateLimitWindowSeconds = 600;
     private int maxConcurrentRequests = 1;
     private DeepSeek deepseek = new DeepSeek();
 
@@ -46,22 +44,6 @@ public class AiProperties {
 
     public void setTimeoutSeconds(int timeoutSeconds) {
         this.timeoutSeconds = timeoutSeconds;
-    }
-
-    public int getMaxRequestsPerWindow() {
-        return maxRequestsPerWindow;
-    }
-
-    public void setMaxRequestsPerWindow(int maxRequestsPerWindow) {
-        this.maxRequestsPerWindow = maxRequestsPerWindow;
-    }
-
-    public int getRateLimitWindowSeconds() {
-        return rateLimitWindowSeconds;
-    }
-
-    public void setRateLimitWindowSeconds(int rateLimitWindowSeconds) {
-        this.rateLimitWindowSeconds = rateLimitWindowSeconds;
     }
 
     public int getMaxConcurrentRequests() {
