@@ -1,6 +1,6 @@
 # 安全与配置实现
 
-> 基线日期: 2026-09-18
+> 基线日期: 2026-09-20
 > 路径: `config/`、`common/util/JwtUtil.java`
 
 ---
@@ -165,8 +165,6 @@ app:
     max-input-chars: 20000
     max-output-chars: 60000
     timeout-seconds: 180
-    max-requests-per-window: 5
-    rate-limit-window-seconds: 600
     max-concurrent-requests: 1
     deepseek:
       base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
@@ -198,8 +196,8 @@ app:
   `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL` 必须非空，否则 `AiRuntimeConfigValidator`
   在启动阶段失败。
 - 供应商请求使用带连接和读取超时的 Spring `RestClient`，不再依赖 Spring AI；模型配置为全局配置。
-- `AiRequestGuard` 使用进程内信号量和时间窗口：10 分钟最多 5 次且同时最多 1 个请求。
-  多后端实例部署时需要共享限流存储或网关限流。
+- `AiRequestGuard` 使用进程内信号量，默认同时最多 1 个 AI 请求；非重叠请求不设时间窗口或
+  调用次数配额。多后端实例部署时各实例独立执行并发保护。
 - Provider 不自动重试。认证、余额和 500/503 统一返回 503，上游 429 返回 429，
   非法请求/响应返回 502，超时返回 504。
 - 运行日志只允许请求 ID、模式、版本、字符数、Token、耗时、状态和错误分类；
@@ -294,7 +292,7 @@ time, ip, method, path, status, bytes
 已新增：
 
 - JWT 过期、tokenVersion 和旧 token 失效测试。
-- 登录失败限流、搜索限流和可信代理测试。
+- 登录失败限流、搜索限流、可信代理和 AI 单并发测试。
 - 可信代理精确 IP、IPv4/IPv6 CIDR、非法配置和多级转发链测试。
 - 路径穿越、临时文件、回滚和原子替换测试。
 - 伪造 MIME、空原始文件名和上传数据库失败清理测试。
@@ -304,4 +302,4 @@ time, ip, method, path, status, bytes
 仍缺少：
 
 - 生产代理环境测试。
-- 多实例共享限流测试。
+- 多实例全局 AI 并发控制测试。

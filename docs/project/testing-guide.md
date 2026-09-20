@@ -104,9 +104,9 @@ cd "Server Side\UmoWebBackend"
 mvn test
 ```
 
-当前完整测试共 238 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
+当前完整测试共 237 个，包含 `BoundaryTest`、文件/路径工具、VO 批量组装、JWT、
 Mapper XML 别名解析、构造器注入、Jackson 自动配置、拦截器、登录限流、分类层级解析、
-正文索引、摘要提取、图片清理、图片一致性、AI 模式目录、DeepSeek Provider、请求限流和
+正文索引、摘要提取、图片清理、图片一致性、AI 模式目录、DeepSeek Provider、AI 单并发和
 结果保真校验测试。
 其中 17 个真实 MySQL 测试由 `MYSQL_INTEGRATION=true` 启用，本地默认跳过；MockMvc 边界测试
 不连接 MySQL，`UmoWebBackendApplicationTests` 仍是一条空测试。
@@ -145,6 +145,13 @@ cd "Server Side\UmoWebBackend"
 - 图片一致性接口能定位临时断裂引用，并返回稳定的三类数组和来源信息。
 - 公开列表只返回 `PUBLISHED`；管理列表和详情同时暴露 `DRAFT` 与 `PUBLISHED` 状态。
 - 测试创建的分类、标签、草稿文章和临时图片全部删除，密码和 `site_title` 恢复原值。
+
+AI 运行时本地控制回归：
+
+1. 连续完成 6 次或更多非重叠 AI 转换请求均进入 Provider，不返回 `LOCAL_RATE_LIMITED`。
+2. 第一个 AI 请求处理中时，第二个并发请求返回 429；第一个请求结束后可再次调用。
+3. Provider、结果校验或超时失败后必须释放并发许可。
+4. DeepSeek 主动返回 429 时仍按上游限流返回 429，不自动重试。
 
 脚本运行前要求后端已启动并使用真实 MySQL。脚本会临时修改管理员密码和 `site_title`，
 最后恢复；图片上传、引用保护、删除和磁盘清理均由脚本回收。

@@ -395,8 +395,9 @@ POST /api/admin/ai/transform
 模式状态、请求许可、Provider、结果校验”顺序执行，输出最多 60000 字符。
 
 Provider 使用全局 DeepSeek OpenAI-compatible `/chat/completions`，system prompt 与正文
-分开发送，不自动重试。认证、余额、上游 500/503 返回 503，上游 429 返回 429，
-非法请求/响应返回 502，超时返回 504。日志只记录元数据，不记录正文、结果、提示词或密钥。
+分开发送，不自动重试。本地没有时间窗口或调用次数配额，仅限制同时最多 1 个请求；
+认证、余额、上游 500/503 返回 503，本地并发冲突或上游 429 返回 429，非法请求/响应返回 502，
+超时返回 504。日志只记录元数据，不记录正文、结果、提示词或密钥。
 
 ---
 
@@ -405,7 +406,7 @@ Provider 使用全局 DeepSeek OpenAI-compatible `/chat/completions`，system pr
 `BoundaryTest` 仍使用 Mock Service 覆盖接口边界，另有 Service/Util 单元测试覆盖真实文件、
 路径、JWT、限流、可信代理 CIDR、容器装配和批量查询行为；MySQL 8.4 环境门控测试覆盖真实
 分类层级 SQL、正文全文索引、相关文章排序、调度发布、图片来源查询和图片清理队列。
-当前后端测试共 236 个，其中 17 个由 MySQL 8.4 环境门控；本机执行时共 18 个跳过。
+当前后端测试共 237 个，其中 17 个由 MySQL 8.4 环境门控；本机执行时共 18 个跳过。
 
 `BoundaryTest` 覆盖：
 

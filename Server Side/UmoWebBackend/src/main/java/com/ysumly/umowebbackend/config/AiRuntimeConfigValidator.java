@@ -17,8 +17,6 @@ public class AiRuntimeConfigValidator {
         requirePositive(properties.getMaxInputChars(), "app.ai.max-input-chars");
         requirePositive(properties.getMaxOutputChars(), "app.ai.max-output-chars");
         requirePositive(properties.getTimeoutSeconds(), "app.ai.timeout-seconds");
-        requirePositive(properties.getMaxRequestsPerWindow(), "app.ai.max-requests-per-window");
-        requirePositive(properties.getRateLimitWindowSeconds(), "app.ai.rate-limit-window-seconds");
         requirePositive(properties.getMaxConcurrentRequests(), "app.ai.max-concurrent-requests");
 
         if (!properties.isEnabled()) {

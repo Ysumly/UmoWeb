@@ -1,6 +1,6 @@
 # UmoWeb 代码基线记忆
 
-> 基线日期: 2026-09-19
+> 基线日期: 2026-09-20
 > 范围: 当前工作区中的前端、后端、数据库脚本和文档
 > 原则: 代码行为优先；计划能力与已实现能力必须分开记录
 
@@ -58,7 +58,7 @@ UmoWeb/
 | 密码 | `spring-security-crypto` + BCrypt |
 | JSON | Jackson 3.1.4，Spring Boot 自动配置 `tools.jackson.databind.ObjectMapper` |
 | AI | Spring `RestClient` + DeepSeek OpenAI-compatible；模式目录、转换运行时和文章 AI 抽屉已接入 |
-| 测试 | Spring Boot Test、Mockito、MockMvc；238 个测试（17 个 MySQL 环境门控） |
+| 测试 | Spring Boot Test、Mockito、MockMvc；237 个测试（17 个 MySQL 环境门控） |
 
 ### 2.2 前端
 
@@ -301,12 +301,12 @@ HTTP 状态与返回：
 
 ### 4.5 AI 转换运行时
 
-- `AiProperties` 从 `app.ai` 绑定开关、输入/输出上限、180 秒超时、5 次/10 分钟窗口、
-  同时 1 请求和全局 DeepSeek 配置；`APP_AI_ENABLED=false` 时应用可正常启动。
+- `AiProperties` 从 `app.ai` 绑定开关、输入/输出上限、180 秒超时、同时 1 请求和全局
+  DeepSeek 配置；`APP_AI_ENABLED=false` 时应用可正常启动。
 - `DeepSeekAiTransformProvider` 通过 Spring `RestClient` 调用 `/chat/completions`，
   system prompt 与正文分开发送，`stream=false`，不自动重试。
-- `AiRequestGuardImpl` 使用进程内 `Semaphore` 和时钟窗口；异常路径释放并发许可，
-  单实例边界与现有搜索/登录限流一致。
+- `AiRequestGuardImpl` 只使用进程内 `Semaphore` 限制同时请求；非重叠调用不设时间窗口或
+  次数配额，异常路径释放并发许可。
 - `AiResultValidatorImpl` 支持 `EXACT_CONTENT`、`TRANSLATION`、`LIGHT_EXPANSION` 和 `NONE`；
   `AiTransformServiceImpl` 负责模式状态、错误状态归一化、结果字段和脱敏元数据日志。
 - 转换结果不自动写入文章；正文、结果、提示词和 API Key 不进入日志或数据库。
@@ -614,7 +614,7 @@ Spring Multipart 限制单文件和请求均为 50MB。
   调度条件更新/失败重试测试。
 - 新增 AI 模式创建、复制、元数据更新、提示词版本递增、10 版保留、回滚和乐观锁测试；
   MySQL 门控测试覆盖默认模式、停用过滤、条件版本更新和级联删除。
-- 新增 DeepSeek Mock HTTP 请求/响应、错误分类、超时、请求窗口/并发、四类结果校验、
+- 新增 DeepSeek Mock HTTP 请求/响应、错误分类、超时、单并发、四类结果校验、
   转换错误映射和脱敏日志测试。
 - 2026-09-13 已在 CI 使用 MySQL 8.4 从空库执行 Schema、种子数据和迁移幂等验证，启动真实后端并完成接口冒烟；2026-09-11 MySQL 5.7 迁移副本记录继续保留。
 - PowerShell 与 Bash 发布脚本自测已纳入 `repository` CI job，覆盖 CI 选择、manifest、归档校验、

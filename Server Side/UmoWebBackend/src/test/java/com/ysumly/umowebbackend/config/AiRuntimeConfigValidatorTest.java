@@ -65,8 +65,6 @@ class AiRuntimeConfigValidatorTest {
         properties.setMaxInputChars(20_000);
         properties.setMaxOutputChars(60_000);
         properties.setTimeoutSeconds(180);
-        properties.setMaxRequestsPerWindow(5);
-        properties.setRateLimitWindowSeconds(600);
         properties.setMaxConcurrentRequests(1);
         return properties;
     }
