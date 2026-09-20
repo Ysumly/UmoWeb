@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## 2026-09-20 — 移除 AI 请求窗口限流 `v1.1.2`
+
+- 删除 AI 本地 10 分钟最多 5 次的时间窗口配额，非重叠请求不再返回
+  `LOCAL_RATE_LIMITED`；继续保留同时最多 1 个 AI 请求的单并发保护。
+- 删除 `max-requests-per-window` 和 `rate-limit-window-seconds` 配置及对应启动校验；
+  `POST /api/admin/ai/transform` 请求、成功响应和错误结构保持不变。
+- PR #35 合并提交 `02ad7236c2584a2691e0ad9688c2efdd124c7695`，push CI run
+  `35495066760` 五个 job 全部成功；后端 237 个测试通过，18 个 MySQL 门控测试按预期跳过。
+- 发布前备份 `umoweb-backup-20260920T064919Z-unknown.tar.gz` 通过内层清单与 SHA-256
+  `c12231370f0c167ce79c0452ab9d5e11ddbcb554f4ab42449c8486e6707f6f7d` 校验。
+- 正式镜像：后端
+  `sha256:89bc5381e73ff1b802f7f955d86335fa5ae0079f7e37ee66b947632959c6a971`，
+  前端 `sha256:f33197d239746e6478f0e8ce39d8b29af0424d2f7dcf082f60340326b7dbd539`；
+  归档 SHA-256 为 `ef67e5f8e07e2b6b640a4fe8e6252b21cd17037959bb1adf08b2625e6a88b29d`。
+- 独立 `Verify`、ECS 31/31、公网首页与站点 API 均通过；6 次真实
+  `MODERN_TO_CLASSICAL` 连续转换全部返回 200，日志均为 `status=success`，未出现
+  `LOCAL_RATE_LIMITED`。
+- 当前生产版本为 `v1.1.2`，正式回滚目标为 `v1.1.1`；开发机保留这两个版本归档。
+
 ## 2026-09-19 — 移动阅读体验正式版 `v1.1.1`
 
 - 发布提交 `e0fe7ea29de4`，push CI run `35442876111` 五个 job 全部成功；

@@ -528,6 +528,24 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
   31/31，公网首页与公开站点信息均为 200。
 - 当前生产版本为 `v1.1.1`；开发机保留 `v1.1.0`、`v1.1.1` 两个归档，正式回滚目标为 `v1.1.0`。
 
+### 9.15 AI 请求窗口限流修复 `v1.1.2`
+
+- `v1.1.2` 从提交 `02ad7236c258` 构建，push CI run 为 `35495066760`；annotated tag
+  `v1.1.2` 已推送并确认 peel 后指向该提交。
+- 发布前备份 `20260920T064919Z` 通过内层清单和 SHA-256
+  `c12231370f0c167ce79c0452ab9d5e11ddbcb554f4ab42449c8486e6707f6f7d` 校验；
+  镜像归档 SHA-256 为
+  `ef67e5f8e07e2b6b640a4fe8e6252b21cd17037959bb1adf08b2625e6a88b29d`。
+- 后端镜像 ID 为
+  `sha256:89bc5381e73ff1b802f7f955d86335fa5ae0079f7e37ee66b947632959c6a971`；
+  前端镜像 ID 为
+  `sha256:f33197d239746e6478f0e8ce39d8b29af0424d2f7dcf082f60340326b7dbd539`。
+- 独立 `Verify` 返回 `v1.1.2`、manifest 双镜像 ID、`operation=deploy` 和访问服务通过；
+  ECS `api-smoke.py` 为 31/31，公网首页与公开站点信息均为 200。
+- 6 次真实 `MODERN_TO_CLASSICAL` 小正文转换全部成功，日志无 `LOCAL_RATE_LIMITED`。
+- 当前生产版本为 `v1.1.2`；开发机保留 `v1.1.1`、`v1.1.2` 两个归档，正式回滚目标为
+  `v1.1.1`。
+
 ## 10. 访问安全日志与报表
 
 ### 10.1 日志边界
