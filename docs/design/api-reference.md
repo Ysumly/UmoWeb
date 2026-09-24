@@ -566,6 +566,10 @@ Authorization: Bearer <token>
 
 `includeDescendants` 同样适用于管理端列表。返回含草稿的分页 `PageResult<ContentListVO>`。
 
+管理端列表始终先按 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED` 分组，再应用
+`published_at_desc` 或 `created_at_desc`，同一时间按 `id DESC`。因此不存在全天候的纯全局
+时间排序；公开列表的排序语义不受影响。
+
 `ContentListVO` 包含 `status` 与可选 `scheduledAt`：公开接口只会返回 `PUBLISHED`；
 管理端列表和详情可返回 `DRAFT`、`SCHEDULED`、`PUBLISHED` 或 `ARCHIVED`。
 

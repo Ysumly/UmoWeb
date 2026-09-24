@@ -349,6 +349,16 @@ function enrichSearchContent(content, state, query) {
 
 function sortContents(contents, sort) {
   return [...contents].sort((left, right) => {
+    const statusOrder = {
+      DRAFT: 0,
+      SCHEDULED: 1,
+      PUBLISHED: 2,
+      ARCHIVED: 3,
+    }
+    const statusDifference = (statusOrder[left.status] ?? 0) - (statusOrder[right.status] ?? 0)
+    if (statusDifference) {
+      return statusDifference
+    }
     if (sort === 'created_at_desc') {
       return String(right.createdAt).localeCompare(String(left.createdAt)) || right.id - left.id
     }

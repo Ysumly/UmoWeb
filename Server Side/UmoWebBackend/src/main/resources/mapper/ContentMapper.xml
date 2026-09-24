@@ -72,6 +72,25 @@
         </choose>
     </sql>
 
+    <sql id="adminOrderBy">
+        ORDER BY
+            CASE c.status
+                WHEN 'DRAFT' THEN 0
+                WHEN 'SCHEDULED' THEN 1
+                WHEN 'PUBLISHED' THEN 2
+                WHEN 'ARCHIVED' THEN 3
+                ELSE 4
+            END ASC,
+        <choose>
+            <when test="query.sort == 'created_at_desc'">
+                c.created_at DESC, c.id DESC
+            </when>
+            <otherwise>
+                c.published_at DESC, c.id DESC
+            </otherwise>
+        </choose>
+    </sql>
+
     <!-- =========================== 公开端 =========================== -->
 
     <select id="findPublished" resultType="Content">
@@ -168,7 +187,7 @@
         SELECT <include refid="baseColumns"/>
         FROM contents c
         <include refid="whereAll"/>
-        <include refid="orderBy"/>
+        <include refid="adminOrderBy"/>
         LIMIT #{query.size} OFFSET #{query.offset}
     </select>
 

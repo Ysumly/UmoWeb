@@ -18,11 +18,17 @@ import {
   updateContent,
   uploadImage,
 } from '@/api/admin'
+import AdminCategorySelect from '@/components/admin/AdminCategorySelect.vue'
 import AiTransformDrawer from '@/components/admin/AiTransformDrawer.vue'
 import MarkdownArticle from '@/components/public/MarkdownArticle.vue'
 import ContentState from '@/components/public/ContentState.vue'
 import { useMarkdownHeadingSync } from '@/composables/useMarkdownHeadingSync'
 import { adminPath } from '@/config/adminPath'
+import {
+  ADMIN_AUTOSAVE_INTERVAL_MS,
+  canAutosave,
+  formatAutosaveStatus,
+} from '@/utils/adminAutosave'
 import {
   buildContentPayload,
   canScheduleContent,
@@ -65,7 +71,6 @@ const aiOpenButtonRef = ref(null)
 const aiDrawerRef = ref(null)
 const initialSnapshot = ref('')
 const pendingSelection = ref(null)
-const categoryPage = ref(1)
 const tagPage = ref(1)
 const importMessage = ref('')
 const importWarnings = ref([])
@@ -75,6 +80,9 @@ const aiCapabilities = ref(null)
 const aiDrawerOpen = ref(false)
 const slugAutoSync = ref(true)
 const lastGeneratedSlug = ref('')
+const autosaveStatus = ref('idle')
+const lastAutosaveAt = ref(null)
+let autosaveTimer = null
 
 useMarkdownHeadingSync(textareaRef, previewRef, {
   mediaQuery: '(min-width: 701px)',
@@ -96,13 +104,6 @@ const form = reactive({
 const allCategories = computed(() => flattenCategoryTree(categories.value))
 const categoryOptions = computed(() => {
   return allCategories.value.filter((category) => category.type === form.type)
-})
-const categoryPageCount = computed(() => {
-  return Math.max(1, Math.ceil(categoryOptions.value.length / CHOICE_PAGE_SIZE))
-})
-const pagedCategoryOptions = computed(() => {
-  const start = (categoryPage.value - 1) * CHOICE_PAGE_SIZE
-  return categoryOptions.value.slice(start, start + CHOICE_PAGE_SIZE)
 })
 const tagPageCount = computed(() => {
   return Math.max(1, Math.ceil(tags.value.length / CHOICE_PAGE_SIZE))
@@ -139,6 +140,9 @@ const dirty = computed(() => {
     && JSON.stringify(form) !== initialSnapshot.value
 })
 const aiAvailable = computed(() => aiCapabilities.value?.enabled === true)
+const autosaveMessage = computed(() => (
+  formatAutosaveStatus(autosaveStatus.value, lastAutosaveAt.value)
+))
 
 function snapshotForm() {
   initialSnapshot.value = JSON.stringify(form)
@@ -254,7 +258,6 @@ async function handleMarkdownFileInput(event) {
     generalError.value = Object.keys(result.errors).length
       ? 'Markdown 已读取，请检查表单中的错误项'
       : ''
-    categoryPage.value = 1
     tagPage.value = 1
     mobilePane.value = 'editor'
   } catch (error) {
@@ -265,13 +268,8 @@ async function handleMarkdownFileInput(event) {
 function handleTypeChange() {
   const validIds = new Set(categoryOptions.value.map((category) => category.id))
   form.categoryIds = form.categoryIds.filter((id) => validIds.has(id))
-  categoryPage.value = 1
   clearCategoryImportErrors()
   clearImportError('type')
-}
-
-function changeCategoryPage(offset) {
-  categoryPage.value = Math.max(1, Math.min(categoryPage.value + offset, categoryPageCount.value))
 }
 
 function changeTagPage(offset) {
@@ -327,39 +325,93 @@ function closeAiDrawer() {
   nextTick(() => aiOpenButtonRef.value?.focus())
 }
 
-async function handleSubmit() {
+function validateForm() {
   errors.value = {
     ...validateContentForm(form, allCategories.value, {
       canSchedule: scheduleAllowed.value,
     }),
     ...importErrors.value,
   }
-  generalError.value = ''
-  if (Object.keys(errors.value).length) {
+  return errors.value
+}
+
+async function saveContent({ autosave = false } = {}) {
+  if (autosave && !canAutosave({
+    isEdit: isEdit.value,
+    dirty: dirty.value,
+    saving: saving.value,
+    uploading: uploading.value,
+  })) {
+    return false
+  }
+
+  const validationErrors = validateForm()
+  if (Object.keys(validationErrors).length) {
+    if (autosave) {
+      autosaveStatus.value = 'invalid'
+      return false
+    }
     generalError.value = importErrorMessages.value.length
       ? '请先修正 Markdown 导入错误'
       : '请检查表单中的错误项'
-    return
+    return false
   }
 
+  generalError.value = ''
+  if (autosave) {
+    autosaveStatus.value = 'saving'
+  }
+
+  const snapshotBeforeSave = JSON.stringify(form)
   saving.value = true
   try {
     const payload = buildContentPayload(form, allCategories.value)
+    let response
     if (isEdit.value) {
-      await updateContent(route.params.id, payload)
+      response = await updateContent(route.params.id, payload)
     } else {
-      await createContent(payload)
+      response = await createContent(payload)
     }
-    snapshotForm()
+    if (response?.data) {
+      originalContent.value = response.data
+    }
+    if (autosave) {
+      lastAutosaveAt.value = new Date()
+      autosaveStatus.value = 'saved'
+      if (JSON.stringify(form) === snapshotBeforeSave) {
+        snapshotForm()
+      }
+    } else {
+      snapshotForm()
+    }
+    return true
+  } catch (error) {
+    if (autosave) {
+      autosaveStatus.value = 'error'
+    } else {
+      generalError.value = friendlySaveError(error)
+    }
+    return false
+  } finally {
+    saving.value = false
+  }
+}
+
+async function handleSubmit() {
+  const saved = await saveContent()
+  if (saved) {
     await router.push({
       name: 'admin-contents',
       query: { saved: '1' },
     })
-  } catch (error) {
-    generalError.value = friendlySaveError(error)
-  } finally {
-    saving.value = false
   }
+}
+
+function runAutosave() {
+  if (!isEdit.value) {
+    return
+  }
+  void saveContent({ autosave: true })
 }
 
 function openImagePicker() {
@@ -478,9 +530,16 @@ onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
   load()
   loadAiCapabilities()
+  if (isEdit.value) {
+    autosaveTimer = window.setInterval(runAutosave, ADMIN_AUTOSAVE_INTERVAL_MS)
+  }
 })
 
 onBeforeUnmount(() => {
+  if (autosaveTimer !== null) {
+    window.clearInterval(autosaveTimer)
+    autosaveTimer = null
+  }
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 </script>
@@ -509,7 +568,16 @@ onBeforeUnmount(() => {
             {{ isEdit ? 'EDIT / 编辑文章' : 'NEW / 新建文章' }}
           </span>
           <h1>{{ isEdit ? '编辑文章' : '新建文章' }}</h1>
-          <p>Markdown 文件会随文章保存，发布状态可以随时切换。</p>
+          <p>
+            Markdown 文件会随文章保存，发布状态可以随时切换。
+            <span
+              v-if="autosaveMessage"
+              class="admin-editor-autosave"
+              role="status"
+            >
+              {{ autosaveMessage }}
+            </span>
+          </p>
         </div>
         <div class="admin-editor-header__actions">
           <button class="button button--quiet" type="button" @click="router.push(adminPath('contents'))">
@@ -658,39 +726,12 @@ onBeforeUnmount(() => {
             <p v-if="!categoryOptions.length" class="admin-field__empty">
               当前类型还没有可选分类，请先到分类管理中创建。
             </p>
-            <div v-else class="admin-choice-list">
-              <label
-                v-for="category in pagedCategoryOptions"
-                :key="category.id"
-                :title="category.name"
-                :style="{ paddingLeft: `${category.depth * 16}px` }"
-              >
-                <input
-                  v-model="form.categoryIds"
-                  type="checkbox"
-                  :value="category.id"
-                  @change="clearCategoryImportErrors"
-                />
-                <span>{{ category.name }}</span>
-              </label>
-            </div>
-            <nav
-              v-if="categoryPageCount > 1"
-              class="admin-choice-pagination"
-              aria-label="分类分页"
-            >
-              <button type="button" :disabled="categoryPage <= 1" @click="changeCategoryPage(-1)">
-                上一页
-              </button>
-              <span>{{ categoryPage }} / {{ categoryPageCount }}</span>
-              <button
-                type="button"
-                :disabled="categoryPage >= categoryPageCount"
-                @click="changeCategoryPage(1)"
-              >
-                下一页
-              </button>
-            </nav>
+            <AdminCategorySelect
+              v-else
+              v-model="form.categoryIds"
+              :categories="categoryOptions"
+              @change="clearCategoryImportErrors"
+            />
             <small v-if="errors.categoryIds">{{ errors.categoryIds }}</small>
             <small v-else-if="form.type === 'NOVEL'">
               小说必须选择至少一个小说分类；第一条小说分类会作为作品目录。

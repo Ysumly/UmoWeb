@@ -17,7 +17,6 @@ import {
   createAiResultState,
   createAiSourceState,
   getAiMaxInputChars,
-  isAiResultEdited,
   parseAiStoredState,
   resolveAiModeKey,
   serializeAiState,
@@ -49,6 +48,7 @@ const source = ref('')
 const sourceDirty = ref(false)
 const selectedModeKey = ref('')
 const resultState = ref(null)
+const resultContent = ref('')
 const statusMessage = ref('')
 const errorMessage = ref('')
 const inFlight = ref(false)
@@ -70,8 +70,10 @@ const sourceCharacterCount = computed(() => countAiCharacters(source.value))
 const selectedMode = computed(() => (
   modes.value.find((mode) => mode.modeKey === selectedModeKey.value) || null
 ))
-const resultContent = computed(() => resultState.value?.content || '')
-const resultEdited = computed(() => isAiResultEdited(resultState.value))
+const resultEdited = computed(() => Boolean(
+  resultState.value
+  && resultContent.value !== resultState.value.originalContent,
+))
 
 watch(modes, (nextModes) => {
   if (nextModes.some((mode) => mode.modeKey === selectedModeKey.value)) {
@@ -154,6 +156,7 @@ function restoreLocalState() {
   }
   if (storedResult) {
     resultState.value = storedResult
+    resultContent.value = storedResult.content
     selectedModeKey.value = resolveAiModeKey(storedResult.modeKey, modes.value)
   }
   if (storedSource || storedResult) {
@@ -251,8 +254,17 @@ async function executeTransform() {
       },
     )
     resultState.value = createAiResultState(response.data)
+    resultContent.value = resultState.value.content
     persistResult()
     statusMessage.value = `转换完成 · 模式版本 ${response.data?.modeVersion ?? '-'}`
+    await nextTick()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    if (resultRef.value) {
+      resultRef.value.focus()
+      resultRef.value.setSelectionRange(0, 0)
+      resultRef.value.scrollTop = 0
+    }
   } catch (error) {
     if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') {
       statusMessage.value = '已取消，已有结果未改变'
@@ -277,6 +289,14 @@ function cancelTransform() {
 }
 
 function handleResultInput() {
+  if (!resultState.value) {
+    return
+  }
+  resultState.value = {
+    ...resultState.value,
+    content: resultContent.value,
+    updatedAt: Date.now(),
+  }
   persistResult()
 }
 
@@ -553,7 +573,7 @@ defineExpose({
               <span>Markdown 源码</span>
               <textarea
                 ref="resultRef"
-                v-model="resultState.content"
+                v-model="resultContent"
                 aria-label="AI 转换结果"
                 spellcheck="false"
                 @input="handleResultInput"

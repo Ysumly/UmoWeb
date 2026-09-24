@@ -3636,6 +3636,10 @@ fieldset.admin-field {
   background: color-mix(in srgb, var(--paper-deep) 52%, transparent);
 }
 
+.admin-table tbody tr.admin-table__row--clickable {
+  cursor: pointer;
+}
+
 .admin-table td > strong,
 .admin-table td > small {
   display: block;
@@ -4035,6 +4039,13 @@ fieldset.admin-field {
   gap: 10px;
 }
 
+.admin-editor-autosave {
+  display: inline-block;
+  margin-left: 8px;
+  color: var(--accent);
+  font-size: 10px;
+}
+
 .admin-editor-form {
   display: flex;
   flex-direction: column;
@@ -4086,6 +4097,112 @@ fieldset.admin-field {
 .admin-choice-list--tags {
   grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
   gap: 8px;
+}
+
+.admin-multi-select {
+  position: relative;
+}
+
+.admin-multi-select__trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  padding: 11px 13px;
+  background: color-mix(in srgb, var(--paper-deep) 24%, transparent);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-multi-select__trigger i {
+  color: var(--accent);
+  font-size: 13px;
+  font-style: normal;
+}
+
+.admin-multi-select__trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 48%, transparent);
+  outline-offset: 2px;
+}
+
+.admin-multi-select__panel {
+  position: absolute;
+  z-index: 35;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  box-shadow: 6px 7px 0 color-mix(in srgb, var(--gold) 30%, transparent);
+}
+
+.admin-multi-select__search {
+  display: block;
+  border-bottom: 1px solid var(--line);
+  padding: 10px;
+}
+
+.admin-multi-select__search input {
+  width: 100%;
+  border: 1px solid var(--line);
+  padding: 9px 10px;
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  color: var(--ink);
+  font: inherit;
+}
+
+.admin-multi-select__options {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.admin-multi-select__option {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 9px;
+  border: 0;
+  padding: 9px 12px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-multi-select__option:hover,
+.admin-multi-select__option[aria-selected="true"] {
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+}
+
+.admin-multi-select__option input {
+  flex: 0 0 auto;
+  width: auto;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--accent);
+}
+
+.admin-multi-select__option span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.admin-multi-select__empty {
+  margin: 0;
+  padding: 18px 12px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
 }
 
 .admin-choice-pagination {
@@ -5017,7 +5134,11 @@ fieldset.admin-field {
 }
 
 .admin-ai-drawer__result-grid textarea {
+  height: 280px;
   min-height: 280px;
+  max-height: 280px;
+  overflow: auto;
+  resize: none;
 }
 
 .admin-ai-drawer__preview {

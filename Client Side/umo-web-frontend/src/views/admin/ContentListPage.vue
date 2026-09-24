@@ -109,6 +109,13 @@ function statusLabel(status) {
   }[status] || '草稿'
 }
 
+function openContentEditor(content, event) {
+  if (event.target.closest('a, button, input, select, textarea, label')) {
+    return
+  }
+  router.push(adminPath(`contents/${content.id}/edit`))
+}
+
 function syncQuery() {
   router.replace({
     query: {
@@ -340,7 +347,7 @@ onMounted(() => {
             :key="item"
             :value="item"
           >
-            {{ item === 'created_at_desc' ? '按创建时间' : '按发布时间' }}
+            {{ item === 'created_at_desc' ? '组内按创建时间' : '组内按发布时间' }}
           </option>
         </select>
       </label>
@@ -439,7 +446,12 @@ onMounted(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="content in contents" :key="content.id">
+            <tr
+              v-for="content in contents"
+              :key="content.id"
+              class="admin-table__row--clickable"
+              @click="openContentEditor(content, $event)"
+            >
               <td data-label="选择" class="admin-table__select">
                 <input
                   v-model="selectedIds"
