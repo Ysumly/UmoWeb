@@ -29,8 +29,9 @@
 | MySQL 集成用例 | 新增状态分组、组内排序和稳定次序覆盖，由 CI MySQL 8.4 job 执行 |
 | 前端 Node | 139/139 通过 |
 | Windows Playwright | 134/134 通过（98 functional + 36 visual） |
+| PR CI | run `35960055749`，后端、前端、MySQL 集成、Linux Playwright 和仓库检查五个 job 全部成功 |
 | 敏感信息扫描 | 扫描器自测和仓库扫描均通过 |
-| Linux 基线 | 由手动 `Playwright Linux Baselines` 工作流生成后逐张审查提交 |
+| Linux 基线 | workflow `35958991095` 生成 36 张 artifact，仅文章列表、分类下拉和 AI 抽屉六张变化并逐张审查提交 |
 
 ### 状态
 
