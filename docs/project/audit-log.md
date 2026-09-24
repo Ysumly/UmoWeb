@@ -1,5 +1,42 @@
 # 审计日志
 
+## 审计 #71 - 2026-09-24 — 管理端文章体验正式版 `v1.1.3`
+
+### 范围
+
+- 将 PR #36 的管理端文章体验反馈批次合并到 `master`，合并提交为
+  `0920b0a1b87ee397ae9c8d2ecba694c4cac64adc`。
+- 通过现有本地版本化发布链路构建、上传、迁移、切换和验收 `v1.1.3`。
+- 不修改 API、Schema、生产内容或生产 AI 模式数据。
+
+### 发布证据
+
+| 项 | 结果 |
+|---|---|
+| Push CI | run `35960680216`，`CI` workflow 成功 |
+| 发布前备份 | `umoweb-backup-20260924T054235Z-unknown.tar.gz`，SHA-256 `2d1998edcbe9ce729af8a020e1e179895ade2f570ad310e2e9b164f204c49c98` |
+| 后端镜像 | `umoweb-backend:v1.1.3`，image ID `sha256:87b07d1f7cb90c73a892d4c4a6ce8eccb2cb1815253f8be84e8a91b9ad63590b` |
+| 前端镜像 | `umoweb-frontend:v1.1.3`，image ID `sha256:838292a68cdcff5701fa228f939bc10c2e9d9e2dc75edfbe2a924078fc4a88d1` |
+| 镜像归档 | SHA-256 `fe762658aeacd1e9604d0c904b8e8cd4003cf0f39b5109f425b9f2b5feb4d399`，147812352 字节 |
+| Git 标签 | annotated `v1.1.3` peeled to `0920b0a1b87ee397ae9c8d2ecba694c4cac64adc` |
+
+### 生产验收
+
+- 独立 `Verify` 返回当前 release `v1.1.3`、manifest 双镜像 ID、`operation=deploy`，
+  访问日志、隐私配置、权限和回环报表检查通过。
+- ECS `api-smoke.py` 为 31/31；公网首页与公开站点信息均返回 HTTP 200。
+- MySQL、backend 和 frontend 容器运行正常，backend 与 MySQL 为 healthy；
+  `umoweb-backup.timer`、`umoweb-access-maintenance.timer` 和
+  `umoweb-access-report.service` 均为 active。
+- 发布脚本完成镜像载入、幂等迁移、容器切换、正文索引回填并确认 30 篇已发布正文，
+  无需回滚。
+
+### 状态
+
+- 生产当前运行 `v1.1.3`，正式回滚目标为 `v1.1.2`。
+- 开发机保留 `v1.1.2`、`v1.1.3` 两个归档；ECS 不长期保存旧归档。
+- 生产 `APP_AI_ENABLED=true`、五个默认模式及 `STRUCTURE_CLEANUP` 版本 3 保持不变。
+
 ## 审计 #70 - 2026-09-24 — 管理端文章体验反馈批次
 
 ### 范围

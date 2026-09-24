@@ -543,8 +543,25 @@ pwsh -NoProfile -File .\scripts\release\umoweb-release.ps1 `
 - 独立 `Verify` 返回 `v1.1.2`、manifest 双镜像 ID、`operation=deploy` 和访问服务通过；
   ECS `api-smoke.py` 为 31/31，公网首页与公开站点信息均为 200。
 - 6 次真实 `MODERN_TO_CLASSICAL` 小正文转换全部成功，日志无 `LOCAL_RATE_LIMITED`。
-- 当前生产版本为 `v1.1.2`；开发机保留 `v1.1.1`、`v1.1.2` 两个归档，正式回滚目标为
-  `v1.1.1`。
+- 该版本随后由 `v1.1.3` 替代，当时正式回滚目标为 `v1.1.1`。
+
+### 9.16 管理端文章体验 `v1.1.3`
+
+- `v1.1.3` 从提交 `0920b0a1b87e` 构建，push CI run 为 `35960680216`；annotated tag
+  `v1.1.3` 已推送并确认 peel 后指向该提交。
+- 发布前备份 `umoweb-backup-20260924T054235Z-unknown.tar.gz` 通过内层清单和 SHA-256
+  `2d1998edcbe9ce729af8a020e1e179895ade2f570ad310e2e9b164f204c49c98` 校验；
+  镜像归档 SHA-256 为
+  `fe762658aeacd1e9604d0c904b8e8cd4003cf0f39b5109f425b9f2b5feb4d399`。
+- 后端镜像 ID 为
+  `sha256:87b07d1f7cb90c73a892d4c4a6ce8eccb2cb1815253f8be84e8a91b9ad63590b`；
+  前端镜像 ID 为
+  `sha256:838292a68cdcff5701fa228f939bc10c2e9d9e2dc75edfbe2a924078fc4a88d1`。
+- 独立 `Verify` 返回 `v1.1.3`、manifest 双镜像 ID、`operation=deploy` 和访问服务通过；
+  ECS `api-smoke.py` 为 31/31，公网首页与公开站点信息均为 200，三个容器和三项运维定时任务
+  状态正常。
+- 当前生产版本为 `v1.1.3`；开发机保留 `v1.1.2`、`v1.1.3` 两个归档，正式回滚目标为
+  `v1.1.2`。
 
 ## 10. 访问安全日志与报表
 
