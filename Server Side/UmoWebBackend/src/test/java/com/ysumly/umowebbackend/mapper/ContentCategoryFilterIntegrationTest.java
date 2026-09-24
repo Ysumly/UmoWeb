@@ -68,8 +68,8 @@ class ContentCategoryFilterIntegrationTest {
         assertThat(adminDescendants)
                 .extracting(Content::getSlug)
                 .containsExactly(
-                        "integration-grandchild",
                         "integration-child",
+                        "integration-grandchild",
                         "integration-root");
         assertThat(adminDescendantTotal).isEqualTo(3);
 

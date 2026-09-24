@@ -28,7 +28,7 @@ test('autosave runs only for dirty existing valid articles outside busy states',
 test('formats autosave progress and validation feedback', () => {
   assert.equal(formatAutosaveStatus('saving'), '自动保存中...')
   assert.equal(
-    formatAutosaveStatus('saved', new Date('2026-09-21T14:05:00+08:00')),
+    formatAutosaveStatus('saved', new Date(2026, 8, 21, 14, 5)),
     '已自动保存 14:05',
   )
   assert.equal(formatAutosaveStatus('error'), '保存失败，将重试')
