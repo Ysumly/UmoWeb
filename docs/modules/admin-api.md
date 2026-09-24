@@ -80,6 +80,8 @@ GET /api/admin/contents
 `status` 为空时包含 `DRAFT`、`SCHEDULED`、`PUBLISHED` 和 `ARCHIVED`。
 `includeDescendants=true` 必须同时提供 `categoryId`，
 分类层级循环或超过 32 层返回 409。
+管理端结果始终先按 `DRAFT`、`SCHEDULED`、`PUBLISHED`、`ARCHIVED` 分组，
+再在组内应用 `sort` 并追加 `id DESC`。
 
 列表和详情 `VO` 均返回当前 `status` 和可选 `scheduledAt`，前端无需再通过
 `publishedAt` 推断草稿是否曾发布。
@@ -406,7 +408,7 @@ Provider 使用全局 DeepSeek OpenAI-compatible `/chat/completions`，system pr
 `BoundaryTest` 仍使用 Mock Service 覆盖接口边界，另有 Service/Util 单元测试覆盖真实文件、
 路径、JWT、限流、可信代理 CIDR、容器装配和批量查询行为；MySQL 8.4 环境门控测试覆盖真实
 分类层级 SQL、正文全文索引、相关文章排序、调度发布、图片来源查询和图片清理队列。
-当前后端测试共 237 个，其中 17 个由 MySQL 8.4 环境门控；本机执行时共 18 个跳过。
+当前后端测试共 238 个，其中 19 个由 MySQL 8.4 环境门控；本机执行时共 19 个跳过。
 
 `BoundaryTest` 覆盖：
 

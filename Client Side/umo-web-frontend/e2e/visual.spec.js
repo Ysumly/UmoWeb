@@ -99,6 +99,17 @@ test('管理端文章列表视觉基线', async ({ page, apiMock }) => {
   await expect(page).toHaveScreenshot('admin-contents.png', { fullPage: true })
 })
 
+test('管理端分类下拉面板视觉基线', async ({ page, apiMock }) => {
+  await prepareScreenshot(page)
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/new')
+  await page.getByRole('button', { name: /分类/ }).click()
+  await expect(page.getByRole('listbox', { name: '分类选项' })).toBeVisible()
+  await waitForStablePage(page)
+
+  await expect(page).toHaveScreenshot('admin-category-select.png')
+})
+
 test('管理端 AI 设置视觉基线', async ({ page, apiMock }) => {
   await prepareScreenshot(page)
   await apiMock.authenticate()
@@ -113,6 +124,28 @@ test('管理端 AI 设置视觉基线', async ({ page, apiMock }) => {
 test('管理端 AI 转换抽屉视觉基线', async ({ page, apiMock }) => {
   await prepareScreenshot(page)
   await apiMock.authenticate()
+  const longResult = [
+    '# 视觉基线向量',
+    '',
+    '向量和矩阵用于检查长 Markdown 源码与预览的一致性。',
+    '',
+    '点积可以得到前向、后向和投影结果；叉积可以得到左右方向与旋转关系。',
+    '',
+    '矩阵乘法需要保持维度匹配，并按照行列顺序逐项计算。',
+    ...Array.from({ length: 24 }, (_, index) => (
+      `## 章节 ${index + 1}\n\n这是第 ${index + 1} 段用于视觉基线的长正文。`
+    )),
+  ].join('\n\n')
+  await page.route('**/api/admin/ai/transform', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      modeKey: 'STRUCTURE_CLEANUP',
+      modeVersion: 1,
+      content: longResult,
+      usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+    }),
+  }))
   await page.goto('/secret-admin/contents/new')
   await page.getByLabel('Markdown 正文').fill('# 视觉基线正文\n\n用于检查 AI 抽屉布局。')
   await page.getByRole('button', { name: 'AI 转换' }).click()
@@ -120,9 +153,8 @@ test('管理端 AI 转换抽屉视觉基线', async ({ page, apiMock }) => {
   const dialog = page.getByRole('dialog', { name: 'AI 转换' })
   await dialog.getByRole('button', { name: '带入当前正文' }).click()
   await dialog.getByRole('button', { name: '开始转换' }).click()
-  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue(
-    '转换结果：# 视觉基线正文\n\n用于检查 AI 抽屉布局。',
-  )
+  await expect(dialog.getByLabel('AI 转换结果')).toHaveValue(longResult)
+  await page.waitForTimeout(500)
   await waitForStablePage(page)
 
   await expect(page).toHaveScreenshot('admin-ai-drawer.png')

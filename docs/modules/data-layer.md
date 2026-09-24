@@ -344,7 +344,7 @@ int deleteVersionsBefore(Long modeId, int minimumVersionNo);
 
 ### 6.1 排序
 
-Mapper XML 只有两个排序分支：
+公开端 Mapper 保留两个时间排序分支：
 
 ```xml
 <when test="sort == 'created_at_desc'">
@@ -355,7 +355,20 @@ Mapper XML 只有两个排序分支：
 </otherwise>
 ```
 
-因此除了 `created_at_desc`，任何输入都按 `published_at DESC`。
+管理端 `findAll` 使用独立排序片段，先按以下状态优先级分组：
+
+```sql
+CASE c.status
+    WHEN 'DRAFT' THEN 0
+    WHEN 'SCHEDULED' THEN 1
+    WHEN 'PUBLISHED' THEN 2
+    WHEN 'ARCHIVED' THEN 3
+    ELSE 4
+END ASC
+```
+
+组内继续使用 `created_at_desc` 或 `published_at_desc`，并以 `id DESC` 稳定次序。
+因此 `sort` 在公开端控制全局时间顺序，在管理端只控制状态分组内顺序。
 
 ### 6.2 已发布条件
 

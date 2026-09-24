@@ -584,6 +584,78 @@ test('文章列表支持筛选并完成新建、编辑、发布和删除', async
   await expect(page.getByRole('row', { name: /E2E 已发布文章/ })).toHaveCount(0)
 })
 
+test('文章管理始终按草稿、待发布、已发布、已归档排序', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  apiMock.state.contents.push(
+    {
+      ...apiMock.state.contents[0],
+      id: 901,
+      title: '排序测试归档',
+      slug: 'sort-test-archived',
+      status: 'ARCHIVED',
+      publishedAt: '2026-09-20T10:00:00',
+    },
+    {
+      ...apiMock.state.contents[0],
+      id: 902,
+      title: '排序测试已发布',
+      slug: 'sort-test-published',
+      status: 'PUBLISHED',
+      publishedAt: '2026-09-20T10:00:00',
+    },
+    {
+      ...apiMock.state.contents[0],
+      id: 903,
+      title: '排序测试待发布',
+      slug: 'sort-test-scheduled',
+      status: 'SCHEDULED',
+      publishedAt: null,
+      scheduledAt: '2099-09-20T10:00',
+    },
+    {
+      ...apiMock.state.contents[0],
+      id: 904,
+      title: '排序测试草稿',
+      slug: 'sort-test-draft',
+      status: 'DRAFT',
+      publishedAt: null,
+    },
+  )
+
+  await page.goto('/secret-admin/contents?size=50')
+  await expect(page.getByRole('row', { name: /排序测试草稿/ })).toBeVisible()
+  const statuses = await page.locator('.admin-table tbody tr .admin-status').allTextContents()
+  const normalized = statuses.map((value) => value.trim())
+  const firstScheduled = normalized.indexOf('待发布')
+  const firstPublished = normalized.indexOf('已发布')
+  const firstArchived = normalized.indexOf('已归档')
+  const lastDraft = normalized.lastIndexOf('草稿')
+
+  expect(lastDraft).toBeGreaterThanOrEqual(0)
+  expect(firstScheduled).toBeGreaterThan(lastDraft)
+  expect(firstPublished).toBeGreaterThan(firstScheduled)
+  expect(firstArchived).toBeGreaterThan(firstPublished)
+})
+
+test('点击文章行打开编辑页，交互控件不触发整行导航', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents')
+
+  const row = page.getByRole('row', { name: /第一篇公开文章/ })
+  await row.locator('td').nth(1).click()
+  await expect(page).toHaveURL(/\/secret-admin\/contents\/1\/edit$/)
+
+  await page.goto('/secret-admin/contents')
+  await page.getByLabel('选择 第一篇公开文章').click()
+  await expect(page).toHaveURL(/\/secret-admin\/contents$/)
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('row', { name: /第一篇公开文章/ })
+    .getByRole('button', { name: '删除' })
+    .click()
+  await expect(page).toHaveURL(/\/secret-admin\/contents$/)
+})
+
 test('新建文章从中文标题生成 slug 并在手动修改后停止同步', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   await page.goto('/secret-admin/contents/new')
@@ -679,7 +751,7 @@ test('分类编辑加载态不会改变表格列位置', async ({ page, apiMock 
   expect(Math.abs(during.x - before.x)).toBeLessThan(1)
 })
 
-test('文章编辑器的分类和标签不拆字且超过一页时分页', async ({ page, apiMock }) => {
+test('文章编辑器的分类使用下拉面板且标签超过一页时分页', async ({ page, apiMock }) => {
   await apiMock.authenticate()
   apiMock.state.categories.push(
     ...Array.from({ length: 15 }, (_, index) => ({
@@ -703,23 +775,149 @@ test('文章编辑器的分类和标签不拆字且超过一页时分页', async
   const categoryGroup = page.getByRole('group', { name: '分类' })
   const tagGroup = page.getByRole('group', { name: '标签' })
 
-  await expect(categoryGroup.locator('.admin-choice-list label')).toHaveCount(12)
+  await expect(categoryGroup.getByRole('button', { name: /分类/ })).toBeVisible()
+  await expect(categoryGroup.getByRole('navigation', { name: '分类分页' })).toHaveCount(0)
   await expect(tagGroup.locator('.admin-choice-list label')).toHaveCount(12)
-  await expect(categoryGroup.getByRole('navigation', { name: '分类分页' })).toBeVisible()
   await expect(tagGroup.getByRole('navigation', { name: '标签分页' })).toBeVisible()
 
-  for (const text of ['技术笔记', '长期主义']) {
-    const label = page.locator('.admin-choice-list label', { hasText: text })
+  for (const text of ['Vue', '长期主义']) {
+    const label = tagGroup.locator('.admin-choice-list label', { hasText: text })
     const box = await label.locator('span').boundingBox()
     expect(box.height).toBeLessThan(24)
     expect(box.width).toBeGreaterThan(box.height)
   }
 
-  await categoryGroup.getByRole('button', { name: '下一页' }).click()
-  await expect(categoryGroup.locator('.admin-choice-list label')).toHaveCount(5)
-
   await tagGroup.getByRole('button', { name: '下一页' }).click()
   await expect(tagGroup.locator('.admin-choice-list label')).toHaveCount(6)
+})
+
+test('文章编辑器使用完整名称的可搜索分类多选面板', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  apiMock.state.categories.push({
+    id: 120,
+    name: '计算机图形学与可视化研究',
+    slug: 'computer-graphics-and-visualization',
+    type: 'NOTE',
+    parentId: null,
+    sortOrder: 20,
+  })
+  await page.goto('/secret-admin/contents/new')
+
+  const trigger = page.getByRole('button', { name: /分类/ })
+  await trigger.click()
+  const panel = page.getByRole('listbox', { name: '分类选项' })
+  await expect(panel).toBeVisible()
+  await expect(panel.getByRole('option', { name: /计算机图形学与可视化研究/ }))
+    .toContainText('计算机图形学与可视化研究')
+
+  await panel.getByRole('searchbox', { name: '搜索分类' }).fill('图形学')
+  await expect(panel.getByRole('option')).toHaveCount(1)
+  await panel.getByRole('option', { name: /计算机图形学与可视化研究/ }).click()
+  await expect(trigger).toContainText('已选 1 项')
+
+  await page.keyboard.press('Escape')
+  await expect(panel).toBeHidden()
+  await expect(trigger).toBeFocused()
+})
+
+test('已有文章每 30 秒自动保存，新文章不自动创建', async ({ page, apiMock }) => {
+  await page.clock.install()
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/1/edit')
+
+  const body = page.getByLabel('Markdown 正文')
+  await body.fill('# 自动保存后的正文')
+  await page.clock.fastForward(30_000)
+
+  await expect(page.getByText(/已自动保存 \d{2}:\d{2}/)).toBeVisible()
+  expect(apiMock.state.contents.find((content) => content.id === 1).body)
+    .toBe('# 自动保存后的正文')
+  await expect(page).toHaveURL(/\/secret-admin\/contents\/1\/edit$/)
+
+  const countBefore = apiMock.state.contents.length
+  await page.goto('/secret-admin/contents/new')
+  await page.getByLabel(/^标题/).fill('不应自动创建')
+  await page.clock.fastForward(30_000)
+  expect(apiMock.state.contents).toHaveLength(countBefore)
+})
+
+test('自动保存失败保留修改并在下个周期重试，校验错误时暂停', async ({ page, apiMock }) => {
+  await page.clock.install()
+  await apiMock.authenticate()
+  await page.goto('/secret-admin/contents/1/edit')
+
+  let putCount = 0
+  await page.route('**/api/admin/contents/1', async (route) => {
+    if (route.request().method() === 'PUT' && putCount++ === 0) {
+      return route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 503, message: 'temporary failure' }),
+      })
+    }
+    return route.fallback()
+  })
+
+  await page.getByLabel('Markdown 正文').fill('# 自动保存失败后重试')
+  await page.clock.fastForward(30_000)
+  await expect(page.getByText('保存失败，将重试')).toBeVisible()
+  await page.clock.fastForward(30_000)
+  await expect(page.getByText(/已自动保存 \d{2}:\d{2}/)).toBeVisible()
+  expect(putCount).toBe(2)
+
+  await page.getByLabel('metadata').fill('{broken')
+  await page.clock.fastForward(30_000)
+  await expect(page.getByText('待修正，自动保存暂停')).toBeVisible()
+  expect(putCount).toBe(2)
+})
+
+test('超长 AI 结果切换后源码显示完整内容且滚动位置回到顶部', async ({ page, apiMock }) => {
+  await apiMock.authenticate()
+  const previousMarkdown = Array.from(
+    { length: 240 },
+    (_, index) => `旧结果第 ${index + 1} 行`,
+  ).join('\n')
+  const trailingBlankMarkdown = [
+    '# 向量',
+    ...Array.from({ length: 360 }, (_, index) => `矩阵与向量正文第 ${index + 1} 行`),
+    ...Array.from({ length: 400 }, () => ''),
+  ].join('\n')
+  let transformCount = 0
+  await page.route('**/api/admin/ai/transform', async (route) => {
+    transformCount += 1
+    const content = transformCount === 1 ? previousMarkdown : trailingBlankMarkdown
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        modeKey: 'STRUCTURE_CLEANUP',
+        modeVersion: 1,
+        content,
+        usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      }),
+    })
+  })
+
+  await page.goto('/secret-admin/contents/new')
+  await page.getByLabel('Markdown 正文').fill('需要长结果验证的正文')
+  await page.getByRole('button', { name: 'AI 转换' }).click()
+  const dialog = page.getByRole('dialog', { name: 'AI 转换' })
+  await dialog.getByRole('button', { name: '带入当前正文' }).click()
+  await dialog.getByRole('button', { name: '开始转换' }).click()
+
+  const result = dialog.getByLabel('AI 转换结果')
+  await expect(result).toHaveValue(/旧结果/)
+  await result.evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
+  expect(await result.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+
+  await dialog.getByRole('button', { name: '重新转换' }).click()
+  await expect(result).toHaveValue(trailingBlankMarkdown)
+  await expect(result).toBeFocused()
+  await expect(dialog.locator('.admin-ai-drawer__preview')).toContainText('矩阵与向量正文')
+  expect(await result.evaluate((element) => element.scrollTop)).toBe(0)
+  expect(await result.evaluate((element) => element.clientHeight)).toBeLessThanOrEqual(400)
 })
 
 test('metadata 更多说明可以展开常用字段', async ({ page, apiMock }) => {
@@ -959,7 +1157,12 @@ test('Markdown 导入错误阻止提交并在修正后允许创建', async ({ pa
   expect(apiMock.state.contents).toHaveLength(contentTypeCount)
 
   await page.getByLabel('metadata').fill('{"readingTime":3}')
-  await page.getByRole('group', { name: '分类' }).getByLabel('技术笔记').check()
+  const categoryGroup = page.getByRole('group', { name: '分类' })
+  await categoryGroup.getByRole('button', { name: /分类/ }).click()
+  await page.getByRole('listbox', { name: '分类选项' })
+    .getByRole('option', { name: /技术笔记/ })
+    .click()
+  await page.keyboard.press('Escape')
   await page.getByRole('button', { name: '创建文章' }).click()
 
   await expect(page).toHaveURL(/\/secret-admin\/contents\?saved=1/)
@@ -1048,10 +1251,9 @@ test('文章列表支持当前页批量标签、归档和恢复', async ({ page,
   await page.locator('.admin-bulk-bar').getByLabel('操作').selectOption('ARCHIVE')
   page.once('dialog', (dialog) => dialog.accept())
   await page.locator('.admin-bulk-bar').getByRole('button', { name: '归档' }).click()
-  await expect(page.getByRole('row', { name: /第一篇公开文章/ })).toContainText('已归档')
 
   await page.locator('.admin-filters').getByLabel('状态').selectOption('ARCHIVED')
-  await expect(page.getByRole('row', { name: /第一篇公开文章/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /第一篇公开文章/ })).toContainText('已归档')
   await page.getByLabel('选择 第一篇公开文章').check()
   await page.locator('.admin-bulk-bar').getByLabel('操作').selectOption('RESTORE_DRAFT')
   await page.locator('.admin-bulk-bar').getByRole('button', { name: '恢复为草稿' }).click()

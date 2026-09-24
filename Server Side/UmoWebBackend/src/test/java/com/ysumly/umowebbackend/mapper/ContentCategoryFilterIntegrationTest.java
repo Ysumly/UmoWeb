@@ -68,8 +68,8 @@ class ContentCategoryFilterIntegrationTest {
         assertThat(adminDescendants)
                 .extracting(Content::getSlug)
                 .containsExactly(
-                        "integration-grandchild",
                         "integration-child",
+                        "integration-grandchild",
                         "integration-root");
         assertThat(adminDescendantTotal).isEqualTo(3);
 
@@ -97,6 +97,34 @@ class ContentCategoryFilterIntegrationTest {
 
         assertThat(contentMapper.findPublished(query, resolvedIds)).isEmpty();
         assertThat(contentMapper.countPublished(query, resolvedIds)).isZero();
+    }
+
+    @Test
+    void adminListGroupsStatusesBeforeApplyingTimeSort() {
+        long categoryId = insertCategory("status-order-root", null);
+        LocalDateTime older = LocalDateTime.of(2026, 9, 12, 9, 0);
+        LocalDateTime newer = LocalDateTime.of(2026, 9, 13, 9, 0);
+        List<Long> contentIds = List.of(
+                insertContent("integration-archived", "ARCHIVED", newer),
+                insertContent("integration-published-old", "PUBLISHED", older),
+                insertContent("integration-published-new", "PUBLISHED", newer),
+                insertContent("integration-scheduled-new", "SCHEDULED", newer),
+                insertContent("integration-draft-old", "DRAFT", older),
+                insertContent("integration-draft-new", "DRAFT", newer));
+        contentIds.forEach(contentId -> linkContent(contentId, categoryId));
+
+        ContentQuery query = query(categoryId, false);
+        query.setSort("published_at_desc");
+
+        assertThat(contentMapper.findAll(query, List.of(categoryId)))
+                .extracting(Content::getSlug)
+                .containsExactly(
+                        "integration-draft-new",
+                        "integration-draft-old",
+                        "integration-scheduled-new",
+                        "integration-published-new",
+                        "integration-published-old",
+                        "integration-archived");
     }
 
     @Test
