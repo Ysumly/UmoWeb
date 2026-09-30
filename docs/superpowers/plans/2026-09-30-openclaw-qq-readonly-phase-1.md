@@ -4,9 +4,9 @@
 > (recommended) or `superpowers:executing-plans` to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在不改变数据库、不写 UmoWeb、不修改 `content_search` 的前提下，让私人 QQ 通过受限 OpenClaw 查询并总结已发布笔记，并验证其在 ECS 上可稳定运行。
+**Goal:** 在不改变数据库、不写 UmoWeb、不修改 `content_search` 的前提下，让私人 QQ 通过受限 OpenClaw 进行聊天、保存用户快照、查询和总结已发布笔记，并验证其在 ECS 上可稳定运行。
 
-**Architecture:** UmoWeb 新增只读 Agent API，使用独立环境变量 Token 验证请求，业务实现直接复用现有公开查询服务。backend 仅增加宿主回环端口 `127.0.0.1:8080`；OpenClaw 以受限原生 systemd 服务运行，只注册只读 UmoWeb 工具。
+**Architecture:** OpenClaw 是聊天主体，使用自己的私有运行数据保存会话历史和用户快照；UmoWeb 只是 OpenClaw 的只读笔记工具。UmoWeb 新增只读 Agent API，使用独立环境变量 Token 验证请求，业务实现直接复用现有公开查询服务。backend 仅增加宿主回环端口 `127.0.0.1:8080`；OpenClaw 以受限原生 systemd 服务运行，只注册只读 UmoWeb 工具。
 
 **Tech Stack:** Spring Boot 4.1、Java 17、MyBatis、MySQL 8.4、JUnit 5、Mockito、MockMvc、OpenClaw 2026.8.33、QQBot 2.0.4、Node.js 24.21.0、systemd。
 
@@ -17,6 +17,10 @@
 - 不修改 `docs/design/schema.sql`，不新增迁移，不新增或修改数据库表、列和索引。
 - 不改 `ContentSearchIndexService`，不改 `ContentSearchMapper`，不改 `ContentMapper.search` 和 `countSearch`。
 - 不新增任何 Agent 写入接口、导入包、图片上传、DRAFT 创建或发布能力。
+- OpenClaw 只提供聊天和笔记工具调度，不提供 coding、代码生成、仓库编辑或软件工程工作流。
+- 聊天历史、会话摘要和用户快照只保存在 OpenClaw 私有运行数据中，不写入 UmoWeb。
+- 用户快照只保存长期偏好、回复风格、稳定事实和话题兴趣，不保存笔记正文、密钥或代码仓库内容。
+- `/new` 只清空当前工作上下文，不自动删除长期用户快照；删除快照必须由用户明确指令触发。
 - Agent API 只读取 `PUBLISHED` 内容，不读取 `DRAFT`、`SCHEDULED` 或 `ARCHIVED`。
 - Agent API 使用 `Authorization: Bearer <AGENT_API_TOKEN>`，不复用管理员 JWT。
 - `AGENT_API_TOKEN` 为空时，生产启动必须失败，开发测试可显式注入测试值。
@@ -26,7 +30,7 @@
 - OpenClaw systemd 必须使用 `MemoryHigh=256M`、`MemoryMax=384M`、`MemorySwapMax=1G`、`CPUQuota=75%`、`Nice=10`、`OOMScoreAdjust=500`。
 - QQBot 必须使用 WebSocket、`groupPolicy=disabled`、C2C 私聊和唯一 OpenID 白名单。
 - 首版 OpenClaw 不启用浏览器、本地模型、向量、STT/TTS、视频、群聊和无关工具。
-- OpenClaw AI 不得拥有 shell、宿主文件、Docker、数据库或网络探测工具。
+- OpenClaw AI 不得拥有 shell、宿主文件、Docker、数据库、浏览器自动化、代码编辑或网络探测工具。
 - AI 只能读取分类标签并生成建议，不能创建、改名、删除或调整分类标签。
 - 阶段 1 不提供更新、删除、归档、发布或任何 taxonomy 写入接口。
 - 只有 72 小时稳定门禁通过后，才允许创建阶段 2 计划。
@@ -401,6 +405,7 @@ allowFrom 为空
 启用了 vector
 启用了 stt 或 tts
 存在 shell/command/file-write 工具
+存在 coding/editor/patch/build/deploy 工具
 ```
 
 Run:
@@ -448,6 +453,7 @@ Run in QQ:
 ```text
 私人会话: 搜索 Spring
 私人会话: 总结《Spring Boot 快速上手》
+私人会话: 请记住我偏好简洁回答
 群聊: @机器人 搜索 Spring
 ```
 
@@ -455,10 +461,28 @@ Expected:
 
 ```text
 私人会话返回已发布内容摘要或正文总结
+私人会话更新用户快照且不调用任何 coding 工具
 群聊无回复、无工具调用、无 Memory 写入
 ```
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 5: 验证快照持久化和无 coding 工具**
+
+重启前后分别执行：
+
+```text
+私人会话: 你记得我的回答偏好吗？
+私人会话: 帮我修改这个代码仓库
+```
+
+Expected:
+
+```text
+重启前和重启后都能回答长期回答偏好
+代码仓库请求被拒绝或降级为普通说明，不出现文件、shell、补丁、构建或部署工具调用
+重启没有在 UmoWeb 数据库中产生聊天、快照或 Memory 行
+```
+
+- [ ] **Step 6: 提交**
 
 ```bash
 git add scripts/openclaw/openclaw.json.example scripts/openclaw/openclaw.env.example scripts/openclaw/verify-qq-readonly.sh
@@ -559,6 +583,7 @@ UmoWeb 任一容器 unhealthy
 backend 或 MySQL 因内存压力重启
 群聊产生任何回复
 只读请求改变 contents/images/content_search 或 app_data
+OpenClaw 产生 coding、shell、文件编辑、构建或部署工具调用
 ```
 
 - [ ] **Step 3: 72 小时后运行最终冒烟**
@@ -589,6 +614,8 @@ Expected: 全部 PASS。
 峰值内存
 重启次数
 QQ 私聊和群聊结果
+用户快照保存与重启恢复结果
+UmoWeb 中不存在聊天和快照数据
 UmoWeb 冒烟结果
 零写入前后哈希
 通过或不通过
