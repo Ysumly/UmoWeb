@@ -1,0 +1,126 @@
+# OpenClaw QQ 私人管家分阶段路线图
+
+> **状态:** 2026-09-30 已确认阶段边界，阶段 1 待实施。
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development`
+> (recommended) or `superpowers:executing-plans` to implement this plan task-by-task.
+> Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** 以最小风险验证 OpenClaw 能否在现有 ECS 上稳定提供私人 QQ 只读查询与总结，稳定后再开放显式生成新笔记草稿，并长期禁止高风险 CRUD。
+
+**Architecture:** UmoWeb 保持唯一事实源，OpenClaw 通过回环 Agent API 访问。阶段 1 只复用现有公开读取能力；阶段 2 只允许显式生成新 DRAFT。Agent 不允许更新已有内容、管理分类标签、修改搜索索引或执行宿主命令。
+
+**Tech Stack:** Spring Boot 4.1、Java 17、MyBatis、MySQL 8.4、OpenClaw 2026.8.33、腾讯官方 QQBot 插件 2.0.4、Node.js 24.21.0、systemd。
+
+**Spec:** [阶段 1 只读查询计划](2026-09-30-openclaw-qq-readonly-phase-1.md)
+
+## Global Constraints
+
+- 当前代码是唯一事实来源；阶段 1 不得修改数据库 Schema、不得写 UmoWeb、不得修改 `content_search`。
+- 阶段 1 只读取 `PUBLISHED` 内容，避免草稿可见性和未发布检索语义提前扩大范围。
+- 普通聊天、普通附件和摘要生成不得创建或修改 UmoWeb 数据。
+- 阶段 2 只有明确出现“导入、生成草稿、创建草稿”意图时才允许写入。
+- AI 只能生成“新草稿”；不能更新、删除、归档或发布任何已有笔记。
+- AI 可以读取分类标签并生成建议，但不能创建、改名、删除或调整分类标签。
+- 新草稿分类和标签只允许关联现有唯一匹配项；未匹配时留空并报告。
+- AI 不得拥有 shell、宿主文件系统、Docker、数据库或任意宿主命令工具。
+- 任何 Schema 和 `content_search` 语义修改都不在当前授权范围内，除非用户另行明确批准新项目。
+- OpenClaw 在 ECS 上以独立 `openclaw` 系统用户和受限原生 systemd 服务运行，不加入 UmoWeb Compose。
+- OpenClaw 固定使用：Node `24.21.0`、`openclaw 2026.8.33`、`@tencent-connect/openclaw-qqbot 2.0.4`。
+- Node `v24.21.0` Linux x64 官方 SHA-256 为 `fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6`。
+- OpenClaw npm 包 integrity 为 `sha512-y1ti0TLEXk/vDB03XDPVICUE5DJWpp0EwoJHvQaWFKB4NZjyrIu9WDGSpcU+bIYwIpeqK9nlzQVjU8S3XkrHKA==`。
+- QQBot npm 包 integrity 为 `sha512-DkzwP2zUguoj8Gn0ZOcvcAHAT0hsZTMY8acB9Pl/lVtaw4tvzTX5YPF6GWMR0OIWFQspAWUn8RaMypNbBSDIsg==`。
+- OpenClaw systemd 上限为 `MemoryHigh=256M`、`MemoryMax=384M`、`MemorySwapMax=1G`、`CPUQuota=75%`、`Nice=10`、`OOMScoreAdjust=500`。
+- 每个阶段必须独立验收、独立提交、独立回滚文档；上一阶段失败时不得开工下一阶段。
+
+## 阶段 1：私人 QQ 只读查询与总结
+
+**目标:** 在不改变 UmoWeb 数据模型和写入流程的前提下，验证 OpenClaw、QQBot、回环 Agent API 和受限 systemd 的稳定性。
+
+**范围:**
+
+- 只查询已发布笔记的标题、摘要、分类、标签、可选正文和站点 About/Project。
+- 支持按关键词、类型、分类、标签和分页查询。
+- 支持用户明确要求时读取完整正文并总结。
+- 不创建草稿、不上传图片、不更新索引、不提供任何 `/api/agent` 写入接口。
+
+**Gate 1 通过标准:**
+
+- 私人 QQ 真实消息往返成功，群聊事件完全忽略。
+- WebSocket 断线后自动重连，重复消息不重复回复。
+- 连续运行至少 72 小时，无 OOM kill、无 systemd 重启循环。
+- cgroup 内存峰值低于 384 MiB，UmoWeb 31/31 冒烟通过且容器健康。
+- Agent API 所有测试通过，数据库行数、`content_search` 行数和 Markdown 文件在查询前后不变。
+- 管理界面不监听公网，安全组无新增公网端口。
+
+**未通过处理:**
+
+- 停止并禁用 OpenClaw systemd 单元，保留日志和离线安装包，不进入阶段 2。
+- 如果内存超限，不调整 UmoWeb 或放宽到影响生产站的限制；只能继续裁剪 OpenClaw 功能或停止接入。
+
+## 阶段 2：显式草稿导入
+
+**目标:** 在阶段 1 稳定后，允许明确指令触发的笔记包导入，创建 `DRAFT`，但暂不扩大 CRUD 和搜索索引边界。
+
+**范围:**
+
+- 新增 `umo-note-organizer` 和包校验脚本。
+- 新增单包 `POST /api/agent/notes/import`，multipart 上传 ZIP，最大 50 MiB。
+- 复用现有图片服务和 `ContentManageService.create` 创建 `DRAFT`。
+- 生成相关笔记信息，包括摘要、关键词、来源清单、现有分类标签建议和相关已发布笔记建议。
+- 分类和标签只关联现有唯一名称或 slug；未匹配项只保留在 manifest 和回复中报告。
+- 新草稿不进入 `content_search`，只通过返回的 ID/slug 详情和后台人工入口确认。
+- 不更新已有笔记，不批量修改，不创建分类标签，不发布，不归档，不删除。
+
+**Gate 2 通过标准:**
+
+- 10 次合法单包导入全部创建 `DRAFT`，标题、正文、图片和来源可追溯。
+- 缺失图片、非法路径、非法状态、重复 slug 和 taxonomy 未匹配均按设计阻断或报告。
+- 失败导入不留下数据库孤儿、未关联图片、临时 Markdown 或搜索索引行。
+- 普通聊天、普通附件、摘要请求和未包含明确写入词的请求保持零写入。
+- 公开搜索和现有 31/31 冒烟继续通过，`content_search` 仍只处理 `PUBLISHED`。
+- AI 工具列表中不存在更新、删除、归档、发布、taxonomy 写入或宿主命令工具。
+
+**未通过处理:**
+
+- 关闭 Agent 导入路由和 OpenClaw 导入工具，保留只读阶段。
+- 清理失败导入产生的孤儿文件和图片记录后再调查。
+
+## AI 长期权限边界
+
+**允许:**
+
+- 查找和读取已发布笔记。
+- 在用户明确要求时读取正文并总结。
+- 生成摘要、关键词、来源清单和相关笔记信息。
+- 生成新的 `DRAFT` 笔记包并导入。
+- 读取分类标签并在新草稿中建议或关联唯一现有项。
+
+**明确禁止:**
+
+- 更新任何已有笔记，包括 Agent 自己创建的草稿。
+- 批量修改、删除、恢复、归档或发布内容。
+- 创建、改名、删除或调整分类和标签。
+- 自动创建缺失 taxonomy。
+- 修改 `content_search` 或让未发布内容进入公开搜索。
+- 执行 shell、宿主文件、Docker、数据库或网络探测命令。
+- 群聊、多用户、多 Agent、向量库、视频理解和 UmoWeb AI 模式调用。
+
+任何扩大上述权限的请求都必须作为新的独立项目和新的风险评审处理。
+
+## 阶段切换规则
+
+1. 阶段完成后先提交代码、测试证据、部署记录和未验证风险。
+2. Gate 由人工确认，不由 OpenClaw 或自动任务自行解锁。
+3. 未通过 Gate 时，下一阶段相关路由、工具、Skill 和配置必须保持禁用。
+4. 每个阶段只保留一个可回滚生产基线，回滚后不得自动重试写入。
+5. 阶段 2 完成后不再自动进入 CRUD 阶段，AI 权限保持冻结。
+
+---
+
+## 当前执行入口
+
+当前只执行 [阶段 1 只读查询计划](2026-09-30-openclaw-qq-readonly-phase-1.md)。
+
+阶段 2 的详细实现计划必须在 Gate 1 通过后创建，不能在当前阶段预先生成或预先启用写入代码。
+阶段 2 完成后保持新草稿生成、查询和总结边界，不创建后续 CRUD 计划。
