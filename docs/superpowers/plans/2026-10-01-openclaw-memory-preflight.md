@@ -174,7 +174,7 @@ git commit -m "ops: collect openclaw memory baseline"
 - Produces: 最小、中位数、P05 和低于 500 MiB 的样本数。
 - Produces: 按 RSS 排序的高内存进程和 systemd 服务清单。
 
-- [ ] **Step 1: 写分析器测试**
+- [x] **Step 1: 写分析器测试**
 
 测试 fixture 至少包含：
 
@@ -194,7 +194,7 @@ python3 -m unittest scripts/openclaw/preflight/tests/test_analyze_memory.py
 
 Expected: FAIL，因为分析器尚不存在。
 
-- [ ] **Step 2: 实现分析器**
+- [x] **Step 2: 实现分析器**
 
 阈值固定为：
 
@@ -205,7 +205,7 @@ REQUIRED_SAMPLE_COUNT = 864
 
 分析器只输出统计和候选清单，不执行优化。
 
-- [ ] **Step 3: 运行分析器测试**
+- [x] **Step 3: 运行分析器测试**
 
 ```bash
 python3 -m unittest scripts/openclaw/preflight/tests/test_analyze_memory.py
@@ -213,7 +213,7 @@ python3 -m unittest scripts/openclaw/preflight/tests/test_analyze_memory.py
 
 Expected: PASS。
 
-- [ ] **Step 4: 生成候选清单**
+- [x] **Step 4: 生成候选清单**
 
 ```bash
 python3 scripts/openclaw/preflight/analyze-memory.py /var/log/umoweb/openclaw-preflight/baseline.csv
@@ -231,7 +231,7 @@ systemd-cgtop --order=memory --iterations=1 --batch
 每项候选的风险、收益、回滚命令和验证方式
 ```
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add scripts/openclaw/preflight docs/project/openclaw-memory-preflight.md
@@ -250,7 +250,7 @@ git commit -m "ops: analyze openclaw memory baseline"
 - Produces: 每次只应用一项优化的前后对照记录。
 - Produces: `/swapfile-openclaw`，大小为 2 GiB，不作为 Gate 0 的内存通过条件。
 
-- [ ] **Step 1: 写 swap 安装测试**
+- [x] **Step 1: 写 swap 安装测试**
 
 测试必须拒绝：
 
@@ -269,7 +269,7 @@ bash scripts/openclaw/preflight/tests/add-openclaw-swap-test.sh
 
 Expected: FAIL，因为脚本尚不存在。
 
-- [ ] **Step 2: 实现并安装 2 GiB swap**
+- [x] **Step 2: 实现并安装 2 GiB swap**
 
 ```bash
 bash scripts/openclaw/preflight/add-openclaw-swap.sh
@@ -278,7 +278,7 @@ swapon --show
 
 Expected: 出现 `/swapfile-openclaw`，现有 `/www/swap` 保持不变。
 
-- [ ] **Step 3: 对候选优化逐项应用**
+- [x] **Step 3: 对候选优化逐项应用**
 
 每个候选严格执行：
 
@@ -294,7 +294,7 @@ Expected: 出现 `/swapfile-openclaw`，现有 `/www/swap` 保持不变。
 
 禁止把多个服务停用合并成一次“批量优化”。
 
-- [ ] **Step 4: 运行 swap 测试和配置检查**
+- [x] **Step 4: 运行 swap 测试和配置检查**
 
 ```bash
 bash scripts/openclaw/preflight/tests/add-openclaw-swap-test.sh
@@ -304,7 +304,7 @@ sysctl vm.swappiness
 
 Expected: swap 测试 PASS，fstab 可解析，记录当前 swappiness 值。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add scripts/openclaw/preflight docs/project/openclaw-memory-preflight.md
@@ -386,3 +386,6 @@ git commit -m "docs: record openclaw gate zero memory result"
 
 - 通过：允许进入阶段 1，但只允许安装 OpenClaw 最小配置并执行 72 小时空载测试；UmoWeb 工具保持未注册。
 - 不通过：不安装 OpenClaw，保留原始数据和报告，停止后续阶段。
+
+2026-10-01 Task 4 最终检查点为 `MemAvailable=501168 KiB`，低于 512000 KiB，
+因此 Task 5 未启动，未创建 `gate0.csv`。停用服务已完成回滚，2 GiB swap 保留。

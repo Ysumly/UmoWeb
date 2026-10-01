@@ -1,5 +1,39 @@
 # 审计日志
 
+## 审计 #74 - 2026-10-01 — OpenClaw 阶段 0 内存优化与 Gate 0 不通过
+
+### 范围
+
+- 完成 Task 4：新增 2 GiB 独立 swap 安装器和契约测试。
+- 按已批准顺序逐项停用宝塔及低风险宿主服务，每项至少观察 30 分钟。
+- 保留 Aegis、云监控、自动安全更新、UFW、SSH、备份和 UmoWeb 访问报表。
+- Gate 0 不通过后恢复所有停用或 mask 的服务，保留独立 swap。
+
+### 证据
+
+| 检查点 | MemAvailable |
+|---|---:|
+| 未优化基线 | 327100 KiB |
+| `bt.service` 后 | 约 418 MiB |
+| `site_total` 后 | 425316 KiB |
+| `multipathd` 后 | 451004 KiB |
+| `fwupd` 后 | 464916 KiB |
+| `ModemManager` 后 | 471544 KiB |
+| `udisks2` 后 | 467760 KiB |
+| `networkd-dispatcher` 后 | 480212 KiB |
+| `tuned` 后 | 501168 KiB |
+
+- 最终检查点仍低于 512000 KiB 门槛 10832 KiB，未创建 `gate0.csv`。
+- 所有阶段公开 API 返回成功，访问报表 `/healthz` 正常，三个容器无重启，安全服务
+  active；根盘、默认路由、DNS 和两份 swap 正常。
+- 回滚后服务全部恢复，当前 `MemAvailable` 约为 337 MiB；`/swapfile-openclaw`
+  保留且未使用。
+
+### 状态
+
+- OpenClaw 阶段 0 判定不通过，不安装 Node、OpenClaw 或 QQBot，停止后续阶段。
+- 若重新评估，只能扩容 ECS 或经明确批准调整 UmoWeb 数据层资源，不能降低安全基线。
+
 ## 审计 #73 - 2026-10-01 — OpenClaw 阶段 0 内存缺口与安全优化边界
 
 ### 范围

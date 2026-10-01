@@ -1,7 +1,7 @@
 # OpenClaw 内存前置与基线测量
 
 > 状态日期: 2026-10-01
-> 当前阶段: Task 1-2 已完成，ECS 只读基线采样进行中，Gate 0 尚未开始
+> 当前阶段: Task 1-4 已完成，Gate 0 判定不通过，未安装 OpenClaw 或 QQBot
 
 ## 目标
 
@@ -175,6 +175,61 @@ Gate 0 尚未开始，以上结果只说明未优化的生产环境不满足门�
 
 每项按列表顺序单独执行，至少观察 30 分钟；任一安全服务、容器、公开接口或回环
 访问报表异常时立即回滚该步骤并停止后续调整。
+
+## Task 4 执行结果
+
+2026-10-01 已创建并启用 `/swapfile-openclaw`：
+
+- 大小 2 GiB，UUID `1ea79058-3cd9-44e0-aa5d-3b518c84be6f`。
+- 文件权限 `0600`，fstab 条目为 `/swapfile-openclaw none swap sw 0 0`。
+- `findmnt --verify` 为 0 parse errors、0 errors；现有 `/www/swap` 保持不变。
+- `vm.swappiness=0`，两份 swap 均未使用。swap 不作为 Gate 0 通过条件。
+
+服务优化严格按顺序执行，每项至少观察 30 分钟。检查内容覆盖 Aegis、云监控、
+自动安全更新、UFW、SSH、Docker、访问报表、三个 UmoWeb 容器、公开 API、回环
+健康端点、DNS、默认路由、根盘来源和 swap。
+
+| 顺序 | 服务 | 检查点 `MemAvailable` | 结果 |
+|---|---|---:|---|
+| 0 | 未优化基线 | 327100 KiB | 全部低于 500 MiB |
+| 1 | `bt.service` | 约 418 MiB | 通过；`8888` 关闭，宝塔进程为 0 |
+| 2 | `site_total.service` | 425316 KiB | 通过 |
+| 3 | `multipathd.service` | 451004 KiB | 通过；根盘仍为 `/dev/vda3` |
+| 4 | `fwupd.service` | 464916 KiB | 通过 |
+| 5 | `ModemManager.service` | 471544 KiB | 通过 |
+| 6 | `udisks2.service` | 467760 KiB | 通过；期间有系统级波动 |
+| 7 | `networkd-dispatcher.service` | 480212 KiB | 通过；网络和 DNS 正常 |
+| 8 | `tuned.service` | 501168 KiB | 通过 |
+
+最后一项 30 分钟检查点仍为 501168 KiB，低于门槛 10832 KiB。实际最大提升约
+170 MiB，但未达到任何样本都必须严格大于 512000 KiB 的条件。优化期间三个容器
+没有重启，公开 API、访问报表、SSH、安全代理和备份均保持正常。
+
+## Gate 0 结论
+
+Gate 0 判定不通过。由于完成全部已批准优化后的 30 分钟检查点最高仅
+`MemAvailable=501168 KiB`，无法满足连续 72 小时每个样本严格大于 512000 KiB，
+因此没有创建 `gate0.csv`，也没有进入 72 小时等待或运行 31/31 接口冒烟。
+
+未安装 Node、npm、OpenClaw、QQBot 或创建 `openclaw.service`，后续阶段停止。
+若未来重新评估，只能选择扩容 ECS，或显式更改当前“不调整 MySQL、backend、
+frontend 和 Docker 资源”的约束；不得通过停用 Aegis、云监控、自动安全更新、
+UFW、SSH、备份或访问报表来换取内存。
+
+### 生产回滚
+
+Gate 0 不通过后，所有停用或 mask 的宿主服务已恢复为原状态：
+`bt.service`、`site_total`、`multipathd`、`fwupd`、`ModemManager`、`udisks2`、
+`networkd-dispatcher` 和 `tuned` 均已恢复启用并与安全服务一起验证 active。
+
+2 GiB 独立 swap 保留作为宿主保护缓冲。如需完全移除：
+
+```bash
+swapoff /swapfile-openclaw
+sed -i '\|^/swapfile-openclaw none swap sw 0 0$|d' /etc/fstab
+rm -f /swapfile-openclaw.umoweb-managed /swapfile-openclaw
+systemctl daemon-reload
+```
 
 ## 操作与回滚
 
