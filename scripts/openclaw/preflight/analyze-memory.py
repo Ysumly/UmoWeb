@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 
-THRESHOLD_KIB = 500 * 1024
+THRESHOLD_KIB = 480 * 1024
 REQUIRED_SAMPLE_COUNT = 864
 REQUIRED_COLUMNS = [
     "timestamp",

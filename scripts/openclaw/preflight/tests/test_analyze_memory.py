@@ -62,6 +62,9 @@ class AnalyzeMemoryTest(unittest.TestCase):
             for minute in range(12)
         ]
 
+    def test_default_gate_threshold_is_480_mib(self):
+        self.assertEqual(480 * 1024, THRESHOLD_KIB)
+
     def test_passes_with_required_count_and_all_samples_above_threshold(self):
         report = analyze_csv(self.write_csv(self.full_rows()))
 

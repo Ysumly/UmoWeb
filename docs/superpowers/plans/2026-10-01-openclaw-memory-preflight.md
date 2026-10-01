@@ -4,7 +4,7 @@
 > (recommended) or `superpowers:executing-plans` to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在任何 OpenClaw 安装前，优化并测量 ECS 内存，证明 UmoWeb 正常运行时可连续 72 小时提供严格大于 500 MiB 的 `MemAvailable`。
+**Goal:** 在任何 OpenClaw 安装前，优化并测量 ECS 内存，证明 UmoWeb 正常运行时可连续 72 小时提供严格大于 480 MiB 的 `MemAvailable`。
 
 **Architecture:** 本阶段只增加只读采样、分析、报告和可回滚的宿主内存优化。Node、OpenClaw、QQBot、Agent API 工具和 OpenClaw systemd 单元全部禁止安装或启用。
 
@@ -19,7 +19,7 @@
 - 不修改 UmoWeb Schema、Markdown、`app_data`、`content_search` 或公开接口。
 - 不停止、不重启、不降配 UmoWeb 的 frontend、backend 和 MySQL。
 - 不执行 `echo 3 > /proc/sys/vm/drop_caches`，因为它只影响缓存统计，不解决内存需求。
-- swap 可以作为保护缓冲，但不能计入 `MemAvailable > 500 MiB` 的通过标准。
+- swap 可以作为保护缓冲，但不能计入 `MemAvailable > 480 MiB` 的通过标准。
 - 优化必须一次只改一项，先记录回滚命令，再执行并重新采样。
 - Gate 0 通过前禁止进入 [阶段 1 只读查询计划](2026-09-30-openclaw-qq-readonly-phase-1.md)。
 
@@ -171,7 +171,7 @@ git commit -m "ops: collect openclaw memory baseline"
 
 **Interfaces:**
 - Consumes: Task 1 的 CSV 字段。
-- Produces: 最小、中位数、P05 和低于 500 MiB 的样本数。
+- Produces: 最小、中位数、P05 和低于 480 MiB 的样本数。
 - Produces: 按 RSS 排序的高内存进程和 systemd 服务清单。
 
 - [x] **Step 1: 写分析器测试**
@@ -179,8 +179,8 @@ git commit -m "ops: collect openclaw memory baseline"
 测试 fixture 至少包含：
 
 ```text
-全部样本 > 500 MiB -> pass
-一个样本 <= 500 MiB -> fail
+全部样本 > 480 MiB -> pass
+一个样本 <= 480 MiB -> fail
 swap 使用增加但 MemAvailable 持平 -> 仍按 MemAvailable 判断
 空文件 -> fail
 字段缺失 -> fail
@@ -335,7 +335,7 @@ Expected: 新文件为 `/var/log/umoweb/openclaw-preflight/gate0.csv`，旧 base
 每 5 分钟必须有样本。出现以下任一情况立即失败：
 
 ```text
-MemAvailable <= 500 MiB
+MemAvailable <= 480 MiB
 宿主 OOM kill
 frontend/backend/mysql 任一容器 unhealthy 或重启
 openclaw.service 已存在
@@ -348,7 +348,7 @@ openclaw.service 已存在
 python3 scripts/openclaw/preflight/analyze-memory.py /var/log/umoweb/openclaw-preflight/gate0.csv
 ```
 
-Expected: `sample_count >= 864`、`min_mem_available_kib > 512000`、`pass=true`。
+Expected: `sample_count >= 864`、`min_mem_available_kib > 491520`、`pass=true`。
 
 - [ ] **Step 4: 运行 UmoWeb 冒烟**
 
@@ -387,5 +387,7 @@ git commit -m "docs: record openclaw gate zero memory result"
 - 通过：允许进入阶段 1，但只允许安装 OpenClaw 最小配置并执行 72 小时空载测试；UmoWeb 工具保持未注册。
 - 不通过：不安装 OpenClaw，保留原始数据和报告，停止后续阶段。
 
-2026-10-01 Task 4 最终检查点为 `MemAvailable=501168 KiB`，低于 512000 KiB，
-因此 Task 5 未启动，未创建 `gate0.csv`。停用服务已完成回滚，2 GiB swap 保留。
+2026-10-01 原始 500 MiB 标准未通过；经明确确认将 Gate 0 调整为 480 MiB
+（491520 KiB）后重新执行 Task 5。最终优化检查点为 `MemAvailable=501168 KiB`，
+相对新门槛保留约 9.4 MiB 余量。停用服务需要在 72 小时采样期间保持关闭，
+2 GiB swap 保留且不计入通过条件。

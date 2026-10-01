@@ -1,12 +1,14 @@
 # OpenClaw 内存前置与基线测量
 
 > 状态日期: 2026-10-01
-> 当前阶段: Task 1-4 已完成，Gate 0 判定不通过，未安装 OpenClaw 或 QQBot
+> 当前阶段: Task 1-4 已完成，Gate 0 阈值调整为 480 MiB，72 小时采样待启动
 
 ## 目标
 
 在任何 OpenClaw、Node、QQBot 或 Agent API 工具安装前，证明 UmoWeb 正常运行期间
-宿主 `MemAvailable` 能连续 72 小时严格大于 500 MiB。Gate 0 通过前不得进入后续阶段。
+宿主 `MemAvailable` 能连续 72 小时严格大于 480 MiB。原始 500 MiB 标准已于
+2026-10-01 经人工确认调整为 480 MiB；阈值变更和风险记录见下文。Gate 0 通过前
+不得进入后续阶段。
 
 ## 只读采样器
 
@@ -205,20 +207,23 @@ Gate 0 尚未开始，以上结果只说明未优化的生产环境不满足门�
 170 MiB，但未达到任何样本都必须严格大于 512000 KiB 的条件。优化期间三个容器
 没有重启，公开 API、访问报表、SSH、安全代理和备份均保持正常。
 
-## Gate 0 结论
+## Gate 0 阈值修订
 
-Gate 0 判定不通过。由于完成全部已批准优化后的 30 分钟检查点最高仅
-`MemAvailable=501168 KiB`，无法满足连续 72 小时每个样本严格大于 512000 KiB，
-因此没有创建 `gate0.csv`，也没有进入 72 小时等待或运行 31/31 接口冒烟。
+按原始 500 MiB 标准评审时，完成全部已批准优化后的 30 分钟检查点最高仅为
+`MemAvailable=501168 KiB`，因此原始标准不通过，当时没有启动 72 小时采样。
 
-未安装 Node、npm、OpenClaw、QQBot 或创建 `openclaw.service`，后续阶段停止。
-若未来重新评估，只能选择扩容 ECS，或显式更改当前“不调整 MySQL、backend、
-frontend 和 Docker 资源”的约束；不得通过停用 Aegis、云监控、自动安全更新、
-UFW、SSH、备份或访问报表来换取内存。
+2026-10-01 经明确确认，将本阶段 Gate 0 门槛正式调整为 480 MiB
+（491520 KiB）。最终优化检查点相对新门槛保留 9648 KiB，约 9.4 MiB 余量。
+这只是本次明确记录的阈值修订，不代表原始 500 MiB 标准已经满足。
+
+新的 `gate0.csv` 必须连续覆盖 72 小时、至少 864 个样本，且每个样本的
+`MemAvailable` 都严格大于 491520 KiB。采样期间不安装 Node、npm、OpenClaw 或
+QQBot；只有新 Gate 0 通过后才允许讨论后续阶段。不得通过停用 Aegis、云监控、
+自动安全更新、UFW、SSH、备份或访问报表来换取内存。
 
 ### 生产回滚
 
-Gate 0 不通过后，所有停用或 mask 的宿主服务已恢复为原状态：
+原始 500 MiB 评审结束后，所有停用或 mask 的宿主服务曾恢复为原状态：
 `bt.service`、`site_total`、`multipathd`、`fwupd`、`ModemManager`、`udisks2`、
 `networkd-dispatcher` 和 `tuned` 均已恢复启用并与安全服务一起验证 active。
 

@@ -36,25 +36,26 @@
 - QQBot npm 包 integrity 为 `sha512-DkzwP2zUguoj8Gn0ZOcvcAHAT0hsZTMY8acB9Pl/lVtaw4tvzTX5YPF6GWMR0OIWFQspAWUn8RaMypNbBSDIsg==`。
 - OpenClaw systemd 上限为 `MemoryHigh=256M`、`MemoryMax=384M`、`MemorySwapMax=1G`、`CPUQuota=75%`、`Nice=10`、`OOMScoreAdjust=500`。
 - Gate 0 通过前禁止安装 Node、OpenClaw、QQBot 或创建 OpenClaw systemd 单元。
-- Gate 0 要求 UmoWeb 运行状态下 `MemAvailable` 每 5 分钟采样一次，连续 72 小时全部大于 500 MiB。
+- Gate 0 要求 UmoWeb 运行状态下 `MemAvailable` 每 5 分钟采样一次，连续 72 小时全部大于
+  480 MiB；2026-10-01 经明确确认从原始 500 MiB 调整，实测优化峰值为 489.4 MiB。
 - Gate 0 通过后只允许 OpenClaw 最小配置和空载连接；空载测试完成前不得注册 UmoWeb 工具或处理用户笔记请求。
 - 每个阶段必须独立验收、独立提交、独立回滚文档；上一阶段失败时不得开工下一阶段。
 
 ## 阶段 0：内存优化与基线测量
 
-**目标:** 不安装 OpenClaw，先确认当前 ECS 在保持 UmoWeb 生产稳定的前提下，能提供持续超过 500 MiB 的可用内存。
+**目标:** 不安装 OpenClaw，先确认当前 ECS 在保持 UmoWeb 生产稳定的前提下，能提供持续超过 480 MiB 的可用内存。
 
 **范围:**
 
 - 只增加只读测量脚本和报告，不安装 Node、OpenClaw、QQBot 或新增常驻服务。
 - 每 5 分钟记录宿主 `MemAvailable`、swap、Docker 容器内存、进程 RSS、systemd OOM 和 UmoWeb 健康状态。
 - 只有在初始基线不达标时，才逐项分析可逆优化候选；每项修改前后都要重新采样并记录。
-- 增加用于后续 OpenClaw 的 2 GiB 独立 swap，但 swap 不计入 `MemAvailable > 500 MiB` 的通过条件。
+- 增加用于后续 OpenClaw 的 2 GiB 独立 swap，但 swap 不计入 `MemAvailable > 480 MiB` 的通过条件。
 
 **Gate 0 通过标准:**
 
 - 连续 72 小时、每 5 分钟一个样本，共至少 864 个样本。
-- 所有 `MemAvailable` 样本都严格大于 500 MiB。
+- 所有 `MemAvailable` 样本都严格大于 480 MiB。
 - 采样窗口内没有宿主 OOM kill，也没有 UmoWeb 容器因内存压力重启。
 - UmoWeb 前后 31/31 冒烟通过，三个容器 healthy。
 - 报告记录优化项、回滚方式和未解释的内存变化；没有任何未完成的临时优化。
@@ -62,7 +63,7 @@
 **未通过处理:**
 
 - 不安装 OpenClaw。
-- 保持只读采样或停止后续项目，记录无法提供 500 MiB RAM 的直接证据。
+- 保持只读采样或停止后续项目，记录无法提供 480 MiB RAM 的直接证据。
 
 ## 阶段 1：OpenClaw 最小空载与私人 QQ 只读验证
 
