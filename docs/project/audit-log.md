@@ -1,5 +1,28 @@
 # 审计日志
 
+## 审计 #72 - 2026-10-01 — OpenClaw 阶段 0 只读基线采样
+
+### 范围
+
+- 完成 OpenClaw 阶段 0 Task 1-2：只读内存采样器、安装器、systemd service 和 timer。
+- 在 ECS 启用每 5 分钟采样，保存到 `/var/log/umoweb/openclaw-preflight/baseline.csv`。
+- 不安装 Node、OpenClaw、QQBot 或 Agent API，不执行内存优化，不修改 UmoWeb 数据或接口。
+
+### 实现与验证
+
+- `memory-sample-test.sh` 和 `timer-install-test.sh` 均通过；测试覆盖 CSV 字段、Docker
+  不可用降级、显式 unhealthy、无 healthcheck 的正常 frontend、unit 渲染和已有数据保护。
+- 采样器修正 frontend 无 Docker healthcheck 时的误判后，首行正确记录
+  `umoweb_health=healthy` 和 `openclaw_service_state=not-installed`。
+- timer 已启用并通过第二个自动样本验证 5 分钟周期；service 结果为 success，重启次数为 0。
+- 首行未优化基线中，`MemAvailable=372168 KiB`，低于 Gate 0 的 500 MiB 标准；
+  现有 `/www/swap` 保持 1 GiB 且未使用，UmoWeb 三个容器保持运行。
+
+### 状态
+
+- 采样继续进行，Gate 0 尚未开始。
+- 后续必须先完成 Task 3 的内存缺口与可逆优化候选分析。
+
 ## 审计 #71 - 2026-09-24 — 管理端文章体验正式版 `v1.1.3`
 
 ### 范围

@@ -101,7 +101,10 @@ if compose_text:
                     services[expected] = (state, container_health)
 
         if set(services) == {"frontend", "backend", "mysql"}:
-            if all(state == "running" and container_health == "healthy" for state, container_health in services.values()):
+            if all(
+                state == "running" and container_health in ("", "healthy")
+                for state, container_health in services.values()
+            ):
                 health = "healthy"
             else:
                 health = "unhealthy"

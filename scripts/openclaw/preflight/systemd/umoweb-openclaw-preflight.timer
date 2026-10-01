@@ -1,0 +1,12 @@
+[Unit]
+Description=Run UmoWeb OpenClaw memory preflight sampling
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+AccuracySec=15s
+Persistent=true
+Unit=umoweb-openclaw-preflight.service
+
+[Install]
+WantedBy=timers.target

@@ -94,13 +94,15 @@ git commit -m "ops: add openclaw memory preflight sampler"
 - Create: `scripts/openclaw/preflight/install-memory-preflight-timer.sh`
 - Create: `scripts/openclaw/preflight/systemd/umoweb-openclaw-preflight.service`
 - Create: `scripts/openclaw/preflight/systemd/umoweb-openclaw-preflight.timer`
+- Create: `scripts/openclaw/preflight/tests/timer-install-test.sh`
 - Modify: `docs/project/openclaw-memory-preflight.md`
+- Modify: `.github/workflows/ci.yml`
 
 **Interfaces:**
 - Produces: `/var/log/umoweb/openclaw-preflight/baseline.csv`。
 - Produces: timer 每 5 分钟运行一次采样。
 
-- [ ] **Step 1: 写 systemd 单元**
+- [x] **Step 1: 写 systemd 单元**
 
 service 必须使用：
 
@@ -123,7 +125,7 @@ AccuracySec=15s
 Persistent=true
 ```
 
-- [ ] **Step 2: 安装并启动只读 timer**
+- [x] **Step 2: 安装并启动只读 timer**
 
 ```bash
 bash scripts/openclaw/preflight/install-memory-preflight-timer.sh baseline
@@ -132,7 +134,7 @@ systemctl list-timers umoweb-openclaw-preflight.timer --no-pager
 
 Expected: timer active，下一次触发时间不超过 5 分钟。
 
-- [ ] **Step 3: 确认首行有效**
+- [x] **Step 3: 确认首行有效**
 
 ```bash
 tail -n 1 /var/log/umoweb/openclaw-preflight/baseline.csv
@@ -140,7 +142,7 @@ tail -n 1 /var/log/umoweb/openclaw-preflight/baseline.csv
 
 Expected: 字段数量正确，`openclaw_service_state` 为 `not-installed`。
 
-- [ ] **Step 4: 记录初始基线**
+- [x] **Step 4: 记录初始基线**
 
 `docs/project/openclaw-memory-preflight.md` 记录：
 
@@ -153,7 +155,7 @@ Expected: 字段数量正确，`openclaw_service_state` 为 `not-installed`。
 尚未做任何优化
 ```
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add scripts/openclaw/preflight docs/project/openclaw-memory-preflight.md

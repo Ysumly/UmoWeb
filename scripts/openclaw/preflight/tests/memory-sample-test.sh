@@ -71,7 +71,11 @@ EOF
 fi
 
 if [[ "${1:-}" == "compose" ]]; then
-    printf '%s\n' '[{"Name":"umoweb-frontend-1","Service":"frontend","State":"running","Health":"healthy"},{"Name":"umoweb-backend-1","Service":"backend","State":"running","Health":"healthy"},{"Name":"umoweb-mysql-1","Service":"mysql","State":"running","Health":"healthy"}]'
+    backend_health="healthy"
+    if [[ "${FAKE_COMPOSE_UNHEALTHY:-0}" == "1" ]]; then
+        backend_health="unhealthy"
+    fi
+    printf '[{"Name":"umoweb-frontend-1","Service":"frontend","State":"running","Health":""},{"Name":"umoweb-backend-1","Service":"backend","State":"running","Health":"%s"},{"Name":"umoweb-mysql-1","Service":"mysql","State":"running","Health":"healthy"}]\n' "$backend_health"
     exit 0
 fi
 
@@ -193,5 +197,24 @@ assert_output \
 if grep -Eq "$FORBIDDEN_MUTATION_PATTERN" "$unavailable_commands"; then
     fail "sampler invoked a forbidden mutating command while Docker was unavailable"
 fi
+
+unhealthy_output="$TEMP_ROOT/unhealthy.csv"
+if ! MEMINFO_PATH="$MEMINFO_FIXTURE" \
+    PATH="$FAKE_BIN:$PATH" \
+    FAKE_COMMAND_LOG="$TEMP_ROOT/unhealthy-commands.log" \
+    FAKE_DOCKER_AVAILABLE=1 \
+    FAKE_COMPOSE_UNHEALTHY=1 \
+    FAKE_OPENCLAW_PRESENT=0 \
+    "$SAMPLER" "$unhealthy_output"; then
+    fail "sampler failed while classifying an explicitly unhealthy container"
+fi
+
+assert_output \
+    "$unhealthy_output" \
+    "987654" \
+    "33554432" \
+    "268959744" \
+    "524288" \
+    "unhealthy"
 
 printf 'PASS: memory sampler contract is satisfied\n'
