@@ -1,5 +1,26 @@
 # 审计日志
 
+## 审计 #73 - 2026-10-01 — OpenClaw 阶段 0 内存缺口与安全优化边界
+
+### 范围
+
+- 完成 OpenClaw 阶段 0 Task 3：新增只读 CSV 分析器、单元测试和 CI 检查。
+- 分析 ECS 当前 baseline 的样本统计，并核对进程、cgroup、服务依赖、磁盘和端口。
+- 不停止或修改 ECS 服务，不创建 swap，不安装 Node、OpenClaw 或 QQBot。
+
+### 证据
+
+- 本地单元测试 10/10 通过；现有 memory sampler 和 timer installer 契约测试同时通过。
+- `baseline.csv` 共 13 个样本，`MemAvailable` 最小值 327100 KiB，P05 327100 KiB，
+  中位数 368300 KiB，13 个样本全部低于 512000 KiB，Gate 0 `pass=false`。
+- ECS 根盘为单块 `vda`，`multipath -ll` 无映射；宝塔仅占用 `8888`，UmoWeb 公网入口
+  仍为 Docker 发布的 `80`，SSH 为 `22`。
+
+### 状态
+
+- 已确认保留 Aegis、云监控、自动安全更新、UFW、SSH、备份和 UmoWeb 访问报表。
+- 已批准按序停用宝塔及低风险宿主服务，每项至少观察 30 分钟；Task 4 尚未执行。
+
 ## 审计 #72 - 2026-10-01 — OpenClaw 阶段 0 只读基线采样
 
 ### 范围

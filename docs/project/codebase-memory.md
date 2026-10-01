@@ -591,6 +591,9 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 2026-10-01 已完成 OpenClaw 阶段 0 Task 1-2：只读内存采样器和每 5 分钟 systemd timer
   已部署到 ECS，基线写入 `/var/log/umoweb/openclaw-preflight/baseline.csv`；当前
   `MemAvailable` 约为 363 MiB，Gate 0 尚未开始，尚未安装 Node、OpenClaw 或 QQBot。
+- 2026-10-01 已完成 OpenClaw 阶段 0 Task 3：本地分析器严格校验采样 CSV，报告数量、
+  最小值、P05、中位数、低阈值样本数和 Gate 结果；初始 13 个样本全部低于 500 MiB。
+  已记录只停服务的安全优化候选，Task 4 尚未执行。
 - 2026-09-20 已将生产 `STRUCTURE_CLEANUP` 更新到版本 3：保留版本 2 的优化型提示词，
   将不匹配的 `EXACT_CONTENT` 校验改为 `NONE`；版本 1/2 历史保留，复现请求由 502
   “结构整理改变了正文”恢复为 200。该变更只属于生产模式目录数据，仓库种子仍保持

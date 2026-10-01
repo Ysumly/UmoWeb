@@ -68,6 +68,7 @@ jobs:
         run: |
           bash scripts/openclaw/preflight/tests/memory-sample-test.sh
           bash scripts/openclaw/preflight/tests/timer-install-test.sh
+          python3 -m unittest scripts/openclaw/preflight/tests/test_analyze_memory.py
 
       - name: Test PowerShell release helpers
         shell: pwsh

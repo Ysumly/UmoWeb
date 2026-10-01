@@ -129,6 +129,53 @@ timestamp,mem_total_kib,mem_available_kib,swap_total_kib,swap_free_kib,umoweb_fr
 500 MiB 标准，但这不等于正式 Gate 0 结论；至少还需要进入 Task 3 分析内存缺口和
 可逆优化候选，再由 Task 4 逐项应用。
 
+## Task 3 基线分析
+
+2026-10-01 使用 `scripts/openclaw/preflight/analyze-memory.py` 分析下载后的
+`baseline.csv`：
+
+```json
+{
+  "sample_count": 13,
+  "min_mem_available_kib": 327100,
+  "p05_mem_available_kib": 327100,
+  "median_mem_available_kib": 368300,
+  "below_threshold_count": 13,
+  "threshold_kib": 512000,
+  "required_sample_count": 864,
+  "pass": false
+}
+```
+
+Gate 0 尚未开始，以上结果只说明未优化的生产环境不满足门槛。分析仅使用
+`/proc/meminfo`、`docker stats`、`systemd-cgtop`、`systemctl`、`multipath -ll`、
+`lsblk` 和 `ss` 的只读输出，没有停止或修改 ECS 服务。
+
+### 必须保留
+
+- MySQL、backend、frontend 和 Docker/containerd 容器运行时。
+- SSH、systemd、systemd-networkd、systemd-resolved、journald、chrony 和 UFW。
+- Aegis、云监控、自动安全更新、阿里云备份及其更新服务。
+- UmoWeb 访问报表、每周备份 timer 和内存前置采样 timer。
+
+### 已批准的优化候选
+
+下表占用值来自 2026-10-01 的 cgroup 快照，实际收益必须在 Task 4 中逐项测量。
+
+| 服务 | 当前占用 | 风险与理由 | 回滚与验证 |
+|---|---|---|---|
+| `bt.service` | 约 147 MiB | 宝塔面板和任务进程；停止后关闭公网 `8888`，站点仍由 Docker 和 SSH/Workbench 管理 | `systemctl enable --now bt.service`；若生成单元不能启用则执行 `/etc/init.d/bt start` 和 `update-rc.d bt enable`；确认 `22/80` 可用、`8888` 关闭 |
+| `site_total.service` | 约 8 MiB | 宝塔站点统计辅助进程，不参与 UmoWeb 运行 | `systemctl enable --now site_total.service` |
+| `multipathd.service` | 约 23 MiB | 当前只有单块 `vda`，`multipath -ll` 无映射；云盘使用普通分区 | `systemctl enable --now multipathd.service`；确认根文件系统仍为 `vda3` |
+| `fwupd.service` | 约 9 MiB | 云主机不执行本地固件更新；静态单元需防止 DBus 重新拉起 | `systemctl unmask fwupd.service && systemctl start fwupd.service` |
+| `ModemManager.service` | 约 3 MiB | 实例没有蜂窝调制解调器 | `systemctl enable --now ModemManager.service` |
+| `udisks2.service` | 约 3 MiB | 服务器不需要桌面磁盘管理 | `systemctl unmask udisks2.service && systemctl start udisks2.service` |
+| `networkd-dispatcher.service` | 约 11 MiB | 实际网络由 systemd-networkd 维持；停用只移除网络事件脚本分发 | `systemctl enable --now networkd-dispatcher.service`；确认 `eth0`、默认路由和 Docker 网桥不变 |
+| `tuned.service` | 约 16 MiB | 当前仅使用 `virtual-guest` 配置；停止后保留已应用的内核值 | `systemctl enable --now tuned.service`；对比 `sysctl` 关键值和负载 |
+
+每项按列表顺序单独执行，至少观察 30 分钟；任一安全服务、容器、公开接口或回环
+访问报表异常时立即回滚该步骤并停止后续调整。
+
 ## 操作与回滚
 
 重新安装或切换采样文件：
