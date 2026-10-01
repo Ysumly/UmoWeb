@@ -37,7 +37,7 @@
 - CSV 字段固定为：`timestamp,mem_total_kib,mem_available_kib,swap_total_kib,swap_free_kib,umoweb_frontend_bytes,umoweb_backend_bytes,umoweb_mysql_bytes,umoweb_health,openclaw_service_state`。
 - `openclaw_service_state` 在 Gate 0 必须始终为 `not-installed`。
 
-- [ ] **Step 1: 写采样器测试**
+- [x] **Step 1: 写采样器测试**
 
 测试使用临时 fixture，不访问 ECS：
 
@@ -57,7 +57,7 @@ Docker 不可用时容器字节写 0，但脚本继续采样
 
 Expected: FAIL，因为采样器尚不存在。
 
-- [ ] **Step 2: 实现只读采样器**
+- [x] **Step 2: 实现只读采样器**
 
 `memory-sample.sh` 只允许执行读取命令：
 
@@ -73,7 +73,7 @@ if systemctl cat openclaw.service >/dev/null 2>&1; then echo present; else echo 
 
 脚本不得调用 `systemctl stop`、`systemctl restart`、`docker stop`、`docker rm`、`kill` 或任何写命令。
 
-- [ ] **Step 3: 运行采样器测试**
+- [x] **Step 3: 运行采样器测试**
 
 ```bash
 bash scripts/openclaw/preflight/tests/memory-sample-test.sh
@@ -81,7 +81,7 @@ bash scripts/openclaw/preflight/tests/memory-sample-test.sh
 
 Expected: PASS。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add scripts/openclaw/preflight docs/project/openclaw-memory-preflight.md
