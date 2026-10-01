@@ -33,6 +33,8 @@
 - OpenClaw AI 不得拥有 shell、宿主文件、Docker、数据库、浏览器自动化、代码编辑或网络探测工具。
 - AI 只能读取分类标签并生成建议，不能创建、改名、删除或调整分类标签。
 - 阶段 1 不提供更新、删除、归档、发布或任何 taxonomy 写入接口。
+- 必须先从 [阶段 0 内存前置计划](2026-10-01-openclaw-memory-preflight.md) 获得 Gate 0 通过结论。
+- OpenClaw 安装后先执行 72 小时空载测试，期间不得注册 UmoWeb 工具或处理用户笔记请求。
 - 只有 72 小时稳定门禁通过后，才允许创建阶段 2 计划。
 
 ---
@@ -360,9 +362,14 @@ OOMScoreAdjust=500
 
 不得加入 Docker Socket、宿主网络、特权模式或 UmoWeb 文件挂载。
 
-- [ ] **Step 4: 增加 2 GiB swap**
+- [ ] **Step 4: 验证阶段 0 已创建 2 GiB swap**
 
-安装脚本在 `/swapfile-openclaw` 创建 2 GiB swap，权限 `0600`，写入 `/etc/fstab` 前先检查同一路径是否已存在。不得替换现有 `/www/swap`。
+```bash
+swapon --show | grep -F /swapfile-openclaw
+test "$(stat -c '%a' /swapfile-openclaw)" = "600"
+```
+
+Expected: `/swapfile-openclaw` 已启用且权限为 `600`；本任务不得重复创建 swap。
 
 - [ ] **Step 5: 运行部署脚本测试**
 
@@ -374,11 +381,37 @@ bash scripts/openclaw/tests/openclaw-deploy-test.sh
 
 Expected: PASS。
 
-- [ ] **Step 6: 提交**
+- [ ] **Step 6: 执行 72 小时 OpenClaw 空载测试**
+
+空载窗口必须满足：
+
+```text
+openclaw.service active
+UmoWeb 工具未注册
+没有私人 QQ 笔记查询、保存或导入请求
+Systemd MemoryPeak < 384 MiB
+NRestarts = 0
+无 OOM kill
+UmoWeb 三个容器始终 healthy
+宿主没有因内存压力重启 backend 或 MySQL
+```
+
+每 5 分钟记录：
+
+```bash
+systemctl show openclaw.service -p MemoryCurrent -p MemoryPeak -p NRestarts
+systemctl is-active openclaw.service
+docker compose -p umoweb --env-file /opt/umoweb/.env.docker -f /opt/umoweb/compose.yaml ps
+awk '/^MemAvailable:/ {print $2}' /proc/meminfo
+```
+
+Expected: 连续 72 小时满足全部门槛。未通过时停止并禁用 OpenClaw，不进入 Task 5。
+
+- [ ] **Step 7: 提交**
 
 ```bash
 git add scripts/openclaw
-git commit -m "ops: add constrained offline openclaw deployment"
+git commit -m "ops: verify constrained offline openclaw deployment"
 ```
 
 ### Task 5: 配置私人 QQBot 和只读工具
@@ -391,6 +424,8 @@ git commit -m "ops: add constrained offline openclaw deployment"
 **Interfaces:**
 - Produces: QQBot WebSocket C2C 配置、群聊禁用、OpenID 白名单和一个只读 UmoWeb 工具。
 - Consumes: `AGENT_API_TOKEN` 和 `http://127.0.0.1:8080/api/agent/**`
+
+Task 5 只能在 Task 4 Step 6 的 72 小时空载测试通过后开始。
 
 - [ ] **Step 1: 写配置静态检查**
 
