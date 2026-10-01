@@ -390,4 +390,5 @@ git commit -m "docs: record openclaw gate zero memory result"
 2026-10-01 原始 500 MiB 标准未通过；经明确确认将 Gate 0 调整为 480 MiB
 （491520 KiB）后重新执行 Task 5。最终优化检查点为 `MemAvailable=501168 KiB`，
 相对新门槛保留约 9.4 MiB 余量。停用服务需要在 72 小时采样期间保持关闭，
-2 GiB swap 保留且不计入通过条件。
+2 GiB swap 保留且不计入通过条件。新采样开始于 `2026-10-01T13:38:46Z`，
+首样本为 `MemAvailable=502212 KiB`，目标结束时间为 `2026-10-04T13:38:46Z`。

@@ -1,7 +1,7 @@
 # OpenClaw 内存前置与基线测量
 
 > 状态日期: 2026-10-01
-> 当前阶段: Task 1-4 已完成，Gate 0 阈值调整为 480 MiB，72 小时采样待启动
+> 当前阶段: Task 1-4 已完成，480 MiB Gate 0 的 72 小时采样进行中
 
 ## 目标
 
@@ -220,6 +220,17 @@ Gate 0 尚未开始，以上结果只说明未优化的生产环境不满足门�
 `MemAvailable` 都严格大于 491520 KiB。采样期间不安装 Node、npm、OpenClaw 或
 QQBot；只有新 Gate 0 通过后才允许讨论后续阶段。不得通过停用 Aegis、云监控、
 自动安全更新、UFW、SSH、备份或访问报表来换取内存。
+
+### 第二轮 Gate 0
+
+- 采样开始：`2026-10-01T13:38:46Z`（北京时间 `2026-10-01 21:38:46`）。
+- 目标结束：`2026-10-04T13:38:46Z`（北京时间 `2026-10-04 21:38:46`）。
+- 首样本：`MemAvailable=502212 KiB`，高于 491520 KiB 门槛。
+- 已再次停用 `bt`、`site_total`、`multipathd`、`fwupd`、`ModemManager`、
+  `udisks2`、`networkd-dispatcher` 和 `tuned`，并停止 `multipathd.socket`，
+  防止socket重新拉起服务。
+- Aegis、云监控、自动安全更新、UFW、SSH、Docker、备份和访问报表保持 active。
+- 采样文件为 `gate0.csv`，timer active，service 执行状态为 success、重启次数为 0。
 
 ### 生产回滚
 
