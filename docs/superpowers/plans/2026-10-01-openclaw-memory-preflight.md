@@ -321,7 +321,7 @@ git commit -m "ops: apply reversible memory optimizations"
 - Produces: Gate 0 通过或不通过结论。
 - Blocks: Node、OpenClaw、QQBot 安装和阶段 1。
 
-- [ ] **Step 1: 启动新的 72 小时采样文件**
+- [x] **Step 1: 启动新的 72 小时采样文件**
 
 ```bash
 systemctl stop umoweb-openclaw-preflight.timer
@@ -330,7 +330,7 @@ bash scripts/openclaw/preflight/install-memory-preflight-timer.sh gate0
 
 Expected: 新文件为 `/var/log/umoweb/openclaw-preflight/gate0.csv`，旧 baseline 文件保留。
 
-- [ ] **Step 2: 观察 72 小时**
+- [x] **Step 2: 观察 72 小时**
 
 每 5 分钟必须有样本。出现以下任一情况立即失败：
 
@@ -342,7 +342,7 @@ openclaw.service 已存在
 采样器写入非 CSV 或缺失字段
 ```
 
-- [ ] **Step 3: 运行分析器**
+- [x] **Step 3: 运行分析器**
 
 ```bash
 python3 scripts/openclaw/preflight/analyze-memory.py /var/log/umoweb/openclaw-preflight/gate0.csv
@@ -350,7 +350,7 @@ python3 scripts/openclaw/preflight/analyze-memory.py /var/log/umoweb/openclaw-pr
 
 Expected: `sample_count >= 864`、`min_mem_available_kib > 491520`、`pass=true`。
 
-- [ ] **Step 4: 运行 UmoWeb 冒烟**
+- [x] **Step 4: 运行 UmoWeb 冒烟**
 
 ```powershell
 cd "Server Side\UmoWebBackend"
@@ -359,7 +359,7 @@ cd "Server Side\UmoWebBackend"
 
 Expected: 31/31 通过。
 
-- [ ] **Step 5: 写入 Gate 0 结论**
+- [x] **Step 5: 写入 Gate 0 结论**
 
 `docs/project/openclaw-memory-preflight.md` 必须包含：
 
@@ -375,7 +375,7 @@ UmoWeb 冒烟结果
 通过或不通过
 ```
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add docs/project/openclaw-memory-preflight.md
@@ -392,3 +392,7 @@ git commit -m "docs: record openclaw gate zero memory result"
 相对新门槛保留约 9.4 MiB 余量。停用服务需要在 72 小时采样期间保持关闭，
 2 GiB swap 保留且不计入通过条件。新采样开始于 `2026-10-01T13:38:46Z`，
 首样本为 `MemAvailable=502212 KiB`，目标结束时间为 `2026-10-04T13:38:46Z`。
+
+2026-10-05 到期结果为不通过：1031 个样本中 684 个低于 491520 KiB，最小值为
+401800 KiB，且 frontend/backend 在观察窗口内重新启动。停用服务已恢复，
+`gate0.csv` 和 2 GiB swap 保留，未安装 OpenClaw。

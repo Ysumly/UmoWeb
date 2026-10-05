@@ -1,7 +1,7 @@
 # OpenClaw 内存前置与基线测量
 
-> 状态日期: 2026-10-01
-> 当前阶段: Task 1-4 已完成，480 MiB Gate 0 的 72 小时采样进行中
+> 状态日期: 2026-10-05
+> 当前阶段: Task 1-5 已完成，480 MiB Gate 0 不通过，未安装 OpenClaw
 
 ## 目标
 
@@ -232,11 +232,77 @@ QQBot；只有新 Gate 0 通过后才允许讨论后续阶段。不得通过停�
 - Aegis、云监控、自动安全更新、UFW、SSH、Docker、备份和访问报表保持 active。
 - 采样文件为 `gate0.csv`，timer active，service 执行状态为 success、重启次数为 0。
 
+### Gate 0 最终结果
+
+`gate0.csv` 于 2026-10-05 到期封存，timer 已停止并禁用，原始 CSV 保留在 ECS。
+
+```json
+{
+  "sample_count": 1031,
+  "min_mem_available_kib": 401800,
+  "p05_mem_available_kib": 452916,
+  "median_mem_available_kib": 486488,
+  "below_threshold_count": 684,
+  "threshold_kib": 491520,
+  "required_sample_count": 864,
+  "pass": false
+}
+```
+
+| 校验项 | 结果 |
+|---|---|
+| 首样本 | `2026-10-01T13:38:41Z`，不晚于目标开始时间 |
+| 末样本 | `2026-10-05T04:10:02Z`，晚于目标结束时间 |
+| 覆盖时长 | 311481 秒，约 86 小时 31 分 |
+| 样本总数 | 1031，达到至少 864 的要求 |
+| 最大相邻采样间隔 | 307 秒，不超过 360 秒 |
+| 内存门槛 | 684 个样本小于等于 491520 KiB |
+| 容器健康字段 | 1031 个样本全部为 `healthy` |
+| OpenClaw 状态字段 | 1031 个样本全部为 `not-installed` |
+| 宿主 OOM kill | 0 |
+| Docker 服务重启 | `NRestarts=0` |
+| OpenClaw 边界 | 无 `openclaw.service`、无 Node/npm、无 `/opt/openclaw` |
+| UmoWeb API 冒烟 | 31/31 通过 |
+
+最低样本为：
+
+```text
+2026-10-04T17:55:02Z,1782760,401800,3146744,3146744,4263510,218313523,596744601,healthy,not-installed
+```
+
+该时刻 frontend、backend、MySQL 分别约 4.07 MiB、208.2 MiB、569.1 MiB，
+UmoWeb 健康状态正常。该时段 journald 另有 `fwupd-refresh.service` 失败警告，
+但未发生宿主 OOM。
+
+前端和后端容器的 `RestartCount` 均为 0，但 `StartedAt` 为
+`2026-10-03T19:38:11Z` 和 `2026-10-03T19:38:00Z`，落在 72 小时观察窗口内，
+不满足“窗口内无重启”的要求。MySQL 自 2026-09-12 起未重启。
+
+Gate 0 最终不通过，主要失败条件是 684 个样本低于 491520 KiB，另有容器在窗口内
+重新启动。未安装 Node、npm、OpenClaw 或 QQBot，也没有创建 `openclaw.service`。
+
 ### 生产回滚
 
 原始 500 MiB 评审结束后，所有停用或 mask 的宿主服务曾恢复为原状态：
 `bt.service`、`site_total`、`multipathd`、`fwupd`、`ModemManager`、`udisks2`、
 `networkd-dispatcher` 和 `tuned` 均已恢复启用并与安全服务一起验证 active。
+
+480 MiB 复测结束时按同一验证过的回滚命令再次恢复全部服务：
+
+```bash
+systemctl enable --now site_total.service
+systemctl enable --now multipathd.socket multipathd.service
+systemctl unmask --now fwupd.service
+systemctl enable --now ModemManager.service
+systemctl unmask --now udisks2.service
+systemctl enable --now networkd-dispatcher.service
+systemctl enable --now tuned.service
+systemctl enable bt.service
+/etc/init.d/bt start
+```
+
+回滚后 `fwupd` 和 `udisks2` 补执行 `systemctl start`，避免静态/DBus 单元停留在
+inactive。SSH、UFW、Docker、三个 UmoWeb 容器、公开入口和访问报表健康端点均正常。
 
 2 GiB 独立 swap 保留作为宿主保护缓冲。如需完全移除：
 
