@@ -52,6 +52,35 @@ for _ in $(seq 1 50); do
     sleep 0.1
 done
 
+assert_status() {
+    local path="$1"
+    local expected="$2"
+    local actual
+    actual="$(
+        curl --silent --output /dev/null --write-out '%{http_code}' \
+            "http://127.0.0.1:$PORT$path"
+    )"
+    if [[ "$actual" != "$expected" ]]; then
+        echo "FAIL: expected $path to return $expected, got $actual" >&2
+        exit 1
+    fi
+}
+
+for path in \
+    /actuator \
+    /actuator/env \
+    /Actuator/heapdump \
+    /jolokia/list \
+    /heapdump \
+    /beanshell \
+    /Jenkinsfile.groovy; do
+    assert_status "$path" 404
+done
+
+for path in / /library /privacy; do
+    assert_status "$path" 200
+done
+
 sentinel="umo-access-log-test-$$"
 curl --silent --output /dev/null \
     --header "Authorization: Bearer $sentinel" \

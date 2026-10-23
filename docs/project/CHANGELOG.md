@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-10-23 — 公开攻击面收敛 `v1.1.4`
+
+- 按阿里云 2026 年 9 月安全态势报告复核 JumpServer、Spring Boot、哪吒监控和 GitLab
+  四类风险；生产环境未安装 JumpServer、哪吒监控或 GitLab，Spring Boot Actuator、Jolokia、
+  BeanShell 和 Groovy 执行端点均不存在。
+- Nginx 对 `actuator`、`jolokia`、`heapdump`、`beanshell`、`env` 相关路径及 `.groovy`
+  静态文件明确返回 404，不再由 SPA fallback 返回 200；正常公开深链接保持 200。
+- ECS UFW 删除宝塔 `8888/tcp` 的 IPv4/IPv6 公网放行；删除后首页和公开 API 继续返回 200。
+- Nginx 容器集成测试同时断言敏感路径为 404，以及 `/`、`/library`、`/privacy` 为 200。
+
 ## 2026-09-24 — 管理端文章体验反馈批次
 
 - 文章管理列表固定按 `DRAFT → SCHEDULED → PUBLISHED → ARCHIVED` 分组，再按所选时间字段

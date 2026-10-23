@@ -56,8 +56,9 @@ CORS_ALLOWED_ORIGINS=http://localhost:18080
 | `backend` | Maven/JDK 17 构建 + JRE 17 | 不暴露 | `app_data:/app/data` |
 | `mysql` | `mysql:8.4` | 不暴露 | `mysql_data:/var/lib/mysql` |
 
-Nginx 代理 `/api/**` 和 `/images/**`，并对其他路径执行 SPA fallback。上传请求上限为
-52MB，后端继续按 50MB 进行最终校验。
+Nginx 代理 `/api/**` 和 `/images/**`，并对其他公开路由执行 SPA fallback。上传请求上限为
+52MB，后端继续按 50MB 进行最终校验。`actuator`、`jolokia`、`heapdump`、`beanshell`、
+`env` 相关路径和 `.groovy` 文件明确返回 404，防止安全扫描被 SPA fallback 误报为可用端点。
 
 Compose 默认使用 `172.30.0.0/24` 专用网络，Nginx 固定为 `172.30.0.10`。后端只信任
 `172.30.0.10/32` 转发的 `X-Forwarded-For`，因此搜索和登录限流按真实客户端 IP 计算。

@@ -1,6 +1,6 @@
 # UmoWeb 代码基线记忆
 
-> 基线日期: 2026-10-01
+> 基线日期: 2026-10-23
 > 范围: 当前工作区中的前端、后端、数据库脚本和文档
 > 原则: 代码行为优先；计划能力与已实现能力必须分开记录
 
@@ -511,7 +511,9 @@ Spring Multipart 限制单文件和请求均为 50MB。
 - 两个数据库脚本均显式 `SET NAMES utf8mb4`；内容种子重复执行时会刷新完整字段，避免容器初始化中文乱码。
 - 后端镜像包含 6 篇演示 Markdown，公开端返回 5 篇已发布内容，管理端可见 1 篇草稿。
 - `.env.docker` 由 `scripts/docker-up.ps1` 自动生成并被 Git 忽略，示例见 `.env.docker.example`。
-- Nginx 代理 `/api/**` 和 `/images/**`，SPA 路由回退到 `index.html`，上传请求上限 52MB。
+- Nginx 代理 `/api/**` 和 `/images/**`，其他公开路由回退到 `index.html`，上传请求上限 52MB。
+- Nginx 对 `actuator`、`jolokia`、`heapdump`、`beanshell`、`env` 相关路径及 `.groovy`
+  文件明确返回 404；正常 SPA 深链接仍返回 200。
 - Docker 默认网络为 `172.30.0.0/24`，前端固定为 `172.30.0.10`，后端只信任该地址 `/32` 转发的 `X-Forwarded-For`。
 - Nginx 使用 JSON 六字段访问日志：客户端 IP、ISO 8601 时间、HTTP 方法、无查询字符串的真实路径、
   状态码和响应字节数；日志写入 `access/logs` 绑定目录，不记录请求体、Cookie、Authorization、
@@ -588,6 +590,11 @@ Spring Multipart 限制单文件和请求均为 50MB。
   管理端文章状态分组、分类下拉、30 秒自动保存、整行编辑和 AI 结果预览修复通过发布前
   备份、独立 `Verify`、ECS 31/31、公网首页与站点 API 检查。当前生产版本为 `v1.1.3`，
   开发机保留 `v1.1.2` 与 `v1.1.3`，正式回滚目标为 `v1.1.2`。
+- 2026-10-23 按阿里云 2026 年 9 月安全态势报告完成只读排查：ECS 未安装 JumpServer、
+  哪吒 agent 或 GitLab，UmoWeb 未引入 Actuator、Jolokia、BeanShell 或 Groovy 执行端点；
+  历史访问日志中的相关扫描均由 SPA fallback 返回静态首页，没有成功利用证据。
+- 2026-10-23 已从 ECS UFW 删除宝塔 `8888/tcp` 的 IPv4/IPv6 放行规则；默认入站策略保持
+  deny，删除后网站首页和公开 API 均为 200。
 - 2026-10-01 已完成 OpenClaw 阶段 0 Task 1-2：只读内存采样器和每 5 分钟 systemd timer
   已部署到 ECS，基线写入 `/var/log/umoweb/openclaw-preflight/baseline.csv`；当前
   `MemAvailable` 约为 363 MiB，Gate 0 尚未开始，尚未安装 Node、OpenClaw 或 QQBot。

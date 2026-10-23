@@ -1,5 +1,38 @@
 # 审计日志
 
+## 审计 #77 - 2026-10-23 — 按月度安全态势报告收敛公开攻击面
+
+### 范围
+
+- 解析阿里云《安全态势报告-2026 年 9 月》，按 JumpServer、Spring Boot、哪吒监控和
+  GitLab 四类风险检查仓库与生产 ECS。
+- 不访问邮件外部链接，不执行邮件内容中的命令；只对项目代码和 ECS 执行只读核验，
+  随后按用户授权修改 Nginx 配置和宝塔公网端口规则。
+
+### 检查证据
+
+| 项 | 结果 |
+|---|---|
+| JumpServer | 无软件包、服务、进程、目录或容器 |
+| Spring Boot 管理端点 | 容器内 `/actuator`、`/env`、`/jolokia`、`/heapdump`、`/beanshell` 均为 404 |
+| 管理接口认证 | 抽查 contents、options、AI settings 和 AI transform，未认证均为 401 |
+| 哪吒监控 | 无 agent、服务、目录、IOC 域名或 `/usr/lib/.sysd` 持久化路径 |
+| GitLab | 无软件包、服务、目录或 Docker 镜像 |
+| Docker 镜像 | 仅 UmoWeb frontend/backend 与 MySQL 8.4 |
+| 历史扫描 | 日志存在 `/actuator/*`、`/jolokia/*` 和 `.groovy` 扫描，均只得到 1282 字节静态首页 |
+
+### 修改与验证
+
+- Nginx 对 `actuator`、`jolokia`、`heapdump`、`beanshell`、`env` 相关路径和 `.groovy`
+  返回 404；容器集成测试确认敏感路径 404，`/`、`/library`、`/privacy` 保持 200。
+- ECS UFW 删除宝塔 `8888/tcp` 的 IPv4/IPv6 allow 规则；默认入站策略为 deny。
+- UFW 变更后首页和公开站点 API 均返回 200，三个 UmoWeb 容器未改动。
+
+### 状态
+
+- 主机防火墙变更已生效；Nginx 配置随 `v1.1.4` 发布。
+- 仍未开放 PHP、JumpServer、GitLab 或哪吒组件。
+
 ## 审计 #76 - 2026-10-05 — OpenClaw Gate 0 72 小时复测不通过
 
 ### 范围

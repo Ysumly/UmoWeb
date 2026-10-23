@@ -210,6 +210,10 @@ Nginx 另通过 `ACCESS_TRUSTED_PROXIES` 配置自己的上游可信代理。默
 客户端提供的 `X-Forwarded-For`；只有直连来源匹配可信 IP/CIDR 时才启用 real_ip 解析。
 该项与后端 `TRUSTED_PROXIES` 是两层独立信任边界，最终代理拓扑变化时必须同时复核。
 
+Nginx 对 `actuator`、`jolokia`、`heapdump`、`beanshell`、`env` 的首段路径及相关子路径返回
+404，并对所有 `.groovy` 路径返回 404，避免常见框架扫描被 SPA fallback 误报为可用端点。
+该规则不匹配 `/api/**` 和 `/images/**`；正常公开 SPA 深链接继续返回 `index.html`。
+
 管理端前端路径不再由后端 YAML 控制，前端通过 `VITE_ADMIN_PATH` 配置并默认 `/secret-admin`，
 示例见 `Client Side/umo-web-frontend/.env.example`。
 
@@ -297,7 +301,8 @@ time, ip, method, path, status, bytes
 - 路径穿越、临时文件、回滚和原子替换测试。
 - 伪造 MIME、空原始文件名和上传数据库失败清理测试。
 - 六字段日志解析、敏感字段拒绝、聚合去重、保留边界、可信代理生成和报表转义测试。
-- Nginx 容器级合成请求验证，覆盖查询参数、Cookie、Authorization、请求体和伪造转发头。
+- Nginx 容器级合成请求验证，覆盖查询参数、Cookie、Authorization、请求体、伪造转发头、
+  安全扫描路径 404 和公开 SPA 深链接 200。
 
 仍缺少：
 
