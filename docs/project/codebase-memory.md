@@ -588,13 +588,17 @@ Spring Multipart 限制单文件和请求均为 50MB。
   `LOCAL_RATE_LIMITED`。该版本随后由 `v1.1.3` 替代，当时正式回滚目标为 `v1.1.1`。
 - 2026-09-24 已发布正式版 `v1.1.3`：提交 `0920b0a1b87e`，push CI run `35960680216`；
   管理端文章状态分组、分类下拉、30 秒自动保存、整行编辑和 AI 结果预览修复通过发布前
-  备份、独立 `Verify`、ECS 31/31、公网首页与站点 API 检查。当前生产版本为 `v1.1.3`，
-  开发机保留 `v1.1.2` 与 `v1.1.3`，正式回滚目标为 `v1.1.2`。
+  备份、独立 `Verify`、ECS 31/31、公网首页与站点 API 检查。该版本随后由 `v1.1.4` 替代，
+  当时正式回滚目标为 `v1.1.2`。
 - 2026-10-23 按阿里云 2026 年 9 月安全态势报告完成只读排查：ECS 未安装 JumpServer、
   哪吒 agent 或 GitLab，UmoWeb 未引入 Actuator、Jolokia、BeanShell 或 Groovy 执行端点；
   历史访问日志中的相关扫描均由 SPA fallback 返回静态首页，没有成功利用证据。
 - 2026-10-23 已从 ECS UFW 删除宝塔 `8888/tcp` 的 IPv4/IPv6 放行规则；默认入站策略保持
   deny，删除后网站首页和公开 API 均为 200。
+- 2026-10-23 已发布正式版 `v1.1.4`：提交 `ff337761e8a4`，push CI run `39910364378`；
+  Nginx 安全扫描路径 404、公开路由 200、公开 API 200 和未认证管理接口 401 均通过，
+  三个容器运行正常。当前生产版本为 `v1.1.4`，开发机保留 `v1.1.3` 与 `v1.1.4`，
+  正式回滚目标为 `v1.1.3`。
 - 2026-10-01 已完成 OpenClaw 阶段 0 Task 1-2：只读内存采样器和每 5 分钟 systemd timer
   已部署到 ECS，基线写入 `/var/log/umoweb/openclaw-preflight/baseline.csv`；当前
   `MemAvailable` 约为 363 MiB，Gate 0 尚未开始，尚未安装 Node、OpenClaw 或 QQBot。
