@@ -53,6 +53,10 @@ data/
 !.env.docker.example
 .env.docker
 
+# === 本地云服务器接入 ===
+tencent-cloud-server.yaml
+*.pem
+
 # === 日志 ===
 *.log
 logs/
